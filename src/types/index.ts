@@ -115,6 +115,20 @@ export interface DonacionPayload {
     pecuniario: PecuniarioBase;
 }
 
+// Form types for donation registration
+export interface DetalleDonacion {
+    tipo: 'DINERO' | 'ESPECIE';
+    fecha: string; // ISO date string (YYYY-MM-DD)
+    monto: number;
+    descripcion: string;
+}
+
+export interface NuevoRegistro {
+    entidadId: number;
+    tipoEntidad: 'PERSONA' | 'INSTITUCION';
+    donacion: DetalleDonacion;
+}
+
 // Contracts for catalog items and non-pecuniary donations
 export interface CatalogoItem {
     id: number;

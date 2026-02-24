@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue';
-import type { NuevoRegistro, DetalleDonacion, EntidadResumen } from '../types';
+import { ref, computed, onMounted } from 'vue';
+import type { NuevoRegistro, DetalleDonacion, EntidadResumen, DonacionPayload } from '../types';
 import { apiService } from '../api/apiService';
 import { formatRutForDisplay } from '../utils/rutFormatter';
 
@@ -57,7 +57,8 @@ const cargarEntidades = async () => {
 const seleccionarEntidad = (entidad: EntidadResumen) => {
     selectedEntidad.value = entidad;
     nuevoRegistro.value.entidadId = entidad.id;
-    nuevoRegistro.value.tipoEntidad = entidad.tipo;
+    // Use tipoEntidad which is always defined, and map to expected values
+    nuevoRegistro.value.tipoEntidad = entidad.tipoEntidad === 'Persona' ? 'PERSONA' : 'INSTITUCION';
     searchQuery.value = ''; // "Limpiar" buscador visualmente, pero mostramos la selección aparte
     isDropdownOpen.value = false;
 };
@@ -76,7 +77,29 @@ const submitForm = async () => {
     submitSuccess.value = false;
 
     try {
-        await apiService.registrarDonacion(nuevoRegistro.value);
+        // Transform the simple form data into the complex DonacionPayload structure
+        const payload: DonacionPayload = {
+            ingreso: {
+                id: 0,
+                origenEntidadId: nuevoRegistro.value.entidadId,
+                montoTotal: nuevoRegistro.value.donacion.monto || 0,
+                fechaIngreso: nuevoRegistro.value.donacion.fecha
+            },
+            donacion: {
+                id: 0,
+                ingresoRecursoId: 0,
+                numeroCertificado: '', // Could be auto-generated or left empty
+                idDonante: nuevoRegistro.value.entidadId
+            },
+            pecuniario: {
+                id: 0,
+                ingresoDonacionId: 0,
+                monto: nuevoRegistro.value.donacion.monto || 0,
+                destino: nuevoRegistro.value.donacion.descripcion
+            }
+        };
+        
+        await apiService.registrarDonacion(payload);
         submitSuccess.value = true;
         emit('registro-completado');
         

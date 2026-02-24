@@ -34,16 +34,24 @@ const save = () => {
           <div class="sm:flex sm:items-start">
             <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
               <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
-                Editar Entidad: {{ formData.nombre }}
+                Editar Entidad: {{ formData.nombreCompleto }}
               </h3>
               <div class="mt-4 grid grid-cols-1 gap-y-4">
-                <div>
-                  <label for="nombre" class="block text-sm font-medium text-gray-700">Nombre</label>
-                  <input type="text" id="nombre" v-model="formData.nombre" class="mt-1 focus:ring-institutional-blue focus:border-institutional-blue block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2 border">
+                <div v-if="formData.tipoEntidad === 'Persona'">
+                  <label for="nombres" class="block text-sm font-medium text-gray-700">Nombres</label>
+                  <input type="text" id="nombres" v-model="formData.nombres" class="mt-1 focus:ring-institutional-blue focus:border-institutional-blue block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2 border">
+                </div>
+                <div v-if="formData.tipoEntidad === 'Persona'">
+                  <label for="apellidos" class="block text-sm font-medium text-gray-700">Apellidos</label>
+                  <input type="text" id="apellidos" v-model="formData.apellidos" class="mt-1 focus:ring-institutional-blue focus:border-institutional-blue block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2 border">
+                </div>
+                <div v-if="formData.tipoEntidad === 'Institucion'">
+                  <label for="nombreCompleto" class="block text-sm font-medium text-gray-700">Nombre</label>
+                  <input type="text" id="nombreCompleto" v-model="formData.nombreCompleto" class="mt-1 focus:ring-institutional-blue focus:border-institutional-blue block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2 border">
                 </div>
                 <div>
-                    <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
-                    <input type="email" id="email" v-model="formData.email" class="mt-1 focus:ring-institutional-blue focus:border-institutional-blue block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2 border">
+                    <label for="correo" class="block text-sm font-medium text-gray-700">Email</label>
+                    <input type="email" id="correo" v-model="formData.correo" class="mt-1 focus:ring-institutional-blue focus:border-institutional-blue block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2 border">
                 </div>
                  <div>
                     <label for="telefono" class="block text-sm font-medium text-gray-700">Teléfono</label>
