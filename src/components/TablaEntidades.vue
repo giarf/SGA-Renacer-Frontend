@@ -28,17 +28,14 @@ const handleEdit = (entidad: EntidadResumen) => {
     isModalOpen.value = true;
 };
 
-const handleSave = async (updatedEntidad: EntidadResumen) => {
+const handleSave = async (updatedData: any) => {
     try {
-         await apiService.actualizarEntidad(updatedEntidad.id, updatedEntidad);
-         // Update local list
-         const index = entidades.value.findIndex(e => e.id === updatedEntidad.id);
-         if (index !== -1) {
-             entidades.value[index] = updatedEntidad;
-         }
-         isModalOpen.value = false;
-    } catch (e) {
-        alert('Error al guardar cambios');
+        await apiService.actualizarEntidad(updatedData.id, updatedData);
+        // Refresh the list to get updated data from server
+        await fetchEntidades();
+        isModalOpen.value = false;
+    } catch (e: any) {
+        alert('Error al guardar cambios: ' + (e.message || 'Error desconocido'));
     }
 };
 
@@ -56,9 +53,9 @@ const filtrar = (tipo: string) => {
   <div class="flex flex-col">
     <!-- Filters -->
     <div class="mb-4 flex space-x-2">
-        <button @click="filtrar('')" :class="`px-4 py-2 rounded ${filtroTipo === '' ? 'bg-institutional-blue text-white' : 'bg-white text-gray-700 border'}`">Todos</button>
-        <button @click="filtrar('PERSONA')" :class="`px-4 py-2 rounded ${filtroTipo === 'PERSONA' ? 'bg-institutional-blue text-white' : 'bg-white text-gray-700 border'}`">Personas</button>
-        <button @click="filtrar('INSTITUCION')" :class="`px-4 py-2 rounded ${filtroTipo === 'INSTITUCION' ? 'bg-institutional-blue text-white' : 'bg-white text-gray-700 border'}`">Instituciones</button>
+        <button @click="filtrar('')" :class="`px-4 py-2 rounded ${filtroTipo === '' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 border'}`">Todos</button>
+        <button @click="filtrar('PERSONA')" :class="`px-4 py-2 rounded ${filtroTipo === 'PERSONA' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 border'}`">Personas</button>
+        <button @click="filtrar('INSTITUCION')" :class="`px-4 py-2 rounded ${filtroTipo === 'INSTITUCION' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 border'}`">Instituciones</button>
     </div>
 
     <div v-if="loading" class="text-center py-4">

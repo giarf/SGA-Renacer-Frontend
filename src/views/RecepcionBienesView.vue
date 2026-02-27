@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import type { EntidadResumen, CatalogoItem, ItemDonacionBienes, DonacionBienesPayload } from '../types';
+import type { EntidadResumen, CatalogoItem, DonacionBienesPayload } from '../types';
 import { apiService } from '../api/apiService';
 import { formatRutForDisplay } from '../utils/rutFormatter';
+import ModalRegistroCatalogo from '../components/ModalRegistroCatalogo.vue';
+import { Trash2, ClipboardList, Loader2, Plus } from 'lucide-vue-next';
 
 // Debounce utility
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -27,8 +29,16 @@ const loadingReceptor = ref(false);
 const showReceptorDropdown = ref(false);
 const selectedReceptor = ref<EntidadResumen | null>(null);
 
-// State for purpose
+// State for purpose / notes
 const proposito = ref('');
+const anotaciones = ref('');
+
+// State for gestor (optional)
+const gestorQuery = ref('');
+const gestorResults = ref<EntidadResumen[]>([]);
+const showGestorDropdown = ref(false);
+const selectedGestor = ref<EntidadResumen | null>(null);
+const loadingGestor = ref(false);
 
 // State for catalog item search
 const itemQuery = ref('');
@@ -41,11 +51,15 @@ const selectedItem = ref<CatalogoItem | null>(null);
 const itemCantidad = ref<number>(1);
 const itemPrecio = ref<number>(0);
 
+// State for catalog modal
+const showModalRegistroCatalogo = ref(false);
+
 // Local items list (before submission)
 interface LocalItem {
-    itemCatalogoId: number;
+    itemCatalogoId?: number;
     nombre: string;
-    unidadMedida: string;
+    categoria: string;
+    unidad: string;
     cantidad: number;
     precio: number;
 }
@@ -62,7 +76,7 @@ const montoTotal = computed(() => {
 
 // Search methods
 const searchDonador = debounce(async (query: string) => {
-    if (!query || query.trim().length < 2) {
+    if (!query || query.trim().length < 1) {
         donadorResults.value = [];
         return;
     }
@@ -78,7 +92,7 @@ const searchDonador = debounce(async (query: string) => {
 }, 300);
 
 const searchReceptor = debounce(async (query: string) => {
-    if (!query || query.trim().length < 2) {
+    if (!query || query.trim().length < 1) {
         receptorResults.value = [];
         return;
     }
@@ -109,6 +123,24 @@ const searchItems = debounce(async (query: string) => {
     }
 }, 300);
 
+const searchGestor = debounce(async (query: string) => {
+    if (!query || query.trim().length < 2) {
+        gestorResults.value = [];
+        showGestorDropdown.value = false;
+        return;
+    }
+    loadingGestor.value = true;
+    try {
+        gestorResults.value = await apiService.buscarEntidades(query);
+        showGestorDropdown.value = true;
+    } catch (error) {
+        console.error('Error buscando gestores', error);
+        gestorResults.value = [];
+    } finally {
+        loadingGestor.value = false;
+    }
+}, 300);
+
 // Selection methods
 const selectDonador = (entidad: EntidadResumen) => {
     selectedDonador.value = entidad;
@@ -124,8 +156,32 @@ const selectReceptor = (entidad: EntidadResumen) => {
 
 const selectItem = (item: CatalogoItem) => {
     selectedItem.value = item;
+    // Auto-fill with reference price (editable)
+    itemPrecio.value = item.precioReferencia;
     itemQuery.value = '';
     showItemDropdown.value = false;
+    itemQuery.value = '';
+    showItemDropdown.value = false;
+};
+
+const selectGestor = (entidad: EntidadResumen) => {
+    selectedGestor.value = entidad;
+    gestorQuery.value = '';
+    showGestorDropdown.value = false;
+};
+
+const clearGestor = () => {
+    selectedGestor.value = null;
+    gestorQuery.value = '';
+    showGestorDropdown.value = false;
+};
+
+const handleCatalogoCreado = () => {
+    // Retry search if there was a query, otherwise just close
+    if (itemQuery.value && itemQuery.value.length >= 2) {
+        searchItems(itemQuery.value);
+    }
+    showModalRegistroCatalogo.value = false;
 };
 
 // Add item to local list
@@ -140,7 +196,8 @@ const addItemToList = () => {
         cantidad: itemCantidad.value,
         precio: itemPrecio.value,
         nombre: selectedItem.value.nombre,
-        unidadMedida: selectedItem.value.unidadMedida
+        categoria: selectedItem.value.categoria || 'Sin categoría',
+        unidad: selectedItem.value.unidadMedidaEstandar || 'unidad'
     });
 
     // Reset item form
@@ -174,46 +231,47 @@ const submitDonacion = async () => {
     submitting.value = true;
     message.value = null;
 
-    // Generar número de certificado único basado en timestamp
-    const numeroCertificado = `DON-BIEN-${new Date().getFullYear()}-${Date.now()}`;
-
     const payload: DonacionBienesPayload = {
         ingreso: {
-            id: 0,
             origenEntidadId: selectedDonador.value.id,
             responsableInternoId: selectedReceptor.value.id,
             montoTotal: montoTotal.value,
             tipoTransaccion: 'Donacion',
-            estado: 'Cerrado'
+            estado: 'Cerrado',
+            anotaciones: anotaciones.value.trim() || undefined
         },
         donacion: {
-            ingresoId: 0,
-            numeroCertificado: numeroCertificado,
-            propositoEspecifico: proposito.value || 'Campaña Invierno'
+            propositoEspecifico: proposito.value || 'Campaña Invierno',
+            gestorId: selectedGestor.value?.id
         },
         items: items.value.map(item => ({
-            id: 0,
             itemCatalogoId: item.itemCatalogoId,
             nombre: item.nombre,
+            categoria: item.categoria,
+            unidad: item.unidad,
             cantidad: item.cantidad,
             precio: item.precio
         }))
     };
 
     // Debug: Ver exactamente qué se está enviando
-    console.log("📤 Datos a enviar al backend:", JSON.stringify(payload, null, 2));
+    console.log("Datos a enviar al backend:", JSON.stringify(payload, null, 2));
 
     try {
         const result = await apiService.registrarDonacionBienes(payload);
         message.value = { 
             type: 'success', 
-            text: `✅ Donación registrada exitosamente. ID de Ingreso: ${result.id_ingreso}` 
+            text: `Donación registrada exitosamente. ID de ingreso: ${result.id_ingreso}` 
         };
         
         // Reset form
         selectedDonador.value = null;
         selectedReceptor.value = null;
         proposito.value = '';
+        anotaciones.value = '';
+        selectedGestor.value = null;
+        gestorQuery.value = '';
+        gestorResults.value = [];
         items.value = [];
         
         // Scroll to top to show success message
@@ -227,22 +285,23 @@ const submitDonacion = async () => {
 </script>
 
 <template>
-    <div class="max-w-6xl mx-auto py-8 px-4">
-        <h2 class="text-3xl font-bold text-institutional-blue mb-8 border-b-2 border-institutional-blue pb-3">
-            Recepción de Donaciones No Pecuniarias
-        </h2>
+    <div class="px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        <div class="space-y-2">
+            <p class="text-xs uppercase tracking-[0.35em] text-indigo-500 font-semibold">Recepción</p>
+            <h2 class="text-3xl font-bold text-gray-900">Donaciones no pecuniarias</h2>
+            <p class="text-gray-600 max-w-3xl text-sm">Replica el flujo de Consumo Interno: identifica actores, detalla el propósito y registra cada ítem valorizado.</p>
+        </div>
 
-        <!-- Success/Error Messages -->
         <div 
             v-if="message" 
-            :class="`mb-6 p-4 rounded-md ${message.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'}`"
+            :class="`p-4 rounded-xl border ${message.type === 'success' ? 'border-green-200 bg-green-50 text-green-800' : 'border-red-200 bg-red-50 text-red-800'}`"
         >
             {{ message.text }}
         </div>
 
         <!-- Section 1: Actores (Donor, Receiver, Purpose) -->
-        <div class="bg-white shadow-md rounded-lg p-6 mb-6 border-t-4 border-institutional-blue">
-            <h3 class="text-xl font-semibold text-institutional-blue mb-6">1. Identificar Actores</h3>
+        <div class="bg-white shadow rounded-lg p-5 border border-gray-200">
+            <h3 class="text-base font-semibold text-gray-800 mb-4">1. Identificar actores</h3>
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <!-- Donor Searcher -->
@@ -251,12 +310,12 @@ const submitDonacion = async () => {
                         Donador <span class="text-red-500">*</span>
                     </label>
                     
-                    <div v-if="selectedDonador" class="flex items-center justify-between bg-blue-50 p-4 rounded-md border-l-4 border-l-institutional-blue border border-blue-200">
+                    <div v-if="selectedDonador" class="flex flex-col gap-3 bg-indigo-50 p-4 rounded-md border border-indigo-200">
                         <div>
                             <span class="block font-bold text-institutional-blue">{{ selectedDonador.nombreCompleto }}</span>
                             <span class="text-sm text-gray-600">{{ formatRutForDisplay(selectedDonador.identificador) }}</span>
                         </div>
-                        <button @click="selectedDonador = null" class="text-gray-500 hover:text-gray-700 text-sm underline">
+                        <button @click="selectedDonador = null" class="self-start px-3 py-1.5 rounded-md border border-gray-300 text-gray-600 hover:text-gray-800 text-sm">
                             Cambiar
                         </button>
                     </div>
@@ -300,12 +359,12 @@ const submitDonacion = async () => {
                         Receptor <span class="text-red-500">*</span>
                     </label>
                     
-                    <div v-if="selectedReceptor" class="flex items-center justify-between bg-green-50 p-4 rounded-md border-l-4 border-l-green-600 border border-green-200">
+                    <div v-if="selectedReceptor" class="flex flex-col gap-3 bg-indigo-50 p-4 rounded-md border border-indigo-200">
                         <div>
                             <span class="block font-bold text-green-700">{{ selectedReceptor.nombreCompleto }}</span>
                             <span class="text-sm text-gray-600">{{ formatRutForDisplay(selectedReceptor.identificador) }}</span>
                         </div>
-                        <button @click="selectedReceptor = null" class="text-gray-500 hover:text-gray-700 text-sm underline">
+                        <button @click="selectedReceptor = null" class="self-start px-3 py-1.5 rounded-md border border-gray-300 text-gray-600 hover:text-gray-800 text-sm">
                             Cambiar
                         </button>
                     </div>
@@ -356,11 +415,72 @@ const submitDonacion = async () => {
                     class="block w-full shadow-sm focus:ring-institutional-blue focus:border-institutional-blue sm:text-sm border-gray-300 rounded-md p-3 border"
                 />
             </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                <div class="relative">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Gestor / Responsable (opcional)
+                    </label>
+
+                    <div v-if="selectedGestor" class="flex flex-col gap-2 bg-amber-50 border border-amber-200 rounded-md p-4">
+                        <div>
+                            <p class="font-semibold text-amber-900">{{ selectedGestor.nombreCompleto }}</p>
+                            <p class="text-xs text-gray-600">{{ formatRutForDisplay(selectedGestor.identificador) }}</p>
+                        </div>
+                        <button type="button" @click="clearGestor" class="self-start text-xs px-3 py-1.5 rounded-full border border-amber-300 text-amber-700 hover:bg-amber-100">
+                            Cambiar
+                        </button>
+                    </div>
+
+                    <div v-else>
+                        <input 
+                            type="text" 
+                            v-model="gestorQuery"
+                            @input="searchGestor(gestorQuery)"
+                            @focus="showGestorDropdown = true"
+                            placeholder="Buscar por nombre o RUT..."
+                            class="block w-full shadow-sm focus:ring-institutional-blue focus:border-institutional-blue sm:text-sm border-gray-300 rounded-md p-3 border"
+                        />
+
+                        <div v-if="showGestorDropdown && gestorQuery.length >= 2" class="absolute z-20 mt-1 w-full bg-white shadow-xl rounded-md border border-gray-200 max-h-60 overflow-auto">
+                            <div v-if="loadingGestor" class="p-4 text-center text-gray-500">
+                                Buscando...
+                            </div>
+                            <ul v-else-if="gestorResults.length > 0">
+                                <li 
+                                    v-for="entidad in gestorResults" 
+                                    :key="entidad.id"
+                                    @click="selectGestor(entidad)"
+                                    class="px-4 py-3 hover:bg-amber-50 cursor-pointer border-b last:border-0"
+                                >
+                                    <p class="font-medium text-gray-900">{{ entidad.nombreCompleto }}</p>
+                                    <p class="text-xs text-gray-500">{{ formatRutForDisplay(entidad.identificador) }}</p>
+                                </li>
+                            </ul>
+                            <div v-else class="p-4 text-center text-gray-500 text-sm">
+                                No se encontraron resultados
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Anotaciones internas
+                    </label>
+                    <textarea
+                        v-model="anotaciones"
+                        rows="4"
+                        placeholder="Notas o contexto adicional para esta donación (opcional)"
+                        class="block w-full shadow-sm focus:ring-institutional-blue focus:border-institutional-blue sm:text-sm border-gray-300 rounded-md p-3 border"
+                    ></textarea>
+                </div>
+            </div>
         </div>
 
         <!-- Section 2: Item Management -->
-        <div class="bg-white shadow-md rounded-lg p-6 mb-6 border-t-4 border-purple-600">
-            <h3 class="text-xl font-semibold text-purple-700 mb-6">2. Gestión de Ítems</h3>
+        <div class="bg-white shadow rounded-lg p-5 border border-gray-200">
+            <h3 class="text-base font-semibold text-gray-800 mb-4">2. Gestión de ítems</h3>
             
             <!-- Item Searcher -->
             <div class="relative mb-6">
@@ -372,7 +492,7 @@ const submitDonacion = async () => {
                     <div>
                         <span class="block font-bold text-purple-700">{{ selectedItem.nombre }}</span>
                         <span class="text-sm text-gray-600">
-                            Stock actual: {{ selectedItem.stockActual }} {{ selectedItem.unidadMedida }}
+                            Stock actual: {{ selectedItem.stockActual }} {{ selectedItem.unidadMedidaEstandar }}
                         </span>
                     </div>
                     <button @click="selectedItem = null" class="text-gray-500 hover:text-gray-700 text-sm underline">
@@ -404,12 +524,19 @@ const submitDonacion = async () => {
                             >
                                 <p class="font-medium text-gray-900">{{ item.nombre }}</p>
                                 <p class="text-xs text-gray-500">
-                                    Stock: {{ item.stockActual }} {{ item.unidadMedida }}
+                                    Stock: {{ item.stockActual }} {{ item.unidadMedidaEstandar }} | Precio ref: ${{ item.precioReferencia }}
                                 </p>
                             </li>
                         </ul>
-                        <div v-else class="p-4 text-center text-gray-500 text-sm">
-                            No se encontró el ítem. Debe crearse en la sección de Catálogo.
+                        <div v-else class="p-4 flex flex-col items-center">
+                            <p class="text-gray-500 text-sm mb-2">No se encontró el ítem.</p>
+                            <button 
+                                @click="showModalRegistroCatalogo = true"
+                                type="button"
+                                class="btn btn-outline text-sm"
+                            >
+                                <Plus class="w-4 h-4" /> Crear nuevo ítem
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -419,19 +546,19 @@ const submitDonacion = async () => {
             <div v-if="selectedItem" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">
-                        Cantidad <span class="text-red-500">*</span>
+                        Cantidad ({{ selectedItem.unidadMedidaEstandar || 'unidad' }}) <span class="text-red-500">*</span>
                     </label>
                     <input 
                         type="number" 
                         v-model.number="itemCantidad"
                         min="1"
-                        step="1"
+                        step="0.01"
                         class="block w-full shadow-sm focus:ring-institutional-blue focus:border-institutional-blue sm:text-sm border-gray-300 rounded-md p-2 border"
                     />
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">
-                        Precio Estimado ($) <span class="text-red-500">*</span>
+                        Precio por {{ selectedItem.unidadMedidaEstandar || 'unidad' }} ($) <span class="text-red-500">*</span>
                     </label>
                     <div class="relative">
                         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -447,18 +574,18 @@ const submitDonacion = async () => {
                     </div>
                 </div>
                 <div class="flex items-end">
-                    <button 
-                        @click="addItemToList"
-                        class="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-md transition"
-                    >
-                        ➕ Agregar
+                            <button 
+                                @click="addItemToList"
+                                class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-md transition"
+                            >
+                                Agregar ítem
                     </button>
                 </div>
             </div>
         </div>
 
         <!-- Section 3: Items Table -->
-        <div v-if="items.length > 0" class="bg-white shadow rounded-lg p-6 mb-6">
+        <div v-if="items.length > 0" class="bg-white shadow rounded-2xl p-6 border border-gray-100">
             <h3 class="text-xl font-semibold text-gray-900 mb-4">3. Ítems Agregados</h3>
             
             <div class="overflow-x-auto">
@@ -486,7 +613,7 @@ const submitDonacion = async () => {
                         <tr v-for="(item, index) in items" :key="index">
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="text-sm font-medium text-gray-900">{{ item.nombre }}</div>
-                                <div class="text-xs text-gray-500">{{ item.unidadMedida }}</div>
+                                <div class="text-xs text-gray-500">{{ item.categoria }} • {{ item.unidad }}</div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                 {{ item.cantidad }}
@@ -500,9 +627,9 @@ const submitDonacion = async () => {
                             <td class="px-6 py-4 whitespace-nowrap text-sm">
                                 <button 
                                     @click="removeItem(index)"
-                                    class="text-red-600 hover:text-red-800 font-medium"
+                                    class="inline-flex items-center gap-1 text-red-600 hover:text-red-800 font-medium"
                                 >
-                                    🗑️ Eliminar
+                                    <Trash2 class="w-4 h-4" /> Eliminar
                                 </button>
                             </td>
                         </tr>
@@ -524,13 +651,26 @@ const submitDonacion = async () => {
 
         <!-- Section 4: Submit Button -->
         <div class="flex justify-end">
-            <button 
-                @click="submitDonacion"
-                :disabled="submitting"
-                class="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-bold py-3 px-8 rounded-md shadow-lg transition text-lg"
-            >
-                {{ submitting ? '⏳ Guardando...' : '📋 Registrar Donación de Bienes' }}
-            </button>
+                <button 
+                    @click="submitDonacion"
+                    :disabled="submitting"
+                    class="btn btn-primary text-lg px-8 py-3 disabled:opacity-50"
+                >
+                    <template v-if="submitting">
+                        <Loader2 class="w-5 h-5 animate-spin" />
+                        Guardando...
+                    </template>
+                    <template v-else>
+                        <ClipboardList class="w-5 h-5" />
+                        Registrar Donación de Bienes
+                    </template>
+                </button>
         </div>
     </div>
+
+    <ModalRegistroCatalogo 
+        v-if="showModalRegistroCatalogo"
+        @close="showModalRegistroCatalogo = false" 
+        @created="handleCatalogoCreado"
+    />
 </template>

@@ -99,12 +99,12 @@ const displayValue = computed(() => phoneNumber.value);
 </script>
 
 <template>
-    <div class="flex gap-2">
+    <div class="flex gap-2 w-full">
         <!-- Country Selector -->
         <select 
             v-model="selectedCountry"
             @change="handleCountryChange"
-            class="w-24 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            class="w-[35%] sm:w-[30%] px-2 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
         >
             <option 
                 v-for="country in countries" 
@@ -124,7 +124,7 @@ const displayValue = computed(() => phoneNumber.value);
             placeholder="9 8765 4321"
             maxlength="11"
             style="min-width: 0;"
-            class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            class="w-[65%] sm:w-[70%] px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         />
     </div>
 </template>

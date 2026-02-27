@@ -1,513 +1,546 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue';
-import type { EntidadResumen, PersonaEditPayload, RegistrarPersonaPayload } from '../types';
+import { ref, computed, onMounted, nextTick, reactive, watch, onBeforeUnmount } from 'vue';
+import type { EntidadResumen, ActualizarEntidadPayload, ActualizarPersonaPayload, ActualizarInstitucionPayload } from '../types';
 import { apiService } from '../api/apiService';
-import PhoneInput from '../components/PhoneInput.vue';
-import { formatRutForDisplay, formatRutForBackend } from '../utils/rutFormatter';
+import PersonaForm from '../components/PersonaForm.vue';
+import InstitucionForm from '../components/InstitucionForm.vue';
+import ModalEditar from '../components/ModalEditar.vue';
+import ModalConfirmacionEliminar from '../components/ModalConfirmacionEliminar.vue';
+import { formatRutForDisplay } from '../utils/rutFormatter';
+import { Trash2, Plus, Pencil, Users, Building2 } from 'lucide-vue-next';
 
-const entidades = ref<EntidadResumen[]>([]);
+const personas = ref<EntidadResumen[]>([]);
+const instituciones = ref<EntidadResumen[]>([]);
 const loading = ref(true);
-const filterTipo = ref<'Todos' | 'Persona' | 'Institucion'>('Todos');
-const searchQuery = ref('');
+const personaSearch = ref('');
+const institucionSearch = ref('');
+const activeSection = ref<'personas' | 'instituciones'>('personas');
+const createMode = ref<'persona' | 'institucion' | null>(null);
+const isEditModalOpen = ref(false);
+const selectedEntidad = ref<EntidadResumen | null>(null);
+const message = ref<{ type: 'success' | 'error'; text: string } | null>(null);
+const isDeleteModalOpen = ref(false);
+const isDeleting = ref(false);
+const deleteTarget = ref<{ id: number; tipo: 'Persona' | 'Institucion'; nombre: string } | null>(null);
+const highlightedPersonaId = ref<number | null>(null);
+const gestorFallback = reactive<Record<number, EntidadResumen>>({});
+let highlightTimeout: ReturnType<typeof setTimeout> | null = null;
 
-// Inline editing state
-const editingId = ref<number | null>(null);
-const editForm = ref<PersonaEditPayload>({
-    id: 0,
-    rut: '',
-    tipoEntidad: 'Persona',
-    telefono: '',
-    correo: '',
-    direccion: '',
-    comuna: '',
-    nombres: '',
-    apellidos: '',
-    genero: ''
-});
-const saving = ref(false);
-const message = ref<{type: 'success' | 'error', text: string} | null>(null);
-
-// Modal state for creating new person
-const showModal = ref(false);
-const newPersonForm = ref<RegistrarPersonaPayload>({
-    rut: '',
-    tipoEntidad: 'Persona',
-    telefono: '',
-    correo: '',
-    direccion: '',
-    comuna: '',
-    nombres: '',
-    apellidos: '',
-    genero: ''
+const personaDictionary = computed(() => {
+    const dict: Record<number, EntidadResumen> = {};
+    personas.value.forEach(persona => {
+        dict[persona.id] = persona;
+    });
+    return dict;
 });
 
-const fetchEntidades = async () => {
+const personasCount = computed(() => personas.value.length);
+const institucionesCount = computed(() => instituciones.value.length);
+
+const filteredPersonas = computed(() => {
+    const q = personaSearch.value.trim().toLowerCase();
+    if (!q) return personas.value;
+    return personas.value.filter(persona => {
+        const rut = persona.identificador?.toLowerCase() ?? '';
+        const nombre = persona.nombreCompleto?.toLowerCase() ?? '';
+        const comuna = persona.comuna?.toLowerCase() ?? '';
+        return nombre.includes(q) || rut.includes(q) || comuna.includes(q);
+    });
+});
+
+const filteredInstituciones = computed(() => {
+    const q = institucionSearch.value.trim().toLowerCase();
+    if (!q) return instituciones.value;
+    return instituciones.value.filter(inst => {
+        const rut = inst.identificador?.toLowerCase() ?? '';
+        const nombre = inst.nombreCompleto?.toLowerCase() ?? '';
+        const comuna = inst.comuna?.toLowerCase() ?? '';
+        return nombre.includes(q) || rut.includes(q) || comuna.includes(q);
+    });
+});
+
+const loadData = async () => {
     loading.value = true;
     try {
-        const typeParam = filterTipo.value === 'Todos' ? undefined : filterTipo.value;
-        const entidadesList = await apiService.getEntidades(typeParam);
-        
-        // Load detailed data for each Persona to get nombres and apellidos separately
-        const entidadesConDetalles = await Promise.all(
-            entidadesList.map(async (entidad) => {
-                if (entidad.tipoEntidad === 'Persona') {
-                    try {
-                        const response = await fetch(`http://localhost:8080/api/personas?id=${entidad.id}`);
-                        if (response.ok) {
-                            const personaData = await response.json();
-                            entidad.nombres = personaData.nombres;
-                            entidad.apellidos = personaData.apellidos;
-                        }
-                    } catch (e) {
-                        console.error(`Error loading details for persona ${entidad.id}:`, e);
-                    }
-                }
-                return entidad;
-            })
-        );
-        
-        entidades.value = entidadesConDetalles;
-    } catch (e) {
-        console.error(e);
+        const [personasData, institucionesData] = await Promise.all([
+            apiService.getPersonas(),
+            apiService.getInstituciones()
+        ]);
+        personas.value = personasData;
+        instituciones.value = institucionesData;
+    } catch (e: any) {
+        message.value = { type: 'error', text: e.message || 'No se pudieron cargar las entidades.' };
     } finally {
         loading.value = false;
     }
 };
 
-const filteredEntidades = computed(() => {
-    let result = entidades.value;
-    if (searchQuery.value) {
-        const q = searchQuery.value.toLowerCase();
-        result = result.filter(e => 
-            e.nombreCompleto.toLowerCase().includes(q) || 
-            e.identificador.toLowerCase().includes(q)
-        );
-    }
-    return result;
-});
-
-const startEdit = async (entidad: EntidadResumen) => {
-    // Fetch full persona data from API
-    try {
-        const response = await fetch(`http://localhost:8080/api/personas?id=${entidad.id}`);
-        if (!response.ok) throw new Error('Error fetching persona');
-        const personaData = await response.json();
-        
-        // Update the entidad object with detailed nombres/apellidos from API
-        entidad.nombres = personaData.nombres;
-        entidad.apellidos = personaData.apellidos;
-        
-        editingId.value = entidad.id;
-        editForm.value = {
-            id: personaData.id,
-            rut: personaData.rut,
-            tipoEntidad: 'Persona',
-            telefono: personaData.telefono || '',
-            correo: personaData.correo || '',
-            direccion: personaData.direccion || '',
-            comuna: personaData.comuna || '',
-            nombres: personaData.nombres || '',
-            apellidos: personaData.apellidos || '',
-            genero: personaData.genero || ''
-        };
-    } catch (e) {
-        console.error(e);
-        message.value = { type: 'error', text: 'Error al cargar datos de la persona' };
-    }
-};
-
-const saveEdit = async () => {
-    saving.value = true;
-    message.value = null;
-    try {
-        await apiService.editarPersona(editForm.value);
-        
-        // Update local data
-        await fetchEntidades();
-        
-        message.value = { type: 'success', text: '✅ Persona actualizada exitosamente' };
-        editingId.value = null;
-        
-        // Clear success message after 3 seconds
-        setTimeout(() => {
-            message.value = null;
-        }, 3000);
-    } catch (e: any) {
-        message.value = { type: 'error', text: `❌ Error al guardar: ${e.message}` };
-    } finally {
-        saving.value = false;
-    }
-};
-
-const cancelEdit = () => {
-    editingId.value = null;
-    message.value = null;
-};
-
-const resetNewPersonForm = () => {
-    newPersonForm.value = {
-        rut: '',
-        tipoEntidad: 'Persona',
-        telefono: '',
-        correo: '',
-        direccion: '',
-        comuna: '',
-        nombres: '',
-        apellidos: '',
-        genero: ''
-    };
-};
-
-// Format RUT: 12.345.678-9
-const formatRut = (value: string) => {
-    // Remove all non-alphanumeric characters
-    const clean = value.replace(/[^0-9kK]/g, '');
-    
-    if (clean.length === 0) return '';
-    
-    // Separate body and verifier digit
-    const body = clean.slice(0, -1);
-    const verifier = clean.slice(-1).toUpperCase();
-    
-    // Format body with dots
-    const formattedBody = body.replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.');
-    
-    // Return formatted RUT
-    return formattedBody ? `${formattedBody}-${verifier}` : verifier;
-};
-
-const handleRutInput = (event: Event) => {
-    const input = event.target as HTMLInputElement;
-    const cursorPosition = input.selectionStart || 0;
-    const oldValue = input.value;
-    const formatted = formatRut(input.value);
-    
-    newPersonForm.value.rut = formatted;
-    
-    // Adjust cursor position after formatting
+const showToast = (type: 'success' | 'error', text: string) => {
+    message.value = { type, text };
     setTimeout(() => {
-        const diff = formatted.length - oldValue.length;
-        input.setSelectionRange(cursorPosition + diff, cursorPosition + diff);
-    }, 0);
+        if (message.value?.text === text) {
+            message.value = null;
+        }
+    }, 3500);
 };
 
-const createPerson = async () => {
+const openCreatePanel = (mode: 'persona' | 'institucion') => {
+    createMode.value = mode;
+    activeSection.value = mode === 'persona' ? 'personas' : 'instituciones';
+};
+
+const closeCreatePanel = () => {
+    createMode.value = null;
+};
+
+const startEdit = (entidad: EntidadResumen) => {
+    selectedEntidad.value = entidad;
+    isEditModalOpen.value = true;
+};
+
+const handleSaveEdit = async (payload: ActualizarEntidadPayload) => {
     try {
-        // Format RUT for backend (remove dots, keep hyphen)
-        const payloadToSend = {
-            ...newPersonForm.value,
-            rut: formatRutForBackend(newPersonForm.value.rut)
-        };
-        
-        await apiService.registrarPersonaNueva(payloadToSend);
-        showModal.value = false;
-        resetNewPersonForm();
-        await fetchEntidades();
-        message.value = { type: 'success', text: '✅ Persona creada exitosamente' };
-        setTimeout(() => { message.value = null; }, 3000);
+        await apiService.actualizarEntidad(payload.id, payload);
+        await loadData();
+        if (selectedEntidad.value && selectedEntidad.value.id === payload.id) {
+            const base: EntidadResumen = {
+                ...selectedEntidad.value,
+                ...payload,
+                tipoEntidad: payload.tipoEntidad
+            };
+            if (payload.tipoEntidad === 'Persona') {
+                const personaPayload = payload as ActualizarPersonaPayload;
+                base.nombres = personaPayload.nombres ?? base.nombres;
+                base.apellidos = personaPayload.apellidos ?? base.apellidos;
+                base.nombreCompleto =
+                    `${personaPayload.nombres ?? base.nombres ?? ''} ${personaPayload.apellidos ?? base.apellidos ?? ''}`.trim() ||
+                    base.nombreCompleto;
+                base.correo = personaPayload.correo ?? base.correo;
+                base.telefono = personaPayload.telefono ?? base.telefono;
+                base.direccion = personaPayload.direccion ?? base.direccion;
+                base.comuna = personaPayload.comuna ?? base.comuna;
+                base.genero = personaPayload.genero ?? base.genero;
+                base.ocupacion = personaPayload.ocupacion ?? base.ocupacion;
+                base.redSocial = personaPayload.redSocial ?? base.redSocial;
+                base.gestorId = personaPayload.gestorId ?? base.gestorId;
+                base.anotaciones = personaPayload.anotaciones ?? base.anotaciones;
+                base.sector = personaPayload.sector ?? base.sector;
+            } else {
+                const institucionPayload = payload as ActualizarInstitucionPayload;
+                base.nombreCompleto =
+                    institucionPayload.nombre ??
+                    institucionPayload.nombreFantasia ??
+                    institucionPayload.razonSocial ??
+                    base.nombreCompleto;
+                base.razonSocial = institucionPayload.razonSocial ?? base.razonSocial;
+                base.nombreFantasia = institucionPayload.nombreFantasia ?? base.nombreFantasia;
+                base.subtipoInstitucion = institucionPayload.subtipoInstitucion ?? base.subtipoInstitucion;
+                base.rubro = institucionPayload.rubro ?? base.rubro;
+                base.redSocial = institucionPayload.redSocial ?? base.redSocial;
+                base.gestorId = institucionPayload.gestorId ?? base.gestorId;
+                base.anotaciones = institucionPayload.anotaciones ?? base.anotaciones;
+                base.sector = institucionPayload.sector ?? base.sector;
+                base.correo = institucionPayload.correo ?? base.correo;
+                base.telefono = institucionPayload.telefono ?? base.telefono;
+                base.direccion = institucionPayload.direccion ?? base.direccion;
+                base.comuna = institucionPayload.comuna ?? base.comuna;
+            }
+            selectedEntidad.value = base;
+        }
+        isEditModalOpen.value = false;
+        showToast('success', 'Entidad actualizada exitosamente.');
     } catch (e: any) {
-        message.value = { type: 'error', text: `❌ Error al crear: ${e.message}` };
+        showToast('error', e.message || 'No se pudo actualizar la entidad.');
     }
 };
 
-const closeModal = () => {
-    showModal.value = false;
-    resetNewPersonForm();
+const confirmDelete = (entidad: EntidadResumen) => {
+    deleteTarget.value = {
+        id: entidad.id,
+        tipo: entidad.tipoEntidad,
+        nombre: entidad.nombreCompleto || formatRutForDisplay(entidad.identificador || '')
+    };
+    isDeleteModalOpen.value = true;
 };
 
-watch(filterTipo, () => {
-    fetchEntidades();
+const closeDeleteModal = () => {
+    isDeleteModalOpen.value = false;
+    deleteTarget.value = null;
+};
+
+const handleDelete = async () => {
+    if (!deleteTarget.value) return;
+    const target = { ...deleteTarget.value };
+    isDeleting.value = true;
+    try {
+        if (target.tipo === 'Persona') {
+            await apiService.eliminarPersona(target.id);
+        } else {
+            await apiService.eliminarInstitucion(target.id);
+        }
+        await loadData();
+        showToast('success', target.tipo === 'Persona' ? 'Persona eliminada exitosamente.' : 'Institución eliminada exitosamente.');
+        closeDeleteModal();
+    } catch (e: any) {
+        showToast('error', e.message || 'No se pudo eliminar la entidad.');
+    } finally {
+        isDeleting.value = false;
+    }
+};
+
+const handlePersonaCreada = async () => {
+    createMode.value = null;
+    await loadData();
+    showToast('success', 'Persona creada correctamente.');
+};
+
+const handleInstitucionCreada = async () => {
+    createMode.value = null;
+    await loadData();
+    showToast('success', 'Institución creada correctamente.');
+};
+
+const getGestorLabel = (persona: EntidadResumen) => {
+    if (!persona.gestorId) return 'Sin asignar';
+    const gestor = personaDictionary.value[persona.gestorId] || gestorFallback[persona.gestorId];
+    if (gestor) {
+        return gestor.nombreCompleto || formatRutForDisplay(gestor.identificador);
+    }
+    if (persona.gestorNombre) return persona.gestorNombre;
+    if (persona.gestorRut) return formatRutForDisplay(persona.gestorRut);
+    return `ID ${persona.gestorId}`;
+};
+
+const ensureGestorLoaded = async (gestorId: number) => {
+    if (personaDictionary.value[gestorId]) {
+        return personaDictionary.value[gestorId];
+    }
+    if (gestorFallback[gestorId]) {
+        return gestorFallback[gestorId];
+    }
+    try {
+        const gestor = await apiService.getPersona(gestorId);
+        gestorFallback[gestorId] = gestor;
+        return gestor;
+    } catch (e) {
+        console.error('No se pudo cargar el gestor', e);
+        return null;
+    }
+};
+
+const focusPersona = async (gestorId: number) => {
+    if (!gestorId) return;
+    await ensureGestorLoaded(gestorId);
+    highlightedPersonaId.value = gestorId;
+    await nextTick();
+    const row = document.getElementById(`persona-row-${gestorId}`);
+    if (row) {
+        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    if (highlightTimeout) clearTimeout(highlightTimeout);
+    highlightTimeout = window.setTimeout(() => {
+        highlightedPersonaId.value = null;
+    }, 4000);
+};
+
+watch(activeSection, section => {
+    if (createMode.value === 'persona' && section !== 'personas') {
+        createMode.value = null;
+    }
+    if (createMode.value === 'institucion' && section !== 'instituciones') {
+        createMode.value = null;
+    }
 });
 
-onMounted(fetchEntidades);
+onMounted(loadData);
+
+onBeforeUnmount(() => {
+    if (highlightTimeout) {
+        clearTimeout(highlightTimeout);
+    }
+});
 </script>
 
 <template>
-    <div class="px-4 py-6 sm:px-0">
-        <!-- Success/Error Message -->
-        <div v-if="message" :class="`mb-4 p-4 rounded-md ${ message.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'}`">
+    <div class="px-4 py-6 sm:px-0 space-y-6">
+        <div
+            v-if="message"
+            :class="[
+                'p-4 rounded-xl border text-sm font-medium',
+                message.type === 'success'
+                    ? 'bg-emerald-50 text-emerald-900 border-emerald-200 dark:bg-emerald-600/10 dark:text-emerald-200 dark:border-emerald-500/40'
+                    : 'bg-red-50 text-red-900 border-red-200 dark:bg-red-500/10 dark:text-red-200 dark:border-red-500/40'
+            ]"
+        >
             {{ message.text }}
         </div>
 
-        <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-            <h2 class="text-2xl font-bold text-gray-900">Directorio de Entidades</h2>
-            
-            <div class="flex space-x-2 items-center">
-                <button 
-                    @click="showModal = true"
-                    class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-semibold text-sm flex items-center gap-2"
-                >
-                    <span>+</span> Nueva Persona
-                </button>
-                <select v-model="filterTipo" class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md border">
-                    <option value="Todos">Todos</option>
-                    <option value="Persona">Personas</option>
-                    <option value="Institucion">Instituciones</option>
-                </select>
-                <input v-model="searchQuery" placeholder="Buscar por Nombre o RUT..." class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-64 sm:text-sm border-gray-300 rounded-md border p-2">
+        <section class="surface-card p-6">
+            <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                    <p class="eyebrow text-[var(--accent-color)]">Acceder</p>
+                    <h2 class="text-3xl font-bold text-gray-900 dark:text-white">Entidades</h2>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 max-w-2xl">
+                        Administra personas e instituciones desde un mismo panel, con búsquedas rápidas, formularios integrados y acciones contextuales.
+                    </p>
+                </div>
+                <div class="flex flex-wrap gap-3 items-center justify-end">
+                    <button
+                        v-if="createMode"
+                        class="btn btn-outline"
+                        @click="closeCreatePanel"
+                    >
+                        Volver a la lista
+                    </button>
+                    <div class="inline-flex rounded-full border border-[var(--card-border)] bg-[var(--surface-muted)]/40 p-1">
+                        <button
+                            class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition"
+                            :class="createMode === 'persona'
+                                ? 'bg-white dark:bg-[var(--bg-card)] text-[var(--accent-color)] shadow-sm'
+                                : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'"
+                            @click="openCreatePanel('persona')"
+                        >
+                            <Plus class="w-4 h-4" /> Persona
+                        </button>
+                        <button
+                            class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition"
+                            :class="createMode === 'institucion'
+                                ? 'bg-white dark:bg-[var(--bg-card)] text-[var(--accent-color)] shadow-sm'
+                                : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'"
+                            @click="openCreatePanel('institucion')"
+                        >
+                            <Plus class="w-4 h-4" /> Institución
+                        </button>
+                    </div>
+                </div>
             </div>
-        </div>
 
-        <div class="bg-white shadow overflow-x-auto border-b border-gray-200 sm:rounded-lg">
-             <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">RUT</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombres</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Apellidos</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Teléfono</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dirección</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Comuna</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Género</th>
-                        <th class="relative px-6 py-3"><span class="sr-only">Acciones</span></th>
-                    </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                    <tr v-if="loading"><td colspan="10" class="px-6 py-4 text-center">Cargando...</td></tr>
-                    <tr v-else v-for="entidad in filteredEntidades" :key="entidad.id" :class="{ 'bg-blue-50': editingId === entidad.id }">
-                        <!-- RUT (non-editable) -->
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {{ formatRutForDisplay(entidad.identificador) }}
-                        </td>
-                        
-                        <!-- Nombres (editable for Persona) -->
-                        <td class="px-6 py-4 text-sm text-gray-900">
-                            <input 
-                                v-if="editingId === entidad.id"
-                                v-model="editForm.nombres"
-                                class="w-full px-2 py-1 border border-blue-400 rounded focus:ring-2 focus:ring-blue-500"
-                                placeholder="Nombres"
-                            />
-                            <span v-else>{{ entidad.nombres || '-' }}</span>
-                        </td>
-                        
-                        <!-- Apellidos (editable for Persona) -->
-                        <td class="px-6 py-4 text-sm text-gray-900">
-                            <input 
-                                v-if="editingId === entidad.id"
-                                v-model="editForm.apellidos"
-                                class="w-full px-2 py-1 border border-blue-400 rounded focus:ring-2 focus:ring-blue-500"
-                                placeholder="Apellidos"
-                            />
-                            <span v-else>{{ entidad.apellidos || '-' }}</span>
-                        </td>
-                        
-                        <!-- Email (editable) -->
-                        <td class="px-6 py-4 text-sm text-gray-500">
-                            <input 
-                                v-if="editingId === entidad.id"
-                                v-model="editForm.correo"
-                                type="email"
-                                class="w-full px-2 py-1 border border-blue-400 rounded focus:ring-2 focus:ring-blue-500"
-                                placeholder="email@ejemplo.com"
-                            />
-                            <span v-else>{{ entidad.correo || entidad.email || '-' }}</span>
-                        </td>
-                        
-                        <!-- Teléfono (editable) -->
-                        <td class="px-6 py-4 text-sm text-gray-500">
-                            <input 
-                                v-if="editingId === entidad.id"
-                                v-model="editForm.telefono"
-                                class="w-full px-2 py-1 border border-blue-400 rounded focus:ring-2 focus:ring-blue-500"
-                                placeholder="+56912345678"
-                            />
-                            <span v-else>{{ entidad.telefono || '-' }}</span>
-                        </td>
-                        
-                        <!-- Dirección (editable) -->
-                        <td class="px-6 py-4 text-sm text-gray-500">
-                            <input 
-                                v-if="editingId === entidad.id"
-                                v-model="editForm.direccion"
-                                class="w-full px-2 py-1 border border-blue-400 rounded focus:ring-2 focus:ring-blue-500"
-                                placeholder="Dirección"
-                            />
-                            <span v-else>{{ entidad.direccion || '-' }}</span>
-                        </td>
-                        
-                        <!-- Comuna (editable) -->
-                        <td class="px-6 py-4 text-sm text-gray-500">
-                            <input 
-                                v-if="editingId === entidad.id"
-                                v-model="editForm.comuna"
-                                class="w-full px-2 py-1 border border-blue-400 rounded focus:ring-2 focus:ring-blue-500"
-                                placeholder="Comuna"
-                            />
-                            <span v-else>{{ entidad.comuna || '-' }}</span>
-                        </td>
-                        
-                        <!-- Género (editable with dropdown) -->
-                        <td class="px-6 py-4 text-sm text-gray-500">
-                            <select 
-                                v-if="editingId === entidad.id"
-                                v-model="editForm.genero"
-                                class="w-full px-2 py-1 border border-blue-400 rounded focus:ring-2 focus:ring-blue-500"
-                            >
-                                <option value="Masculino">Masculino</option>
-                                <option value="Femenino">Femenino</option>
-                                <option value="Otro">Otro</option>
-                            </select>
-                            <span v-else>{{ entidad.genero || '-' }}</span>
-                        </td>
-                        
-                        <!-- Actions -->
-                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <div v-if="editingId === entidad.id" class="flex gap-2 justify-end">
-                                <button 
-                                    @click="saveEdit" 
-                                    :disabled="saving"
-                                    class="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-3 py-1 rounded text-xs font-semibold"
-                                >
-                                    {{ saving ? '⏳' : '✅ Guardar' }}
-                                </button>
-                                <button 
-                                    @click="cancelEdit"
-                                    :disabled="saving"
-                                    class="bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white px-3 py-1 rounded text-xs font-semibold"
-                                >
-                                    ❌ Cancelar
-                                </button>
-                            </div>
-                            <button 
-                                v-else-if="entidad.tipoEntidad === 'Persona'"
-                                @click="startEdit(entidad)" 
-                                class="text-blue-600 hover:text-blue-800 font-semibold"
-                            >
-                                ✏️ Editar
-                            </button>
-                            <span v-else class="text-gray-400">-</span>
-                        </td>
-                    </tr>
-                </tbody>
-              </table>
-        </div>
-
-        <!-- Modal for Creating New Person -->
-        <div v-if="showModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
-            <div class="relative bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 p-6">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-2xl font-bold text-gray-900">Nueva Persona</h3>
-                    <button @click="closeModal" class="text-gray-400 hover:text-gray-600 text-2xl">
-                        ×
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mt-6">
+                <div class="inline-flex rounded-full border border-[var(--card-border)] bg-[var(--surface-muted)]/40 p-1">
+                    <button
+                        class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition"
+                        :class="activeSection === 'personas'
+                            ? 'bg-white dark:bg-[var(--bg-card)] text-[var(--accent-color)] shadow-sm'
+                            : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'"
+                        @click="activeSection = 'personas'"
+                    >
+                        <Users class="w-4 h-4" />
+                        Personas
+                        <span class="text-[11px] px-2 py-0.5 rounded-full bg-black/5 dark:bg-white/10 text-gray-600 dark:text-gray-200">
+                            {{ personasCount }}
+                        </span>
+                    </button>
+                    <button
+                        class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition"
+                        :class="activeSection === 'instituciones'
+                            ? 'bg-white dark:bg-[var(--bg-card)] text-[var(--accent-color)] shadow-sm'
+                            : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'"
+                        @click="activeSection = 'instituciones'"
+                    >
+                        <Building2 class="w-4 h-4" />
+                        Instituciones
+                        <span class="text-[11px] px-2 py-0.5 rounded-full bg-black/5 dark:bg-white/10 text-gray-600 dark:text-gray-200">
+                            {{ institucionesCount }}
+                        </span>
                     </button>
                 </div>
 
-                <form @submit.prevent="createPerson" class="space-y-4">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <!-- RUT -->
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">RUT *</label>
-                            <input 
-                                v-model="newPersonForm.rut" 
-                                @input="handleRutInput"
-                                required
-                                placeholder="12.345.678-9"
-                                maxlength="12"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            />
-                        </div>
-
-                        <!-- Nombres -->
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Nombres *</label>
-                            <input 
-                                v-model="newPersonForm.nombres" 
-                                required
-                                placeholder="María"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            />
-                        </div>
-
-                        <!-- Apellidos -->
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Apellidos *</label>
-                            <input 
-                                v-model="newPersonForm.apellidos" 
-                                required
-                                placeholder="González López"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            />
-                        </div>
-
-                        <!-- Género -->
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Género *</label>
-                            <select 
-                                v-model="newPersonForm.genero" 
-                                required
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            >
-                                <option value="">Seleccionar...</option>
-                                <option value="Masculino">Masculino</option>
-                                <option value="Femenino">Femenino</option>
-                                <option value="Otro">Otro</option>
-                            </select>
-                        </div>
-
-                        <!-- Email -->
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Email *</label>
-                            <input 
-                                v-model="newPersonForm.correo" 
-                                type="email"
-                                required
-                                placeholder="maria@example.com"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            />
-                        </div>
-
-                        <!-- Teléfono -->
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Teléfono *</label>
-                            <PhoneInput 
-                                v-model="newPersonForm.telefono" 
-                                :required="true"
-                            />
-                        </div>
-
-                        <!-- Dirección -->
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Dirección *</label>
-                            <input 
-                                v-model="newPersonForm.direccion" 
-                                required
-                                placeholder="Av. Principal 456"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            />
-                        </div>
-
-                        <!-- Comuna -->
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Comuna *</label>
-                            <input 
-                                v-model="newPersonForm.comuna" 
-                                required
-                                placeholder="Quillota"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            />
-                        </div>
-                    </div>
-
-                    <!-- Action Buttons -->
-                    <div class="flex justify-end gap-3 pt-4 border-t">
-                        <button 
-                            type="button"
-                            @click="closeModal"
-                            class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 font-medium"
-                        >
-                            Cancelar
-                        </button>
-                        <button 
-                            type="submit"
-                            class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium"
-                        >
-                            Registrar Persona
-                        </button>
-                    </div>
-                </form>
+                <div class="text-xs uppercase tracking-[0.35em] text-gray-400 flex gap-4">
+                    <span>{{ personasCount }} personas</span>
+                    <span>{{ institucionesCount }} instituciones</span>
+                </div>
             </div>
-        </div>
+        </section>
+
+        <section v-if="activeSection === 'personas'" class="space-y-4">
+            <div v-if="createMode === 'persona'" class="surface-card p-6 border border-[var(--card-border)]">
+                <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-6">Registrar nueva persona</h3>
+                <PersonaForm @cancel="closeCreatePanel" @created="handlePersonaCreada" />
+            </div>
+
+            <div v-else class="surface-card p-0 overflow-hidden">
+                <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 px-6 py-5 border-b border-[var(--card-border)]">
+                    <div>
+                        <p class="text-xs uppercase tracking-[0.35em] text-[var(--accent-color)]">Personas</p>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Listado actualizado con vínculo a su gestor</p>
+                    </div>
+                    <div class="w-full md:w-80 relative">
+                        <input
+                            v-model="personaSearch"
+                            type="search"
+                            placeholder="Buscar por nombre, RUT o comuna..."
+                            class="w-full rounded-full border border-[var(--card-border)] bg-[var(--bg-base)]/60 px-4 py-2 text-sm focus:border-[var(--accent-color)] focus:ring-0"
+                        >
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-[var(--card-border)] table-soft">
+                        <thead class="bg-[var(--surface-muted)]/60 text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                            <tr>
+                                <th class="px-6 py-3 text-left">Persona</th>
+                                <th class="px-6 py-3 text-left">Contacto</th>
+                                <th class="px-6 py-3 text-left">Ubicación</th>
+                                <th class="px-6 py-3 text-left">Gestor asignado</th>
+                                <th class="px-6 py-3 text-right">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-[var(--card-border)] bg-white dark:bg-[var(--bg-card)]">
+                            <tr v-if="loading">
+                                <td colspan="5" class="px-6 py-8 text-center text-gray-500">Cargando personas...</td>
+                            </tr>
+                            <tr v-else-if="filteredPersonas.length === 0">
+                                <td colspan="5" class="px-6 py-8 text-center text-gray-500">No hay coincidencias para este filtro.</td>
+                            </tr>
+                            <tr
+                                v-else
+                                v-for="persona in filteredPersonas"
+                                :key="persona.id"
+                                :id="`persona-row-${persona.id}`"
+                                :class="[
+                                    'transition-all hover:bg-black/5 dark:hover:bg-white/5',
+                                    { 'highlighted-row ring-1 ring-[var(--accent-color)]': highlightedPersonaId === persona.id }
+                                ]"
+                            >
+                                <td class="px-6 py-4 text-sm">
+                                    <p class="font-semibold text-gray-900 dark:text-gray-100">{{ persona.nombreCompleto || 'Sin nombre' }}</p>
+                                    <p class="text-xs text-gray-500">{{ formatRutForDisplay(persona.identificador || '') }}</p>
+                                </td>
+                                <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
+                                    <p>{{ persona.correo || 'Sin correo' }}</p>
+                                    <p class="text-xs text-gray-500">{{ persona.telefono || 'Sin teléfono' }}</p>
+                                </td>
+                                <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
+                                    <p>{{ persona.comuna || 'Sin comuna' }}</p>
+                                    <p class="text-xs text-gray-500 truncate">{{ persona.direccion || 'Sin dirección registrada' }}</p>
+                                </td>
+                                <td class="px-6 py-4 text-sm">
+                                    <button
+                                        v-if="persona.gestorId"
+                                        class="inline-flex items-center gap-2 rounded-full border border-[var(--card-border)] px-3 py-1 text-[13px] font-medium text-[var(--accent-color)] hover:bg-[var(--accent-color-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)]/40"
+                                        @click="focusPersona(persona.gestorId)"
+                                    >
+                                        {{ getGestorLabel(persona) }}
+                                    </button>
+                                    <span v-else class="text-gray-400 text-sm">Sin asignar</span>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <div class="flex items-center justify-end gap-2">
+                                        <button
+                                            class="inline-flex items-center gap-1 rounded-full border border-[var(--card-border)] px-3 py-1.5 text-xs font-semibold text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
+                                            @click="startEdit(persona)"
+                                        >
+                                            <Pencil class="w-3.5 h-3.5" /> Editar
+                                        </button>
+                                        <button
+                                            class="inline-flex items-center gap-1 rounded-full border border-red-200/60 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 dark:border-red-500/50 dark:text-red-200"
+                                            @click="confirmDelete(persona)"
+                                        >
+                                            <Trash2 class="w-3.5 h-3.5" /> Eliminar
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section v-else class="space-y-4">
+            <div v-if="createMode === 'institucion'" class="surface-card p-6 border border-[var(--card-border)]">
+                <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-6">Registrar nueva institución</h3>
+                <InstitucionForm @cancel="closeCreatePanel" @created="handleInstitucionCreada" />
+            </div>
+
+            <div class="surface-card p-0 overflow-hidden">
+                <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 px-6 py-5 border-b border-[var(--card-border)]">
+                    <div>
+                        <p class="text-xs uppercase tracking-[0.35em] text-[var(--accent-color)]">Instituciones</p>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Listado de organizaciones con datos de contacto</p>
+                    </div>
+                    <div class="w-full md:w-80">
+                        <input
+                            v-model="institucionSearch"
+                            type="search"
+                            placeholder="Buscar por nombre, RUT o comuna..."
+                            class="w-full rounded-full border border-[var(--card-border)] bg-[var(--bg-base)]/60 px-4 py-2 text-sm focus:border-[var(--accent-color)] focus:ring-0"
+                        >
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-[var(--card-border)] table-soft">
+                        <thead class="bg-[var(--surface-muted)]/60 text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                            <tr>
+                                <th class="px-6 py-3 text-left">Institución</th>
+                                <th class="px-6 py-3 text-left">Contacto</th>
+                                <th class="px-6 py-3 text-left">Ubicación</th>
+                                <th class="px-6 py-3 text-right">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-[var(--card-border)] bg-white dark:bg-[var(--bg-card)]">
+                            <tr v-if="loading">
+                                <td colspan="4" class="px-6 py-8 text-center text-gray-500">Cargando instituciones...</td>
+                            </tr>
+                            <tr v-else-if="filteredInstituciones.length === 0">
+                                <td colspan="4" class="px-6 py-8 text-center text-gray-500">No hay coincidencias para este filtro.</td>
+                            </tr>
+                            <tr
+                                v-else
+                                v-for="inst in filteredInstituciones"
+                                :key="inst.id"
+                                class="hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                            >
+                                <td class="px-6 py-4 text-sm">
+                                    <p class="font-semibold text-gray-900 dark:text-gray-100">{{ inst.nombreCompleto }}</p>
+                                    <p class="text-xs text-gray-500">{{ formatRutForDisplay(inst.identificador || '') }}</p>
+                                </td>
+                                <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
+                                    <p>{{ inst.correo || 'Sin correo' }}</p>
+                                    <p class="text-xs text-gray-500">{{ inst.telefono || 'Sin teléfono' }}</p>
+                                </td>
+                                <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
+                                    <p>{{ inst.comuna || 'Sin comuna' }}</p>
+                                    <p class="text-xs text-gray-500 truncate">{{ inst.direccion || 'Sin dirección registrada' }}</p>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <div class="flex items-center justify-end gap-2">
+                                        <button
+                                            class="inline-flex items-center gap-1 rounded-full border border-[var(--card-border)] px-3 py-1.5 text-xs font-semibold text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
+                                            @click="startEdit(inst)"
+                                        >
+                                            <Pencil class="w-3.5 h-3.5" /> Editar
+                                        </button>
+                                        <button
+                                            class="inline-flex items-center gap-1 rounded-full border border-red-200/60 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 dark:border-red-500/50 dark:text-red-200"
+                                            @click="confirmDelete(inst)"
+                                        >
+                                            <Trash2 class="w-3.5 h-3.5" /> Eliminar
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <ModalEditar
+            :isOpen="isEditModalOpen"
+            :entidad="selectedEntidad"
+            @close="isEditModalOpen = false"
+            @save="handleSaveEdit"
+        />
+
+        <ModalConfirmacionEliminar
+            :isOpen="isDeleteModalOpen"
+            :entidadNombre="deleteTarget?.nombre || ''"
+            :entidadTipo="deleteTarget?.tipo"
+            :isDeleting="isDeleting"
+            @close="closeDeleteModal"
+            @confirm="handleDelete"
+        />
     </div>
 </template>
