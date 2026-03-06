@@ -236,6 +236,7 @@ const submitForm = async () => {
                 montoTotal: nuevoRegistro.value.donacion.monto || 0,
                 tipoTransaccion: 'Donacion',
                 estado: 'Cerrado',
+                fecha: nuevoRegistro.value.donacion.fecha,
                 anotaciones: notas || undefined
             },
             donacion: {

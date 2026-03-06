@@ -15,10 +15,15 @@ import type {
     Familia,
     CrearFamiliaPayload,
     BeneficiarioFamilia,
-    EgresoAyudaSocialPayload,
-    EgresoConsumoInternoPayload,
+    EgresoFiltros,
+    EgresoPayload,
+    EgresoRecurso,
     SolicitudPayload,
-    RolPersona
+    RolPersona,
+    IngresoResumen,
+    CompraIngresoPayload,
+    CompraBoletaMetadata,
+    CompraResumen
 } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'https://api.familiarenacer.cl/api';
@@ -123,6 +128,91 @@ const mapEntidadGenerica = (data: any): EntidadResumen => {
     return mapPersona(data);
 };
 
+const toNumber = (value: any, fallback = 0) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const normalizeEgresoTipo = (value: string | undefined) => {
+    if (!value) return 'Ayuda Social';
+    const normalized = value.trim().toLowerCase();
+    if (normalized === 'ayudasocial' || normalized === 'ayuda social') return 'Ayuda Social';
+    if (normalized === 'consumointerno' || normalized === 'consumo interno') return 'Consumo Interno';
+    if (normalized === 'ajuste') return 'Ajuste';
+    return value;
+};
+
+const mapEgreso = (raw: any): EgresoRecurso => {
+    const root = raw?.egreso ?? raw ?? {};
+    const detallesRaw = raw?.detalleEgresoRecurso ?? raw?.detalle_egreso_recurso ?? raw?.detalles ?? [];
+    const pecuniarioRaw = raw?.egresoPecuniario ?? raw?.egreso_pecuniario ?? raw?.pecuniario ?? null;
+
+    const id = toNumber(root?.id ?? raw?.id);
+
+    return {
+        id,
+        createdAt: root?.createdAt ?? root?.created_at ?? raw?.createdAt ?? raw?.created_at ?? undefined,
+        fecha: root?.fecha ?? raw?.fecha ?? '',
+        tipoEgreso: normalizeEgresoTipo(root?.tipoEgreso ?? root?.tipo_egreso ?? raw?.tipoEgreso ?? raw?.tipo_egreso ?? ''),
+        montoTotal: toNumber(root?.montoTotal ?? root?.monto_total ?? raw?.montoTotal ?? raw?.monto_total, 0),
+        responsableInternoId: toNumber(root?.responsableInternoId ?? root?.responsable_interno_id ?? raw?.responsableInternoId ?? raw?.responsable_interno_id, 0),
+        anotaciones: root?.anotaciones ?? raw?.anotaciones ?? undefined,
+        destinoEntidadId: toNumber(root?.destinoEntidadId ?? root?.destino_entidad_id ?? raw?.destinoEntidadId ?? raw?.destino_entidad_id, 0),
+        propositoEspecifico: root?.propositoEspecifico ?? root?.proposito_especifico ?? raw?.propositoEspecifico ?? raw?.proposito_especifico ?? undefined,
+        egresoPecuniario: pecuniarioRaw
+            ? {
+                cuentaOrigenId: toNumber(pecuniarioRaw?.cuentaOrigenId ?? pecuniarioRaw?.cuenta_origen_id, 0),
+                metodoTransferencia: pecuniarioRaw?.metodoTransferencia ?? pecuniarioRaw?.metodo_transferencia ?? ''
+            }
+            : null,
+        detalleEgresoRecurso: Array.isArray(detallesRaw)
+            ? detallesRaw.map((detalle: any) => ({
+                itemCatalogoId: toNumber(detalle?.itemCatalogoId ?? detalle?.item_catalogo_id, 0),
+                cantidad: toNumber(detalle?.cantidad, 0),
+                precioUnitarioPpp: detalle?.precioUnitarioPpp ?? detalle?.precio_unitario_ppp ?? undefined
+            }))
+            : []
+    };
+};
+
+const mapCompraResumen = (raw: any): CompraResumen => {
+    const root = raw?.ingreso ?? raw ?? {};
+    const numeroDocumento =
+        raw?.numeroFacturaBoleta ??
+        raw?.numero_factura_boleta ??
+        raw?.numeroFactura ??
+        raw?.numero_factura ??
+        raw?.numeroBoleta ??
+        raw?.numero_boleta ??
+        raw?.compra?.numeroFacturaBoleta ??
+        raw?.compra?.numero_factura_boleta ??
+        raw?.nombreArchivo ??
+        raw?.nombre_archivo ??
+        raw?.factura ??
+        undefined;
+    return {
+        idIngreso: toNumber(raw?.idIngreso ?? raw?.id_ingreso ?? raw?.boleta_compra_id ?? root?.id ?? raw?.id, 0),
+        fecha: root?.fecha ?? raw?.fecha ?? '',
+        montoTotal: toNumber(root?.montoTotal ?? root?.monto_total ?? raw?.montoTotal ?? raw?.monto_total, 0),
+        estado: root?.estado ?? raw?.estado ?? undefined,
+        descripcion: raw?.descripcion ?? root?.anotaciones ?? undefined,
+        numeroFacturaBoleta: numeroDocumento,
+        tieneBoleta: Boolean(raw?.tieneBoleta ?? raw?.tiene_boleta ?? false),
+        boletaEndpoint: raw?.boletaEndpoint ?? raw?.boleta_endpoint ?? undefined,
+        boletaDownloadEndpoint: raw?.boletaDownloadEndpoint ?? raw?.boleta_download_endpoint ?? undefined
+    };
+};
+
+const mapCompraBoletaMetadata = (raw: any, fallbackIngresoId = 0): CompraBoletaMetadata => ({
+    idIngreso: toNumber(raw?.idIngreso ?? raw?.id_ingreso ?? raw?.boletaCompraId ?? raw?.boleta_compra_id, fallbackIngresoId),
+    tieneBoleta: Boolean(raw?.tieneBoleta ?? raw?.tiene_boleta ?? false),
+    nombre: raw?.nombre ?? raw?.nombreArchivo ?? raw?.fileName ?? raw?.filename ?? undefined,
+    path: raw?.path ?? raw?.archivo ?? undefined,
+    boletaEndpoint: raw?.boletaEndpoint ?? raw?.boleta_endpoint ?? undefined,
+    downloadEndpoint: raw?.downloadEndpoint ?? raw?.download_endpoint ?? undefined,
+    boletaDownloadEndpoint: raw?.boletaDownloadEndpoint ?? raw?.boleta_download_endpoint ?? undefined
+});
+
 const pruneEmpty = <T extends Record<string, any>>(obj: T): T => {
     const entries = Object.entries(obj).filter(([, value]) => value !== '' && value !== undefined && value !== null);
     return Object.fromEntries(entries) as T;
@@ -214,6 +304,37 @@ export const apiService = {
         });
     },
 
+    async registrarCompra(datos: CompraIngresoPayload): Promise<{ id_ingreso: number }> {
+        return await requestJson<{ id_ingreso: number }>(`${API_BASE_URL}/ingresos/compra`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(datos)
+        });
+    },
+
+    async subirBoletaCompra(boletaCompraId: number, boleta: File): Promise<CompraBoletaMetadata> {
+        const formData = new FormData();
+        formData.append('boleta_compra_id', String(boletaCompraId));
+        formData.append('boletaCompraId', String(boletaCompraId));
+        formData.append('boleta', boleta);
+
+        const response = await requestJson<any>(`${API_BASE_URL}/ingresos/compra/boleta`, {
+            method: 'POST',
+            body: formData
+        });
+        return mapCompraBoletaMetadata(response, boletaCompraId);
+    },
+
+    async getCompras(): Promise<CompraResumen[]> {
+        const data = await requestJson<any[]>(`${API_BASE_URL}/ingresos/compras`);
+        return Array.isArray(data) ? data.map(mapCompraResumen) : [];
+    },
+
+    async getCompraBoleta(ingresoId: number): Promise<CompraBoletaMetadata> {
+        const data = await requestJson<any>(`${API_BASE_URL}/ingresos/compra/boleta/${ingresoId}`);
+        return mapCompraBoletaMetadata(data, ingresoId);
+    },
+
 
 
     async registrarPersonaNueva(datos: RegistrarPersonaPayload): Promise<void> {
@@ -257,6 +378,10 @@ export const apiService = {
 
     async getCatalogoItems(): Promise<CatalogoItem[]> {
         return await requestJson<CatalogoItem[]>(`${API_BASE_URL}/catalogo`);
+    },
+
+    async getIngresos(): Promise<IngresoResumen[]> {
+        return await requestJson<IngresoResumen[]>(`${API_BASE_URL}/ingresos`);
     },
 
     async getCategorias(): Promise<string[]> {
@@ -343,19 +468,44 @@ export const apiService = {
         });
     },
 
-    async crearEgresoAyudaSocial(payload: EgresoAyudaSocialPayload): Promise<{ id: number; mensaje?: string }> {
-        return await requestJson<{ id: number; mensaje?: string }>(`${API_BASE_URL}/egresos/ayuda-social`, {
+    async getEgresos(filtros: EgresoFiltros = {}): Promise<EgresoRecurso[]> {
+        const url = new URL(`${API_BASE_URL}/egresos`);
+        if (filtros.tipoEgreso) {
+            url.searchParams.append('tipo_egreso', filtros.tipoEgreso);
+            url.searchParams.append('tipoEgreso', filtros.tipoEgreso);
+        }
+        if (filtros.destinoEntidadId) {
+            url.searchParams.append('destino_entidad_id', String(filtros.destinoEntidadId));
+            url.searchParams.append('destinoEntidadId', String(filtros.destinoEntidadId));
+        }
+        const data = await requestJson<any[]>(url.toString());
+        return data.map(mapEgreso);
+    },
+
+    async getEgresoById(id: number): Promise<EgresoRecurso> {
+        const data = await requestJson<any>(`${API_BASE_URL}/egresos/${id}`);
+        return mapEgreso(data);
+    },
+
+    async crearEgreso(payload: EgresoPayload): Promise<{ id: number; mensaje?: string }> {
+        return await requestJson<{ id: number; mensaje?: string }>(`${API_BASE_URL}/egresos`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
     },
 
-    async crearEgresoConsumoInterno(payload: EgresoConsumoInternoPayload): Promise<{ id: number; mensaje?: string }> {
-        return await requestJson<{ id: number; mensaje?: string }>(`${API_BASE_URL}/egresos/consumo-interno`, {
-            method: 'POST',
+    async actualizarEgreso(id: number, payload: EgresoPayload): Promise<{ mensaje?: string }> {
+        return await requestJson<{ mensaje?: string }>(`${API_BASE_URL}/egresos/${id}`, {
+            method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
+        });
+    },
+
+    async eliminarEgreso(id: number): Promise<void> {
+        await requestJson(`${API_BASE_URL}/egresos/${id}`, {
+            method: 'DELETE'
         });
     },
 

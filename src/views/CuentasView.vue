@@ -11,9 +11,7 @@ const movimientos = ref<CuentaMovimientosResponse | null>(null);
 const movimientosLoading = ref(false);
 const editingId = ref<number | null>(null);
 const form = ref<CuentaPayload>({
-    nombre: '',
-    saldoActual: 0,
-    descripcion: ''
+    nombre: ''
 });
 const message = ref<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -22,6 +20,23 @@ const currency = new Intl.NumberFormat('es-CL', {
     currency: 'CLP',
     minimumFractionDigits: 0
 });
+
+const dateFormatter = new Intl.DateTimeFormat('es-CL', {
+    dateStyle: 'short'
+});
+
+const parseApiDate = (value: string): Date | null => {
+    if (!value) return null;
+    const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (match) {
+        const year = Number(match[1]);
+        const month = Number(match[2]) - 1;
+        const day = Number(match[3]);
+        return new Date(year, month, day);
+    }
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
 
 const totalSaldo = computed(() =>
     cuentas.value.reduce((sum, cuenta) => sum + (cuenta.saldoActual ?? 0), 0)
@@ -81,16 +96,12 @@ const openForm = (cuenta?: Cuenta) => {
         editingId.value = cuenta.id;
         form.value = {
             id: cuenta.id,
-            nombre: cuenta.nombre,
-            saldoActual: cuenta.saldoActual,
-            descripcion: cuenta.descripcion || ''
+            nombre: cuenta.nombre
         };
     } else {
         editingId.value = null;
         form.value = {
-            nombre: '',
-            saldoActual: 0,
-            descripcion: ''
+            nombre: ''
         };
     }
 };
@@ -98,9 +109,7 @@ const openForm = (cuenta?: Cuenta) => {
 const resetForm = () => {
     editingId.value = null;
     form.value = {
-        nombre: '',
-        saldoActual: 0,
-        descripcion: ''
+        nombre: ''
     };
 };
 
@@ -111,9 +120,7 @@ const saveCuenta = async () => {
     }
 
     const payload: CuentaPayload = {
-        nombre: form.value.nombre.trim(),
-        saldoActual: Number(form.value.saldoActual) || 0,
-        descripcion: form.value.descripcion?.trim() || ''
+        nombre: form.value.nombre.trim()
     };
 
     try {
@@ -138,6 +145,20 @@ const topMovimientos = computed(() => {
         egresos: movimientos.value.egresos.slice(0, 5)
     };
 });
+
+const movimientoDescripcion = (mov: { anotaciones?: string; descripcion?: string; tipoTransaccion?: string }) => {
+    return mov.anotaciones || mov.descripcion || mov.tipoTransaccion || 'Movimiento';
+};
+
+const movimientoMonto = (mov: { montoTotal: number; monto?: number }) => {
+    return mov.montoTotal ?? mov.monto ?? 0;
+};
+
+const movimientoFecha = (mov: { fecha: string }) => {
+    const parsed = parseApiDate(mov.fecha);
+    if (!parsed) return mov.fecha;
+    return dateFormatter.format(parsed);
+};
 
 onMounted(() => {
     loadCuentas();
@@ -199,7 +220,6 @@ onMounted(() => {
                         <thead class="bg-gray-50">
                             <tr>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Descripción</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Saldo actual</th>
                             </tr>
                         </thead>
@@ -214,15 +234,12 @@ onMounted(() => {
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="text-sm font-semibold text-gray-900">{{ cuenta.nombre }}</div>
                                 </td>
-                                <td class="px-6 py-4 text-sm text-gray-600">
-                                    {{ cuenta.descripcion || 'Sin descripción' }}
-                                </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-right font-bold text-gray-900">
                                     {{ currency.format(cuenta.saldoActual || 0) }}
                                 </td>
                             </tr>
                             <tr v-if="!loading && cuentas.length === 0">
-                                <td colspan="3" class="px-6 py-8 text-center text-sm text-gray-500">
+                                <td colspan="2" class="px-6 py-8 text-center text-sm text-gray-500">
                                     No hay cuentas registradas aún. Crea la primera para comenzar a trackear saldos.
                                 </td>
                             </tr>
@@ -243,10 +260,6 @@ onMounted(() => {
                             <p class="text-sm text-gray-500">Saldo disponible</p>
                             <p class="text-2xl font-bold text-blue-600">{{ currency.format(selectedCuenta.saldoActual || 0) }}</p>
                         </div>
-                        <div>
-                            <p class="text-sm text-gray-500">Descripción</p>
-                            <p class="text-sm text-gray-700">{{ selectedCuenta.descripcion || 'Sin descripción' }}</p>
-                        </div>
                     </div>
                     <div v-else class="text-sm text-gray-500">
                         Selecciona una cuenta para ver sus detalles y movimientos.
@@ -263,9 +276,12 @@ onMounted(() => {
                             <div>
                                 <p class="text-xs uppercase tracking-wide text-green-600 font-semibold mb-2">Ingresos</p>
                                 <ul class="space-y-2">
-                                    <li v-for="mov in topMovimientos.ingresos" :key="`ing-${mov.id}`" class="flex justify-between text-sm">
-                                        <span class="text-gray-600">{{ mov.descripcion }}</span>
-                                        <span class="font-semibold text-green-600">{{ currency.format(mov.monto) }}</span>
+                                    <li v-for="mov in topMovimientos.ingresos" :key="`ing-${mov.id}`" class="flex justify-between items-start gap-3 text-sm">
+                                        <div>
+                                            <p class="text-gray-700">{{ movimientoDescripcion(mov) }}</p>
+                                            <p class="text-xs text-gray-500">{{ movimientoFecha(mov) }} · {{ mov.tipoTransaccion || 'Ingreso' }}</p>
+                                        </div>
+                                        <span class="font-semibold text-green-600 whitespace-nowrap">{{ currency.format(movimientoMonto(mov)) }}</span>
                                     </li>
                                     <li v-if="topMovimientos.ingresos.length === 0" class="text-gray-400 text-sm">Sin registros</li>
                                 </ul>
@@ -273,9 +289,12 @@ onMounted(() => {
                             <div>
                                 <p class="text-xs uppercase tracking-wide text-red-600 font-semibold mb-2">Egresos</p>
                                 <ul class="space-y-2">
-                                    <li v-for="mov in topMovimientos.egresos" :key="`egr-${mov.id}`" class="flex justify-between text-sm">
-                                        <span class="text-gray-600">{{ mov.descripcion }}</span>
-                                        <span class="font-semibold text-red-600">-{{ currency.format(mov.monto) }}</span>
+                                    <li v-for="mov in topMovimientos.egresos" :key="`egr-${mov.id}`" class="flex justify-between items-start gap-3 text-sm">
+                                        <div>
+                                            <p class="text-gray-700">{{ movimientoDescripcion(mov) }}</p>
+                                            <p class="text-xs text-gray-500">{{ movimientoFecha(mov) }} · {{ mov.tipoTransaccion || 'Egreso' }}</p>
+                                        </div>
+                                        <span class="font-semibold text-red-600 whitespace-nowrap">-{{ currency.format(movimientoMonto(mov)) }}</span>
                                     </li>
                                     <li v-if="topMovimientos.egresos.length === 0" class="text-gray-400 text-sm">Sin registros</li>
                                 </ul>
@@ -313,24 +332,6 @@ onMounted(() => {
                                 class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                 placeholder="Caja chica, Banco Estado, etc."
                             />
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Saldo actual</label>
-                            <input
-                                v-model.number="form.saldoActual"
-                                type="number"
-                                min="0"
-                                class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            />
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
-                            <textarea
-                                v-model="form.descripcion"
-                                rows="3"
-                                class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                placeholder="Notas internas para identificar la cuenta"
-                            ></textarea>
                         </div>
                         <div class="flex justify-end">
                             <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">

@@ -12,63 +12,149 @@ import {
     Sun,
     Moon,
     Monitor,
-    ChevronDown
+    ChevronDown,
+    ScrollText,
+    ShoppingCart,
+    Handshake,
+    Building2,
+    SlidersHorizontal,
+    PackageSearch,
+    Landmark
 } from 'lucide-vue-next';
 import EntidadesView from './views/EntidadesView.vue';
 import DonacionesView from './views/DonacionesView.vue';
 import CatalogoView from './views/CatalogoView.vue';
 import CuentasView from './views/CuentasView.vue';
-import EgresosView from './views/EgresosView.vue';
 import FamiliasView from './views/FamiliasView.vue';
 import SolicitudesView from './views/SolicitudesView.vue';
 import RolesView from './views/RolesView.vue';
+import LogsView from './views/LogsView.vue';
+import ComprasView from './views/ComprasView.vue';
+import AyudaSocialView from './views/AyudaSocialView.vue';
+import ConsumoInternoView from './views/ConsumoInternoView.vue';
+import AjusteBienesView from './views/AjusteBienesView.vue';
+import AjustePecuniarioView from './views/AjustePecuniarioView.vue';
 
 type ViewKey =
     | 'donaciones'
     | 'entidades'
     | 'catalogo'
     | 'cuentas'
-    | 'egresos'
+    | 'compras'
+    | 'ayudaSocial'
+    | 'consumoInterno'
+    | 'ajusteBienes'
+    | 'ajustePecuniario'
     | 'familias'
     | 'solicitudes'
-    | 'roles';
+    | 'roles'
+    | 'logs';
 
 const currentView = ref<ViewKey>('donaciones');
 
-type NavigationItem = {
+type NavigationChild = {
+    key: string;
     id: ViewKey;
     label: string;
     icon: Component;
+};
+
+type NavigationItem = {
+    key: string;
+    id?: ViewKey;
+    label: string;
+    icon: Component;
     badge?: string;
+    children?: NavigationChild[];
 };
 
 const navigationGroups: { title: string; items: NavigationItem[] }[] = [
     {
         title: 'Gestionar',
         items: [
-            { id: 'donaciones', label: 'Donaciones', icon: HandCoins },
-            { id: 'egresos', label: 'Ayudas y Consumos', icon: HandHeart }
+            { key: 'donaciones', id: 'donaciones', label: 'Donaciones', icon: HandCoins },
+            { key: 'compras', id: 'compras', label: 'Compras', icon: ShoppingCart },
+            {
+                key: 'ayudasConsumos',
+                label: 'Ayudas y Consumos',
+                icon: HandHeart,
+                children: [
+                    { key: 'ayudaSocial', id: 'ayudaSocial', label: 'Ayuda Social', icon: Handshake },
+                    { key: 'consumoInterno', id: 'consumoInterno', label: 'Consumo Interno', icon: Building2 }
+                ]
+            },
+            {
+                key: 'ajustes',
+                label: 'Ajustes',
+                icon: SlidersHorizontal,
+                children: [
+                    { key: 'ajusteBienes', id: 'ajusteBienes', label: 'Ajuste de Bienes', icon: PackageSearch },
+                    { key: 'ajustePecuniario', id: 'ajustePecuniario', label: 'Ajuste Pecuniario', icon: Landmark }
+                ]
+            }
         ]
     },
     {
         title: 'Acceder',
         items: [
-            { id: 'entidades', label: 'Entidades', icon: Users },
-            { id: 'familias', label: 'Familias', icon: Home },
-            { id: 'solicitudes', label: 'Solicitudes', icon: ClipboardList }
+            { key: 'entidades', id: 'entidades', label: 'Entidades', icon: Users },
+            { key: 'familias', id: 'familias', label: 'Familias', icon: Home },
+            { key: 'solicitudes', id: 'solicitudes', label: 'Solicitudes', icon: ClipboardList }
         ]
     },
     {
         title: 'Inventario y Finanzas',
         items: [
-            { id: 'catalogo', label: 'Catálogo', icon: Boxes },
-            { id: 'cuentas', label: 'Cuentas', icon: Wallet, badge: 'Nuevo' },
-            { id: 'roles', label: 'Roles', icon: IdCard }
+            { key: 'catalogo', id: 'catalogo', label: 'Catálogo', icon: Boxes },
+            { key: 'cuentas', id: 'cuentas', label: 'Cuentas', icon: Wallet, badge: 'Nuevo' },
+            { key: 'roles', id: 'roles', label: 'Roles', icon: IdCard }
+        ]
+    },
+    {
+        title: 'Registros y Analisis',
+        items: [
+            { key: 'logs', id: 'logs', label: 'Logs', icon: ScrollText }
         ]
     }
 ];
 
-const flatNavigation = computed(() => navigationGroups.flatMap(group => group.items));
+type NavigationLeaf = {
+    id: ViewKey;
+    label: string;
+    icon: Component;
+    badge?: string;
+    mobileLabel: string;
+};
+
+const flatNavigation = computed<NavigationLeaf[]>(() => {
+    const leaves: NavigationLeaf[] = [];
+    navigationGroups.forEach(group => {
+        group.items.forEach(item => {
+            if (item.children?.length) {
+                item.children.forEach(child => {
+                    leaves.push({
+                        id: child.id,
+                        label: child.label,
+                        icon: child.icon,
+                        mobileLabel: `${item.label} · ${child.label}`
+                    });
+                });
+                return;
+            }
+            if (item.id) {
+                leaves.push({
+                    id: item.id,
+                    label: item.label,
+                    icon: item.icon,
+                    badge: item.badge,
+                    mobileLabel: item.label
+                });
+            }
+        });
+    });
+    return leaves;
+});
+
 const currentViewMeta = computed(() => flatNavigation.value.find(item => item.id === currentView.value));
 const loadingProgress = ref(0);
 const showLoadingBar = ref(false);
@@ -120,6 +206,20 @@ navigationGroups.forEach(group => {
     expandedGroups.value[group.title] = true;
 });
 const toggleGroup = (title: string) => { expandedGroups.value[title] = !expandedGroups.value[title]; };
+
+const expandedItems = ref<Record<string, boolean>>({
+    ayudasConsumos: true,
+    ajustes: true
+});
+
+const toggleItem = (itemKey: string) => {
+    expandedItems.value[itemKey] = !expandedItems.value[itemKey];
+};
+
+const isParentActive = (item: NavigationItem) => {
+    if (!item.children?.length) return false;
+    return item.children.some(child => child.id === currentView.value);
+};
 
 type ThemeOption = 'system' | 'light' | 'dark';
 const theme = ref<ThemeOption>('system');
@@ -218,22 +318,43 @@ const layoutClasses = computed(() =>
                     </button>
                     <transition name="fade">
                         <ul v-if="expandedGroups[group.title]" class="space-y-1">
-                            <li v-for="item in group.items" :key="item.id">
+                            <li v-for="item in group.items" :key="item.key">
                                 <button
                                     class="w-full flex items-center gap-3 rounded-md px-3 py-2 transition"
-                                    :class="currentView === item.id
+                                    :class="(item.id && currentView === item.id) || isParentActive(item)
                                         ? 'bg-[#006d8f] text-white'
                                         : effectiveTheme === 'dark'
                                             ? 'text-slate-400 hover:text-white hover:bg-white/5'
                                             : 'text-slate-600 hover:text-slate-900 hover:bg-black/5'"
-                                    @click="selectView(item.id)"
+                                    @click="item.children?.length ? toggleItem(item.key) : (item.id && selectView(item.id))"
                                 >
-                                    <component :is="item.icon" class="w-4 h-4" :class="currentView === item.id ? 'text-white' : 'text-slate-400'" />
+                                    <component :is="item.icon" class="w-4 h-4" :class="((item.id && currentView === item.id) || isParentActive(item)) ? 'text-white' : 'text-slate-400'" />
                                     <span class="font-medium text-sm flex-1 text-left">{{ item.label }}</span>
+                                    <ChevronDown
+                                        v-if="item.children?.length"
+                                        class="w-3.5 h-3.5 transition-transform"
+                                        :class="expandedItems[item.key] ? 'rotate-180 text-white' : ''"
+                                    />
                                     <span v-if="item.badge" class="text-[10px] uppercase tracking-wide font-semibold px-2 py-0.5 rounded-full bg-white/10">
                                         {{ item.badge }}
                                     </span>
                                 </button>
+                                <ul v-if="item.children?.length && expandedItems[item.key]" class="mt-1 ml-5 pl-4 border-l border-white/10 space-y-1">
+                                    <li v-for="child in item.children" :key="child.key">
+                                        <button
+                                            class="w-full flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition"
+                                            :class="currentView === child.id
+                                                ? 'bg-[#006d8f] text-white'
+                                                : effectiveTheme === 'dark'
+                                                    ? 'text-slate-300 hover:text-white hover:bg-white/5'
+                                                    : 'text-slate-600 hover:text-slate-900 hover:bg-black/5'"
+                                            @click="selectView(child.id)"
+                                        >
+                                            <component :is="child.icon" class="w-3.5 h-3.5" :class="currentView === child.id ? 'text-white' : 'text-slate-400'" />
+                                            <span class="text-left">{{ child.label }}</span>
+                                        </button>
+                                    </li>
+                                </ul>
                             </li>
                         </ul>
                     </transition>
@@ -270,7 +391,7 @@ const layoutClasses = computed(() =>
                         class="w-full bg-black/5 dark:bg-white/10 border border-white/10 rounded-md px-3 py-2 text-sm focus:outline-none"
                     >
                         <option v-for="item in flatNavigation" :key="item.id" :value="item.id">
-                            {{ item.label }}
+                            {{ item.mobileLabel }}
                         </option>
                     </select>
                 </div>
@@ -292,8 +413,20 @@ const layoutClasses = computed(() =>
                     <div v-else-if="currentView === 'cuentas'">
                         <CuentasView />
                     </div>
-                    <div v-else-if="currentView === 'egresos'">
-                        <EgresosView />
+                    <div v-else-if="currentView === 'compras'">
+                        <ComprasView />
+                    </div>
+                    <div v-else-if="currentView === 'ayudaSocial'">
+                        <AyudaSocialView />
+                    </div>
+                    <div v-else-if="currentView === 'consumoInterno'">
+                        <ConsumoInternoView />
+                    </div>
+                    <div v-else-if="currentView === 'ajusteBienes'">
+                        <AjusteBienesView />
+                    </div>
+                    <div v-else-if="currentView === 'ajustePecuniario'">
+                        <AjustePecuniarioView />
                     </div>
                     <div v-else-if="currentView === 'familias'">
                         <FamiliasView />
@@ -303,6 +436,9 @@ const layoutClasses = computed(() =>
                     </div>
                     <div v-else-if="currentView === 'roles'">
                         <RolesView />
+                    </div>
+                    <div v-else-if="currentView === 'logs'">
+                        <LogsView />
                     </div>
                 </section>
             </main>

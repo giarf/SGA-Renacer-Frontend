@@ -18,27 +18,33 @@ const activeTab = ref<'pecuniaria' | 'bienes'>('pecuniaria');
         </header>
 
         <div class="bg-white rounded-xl shadow border border-gray-100">
-            <div class="flex flex-col md:flex-row">
+            <div class="p-2 border-b border-gray-100">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
                 <button
-                    class="flex-1 px-5 py-3 text-sm font-semibold transition border-b md:border-b-0 md:border-r border-gray-100"
-                    :class="activeTab === 'pecuniaria' ? 'text-blue-600 border-b-2 md:border-b-0 md:border-r-2 border-blue-500 bg-blue-50' : 'text-gray-500 hover:bg-gray-50'"
+                    class="w-full rounded-lg px-5 py-3 text-sm font-semibold transition text-left"
+                    :class="activeTab === 'pecuniaria' ? 'text-white bg-[#006d8f] shadow-sm' : 'text-gray-600 hover:bg-gray-50'"
                     @click="activeTab = 'pecuniaria'"
                 >
                     <span class="inline-flex items-center gap-2">
                         <HandCoins class="w-4 h-4" /> Donación Pecuniaria
                     </span>
-                    <p class="text-xs text-gray-500 mt-1">Certificados, fondos internos y comentarios.</p>
+                    <p class="text-xs mt-1" :class="activeTab === 'pecuniaria' ? 'text-white/85' : 'text-gray-500'">
+                        Certificados, fondos internos y comentarios.
+                    </p>
                 </button>
                 <button
-                    class="flex-1 px-5 py-3 text-sm font-semibold transition"
-                    :class="activeTab === 'bienes' ? 'text-purple-600 border-b-2 md:border-b-0 border-purple-500 bg-purple-50' : 'text-gray-500 hover:bg-gray-50'"
+                    class="w-full rounded-lg px-5 py-3 text-sm font-semibold transition text-left"
+                    :class="activeTab === 'bienes' ? 'text-white bg-[#006d8f] shadow-sm' : 'text-gray-600 hover:bg-gray-50'"
                     @click="activeTab = 'bienes'"
                 >
                     <span class="inline-flex items-center gap-2">
                         <Boxes class="w-4 h-4" /> Donación en Especie
                     </span>
-                    <p class="text-xs text-gray-500 mt-1">Valorizaciones, catálogo y responsables.</p>
+                    <p class="text-xs mt-1" :class="activeTab === 'bienes' ? 'text-white/85' : 'text-gray-500'">
+                        Valorizaciones, catálogo y responsables.
+                    </p>
                 </button>
+                </div>
             </div>
 
             <div class="p-6 animate-fade-in">

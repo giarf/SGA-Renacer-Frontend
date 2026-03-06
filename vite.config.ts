@@ -5,6 +5,8 @@ import vue from '@vitejs/plugin-vue'
 export default defineConfig({
   plugins: [vue()],
   server: {
-    allowedHosts: ['sga.familiarenacer.cl']
+    host: true,
+    cors: true,
+    allowedHosts: true
   }
 })

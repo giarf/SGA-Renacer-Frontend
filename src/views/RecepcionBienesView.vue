@@ -7,6 +7,8 @@ import ModalRegistroCatalogo from '../components/ModalRegistroCatalogo.vue';
 import { Trash2, ClipboardList, Loader2, Plus } from 'lucide-vue-next';
 
 // Debounce utility
+const today = new Date().toISOString().split('T')[0] ?? '';
+
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 const debounce = (fn: Function, delay: number) => {
     return (...args: any[]) => {
@@ -32,6 +34,7 @@ const selectedReceptor = ref<EntidadResumen | null>(null);
 // State for purpose / notes
 const proposito = ref('');
 const anotaciones = ref('');
+const fechaIngreso = ref(today);
 
 // State for gestor (optional)
 const gestorQuery = ref('');
@@ -238,6 +241,7 @@ const submitDonacion = async () => {
             montoTotal: montoTotal.value,
             tipoTransaccion: 'Donacion',
             estado: 'Cerrado',
+            fecha: fechaIngreso.value,
             anotaciones: anotaciones.value.trim() || undefined
         },
         donacion: {
@@ -272,6 +276,7 @@ const submitDonacion = async () => {
         selectedGestor.value = null;
         gestorQuery.value = '';
         gestorResults.value = [];
+        fechaIngreso.value = today;
         items.value = [];
         
         // Scroll to top to show success message
@@ -301,7 +306,20 @@ const submitDonacion = async () => {
 
         <!-- Section 1: Actores (Donor, Receiver, Purpose) -->
         <div class="bg-white shadow rounded-lg p-5 border border-gray-200">
-            <h3 class="text-base font-semibold text-gray-800 mb-4">1. Identificar actores</h3>
+            <h3 class="text-base font-semibold text-gray-900 mb-4">1. Identificar actores</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Fecha de recepción <span class="text-red-500">*</span>
+                    </label>
+                    <input
+                        type="date"
+                        v-model="fechaIngreso"
+                        class="block w-full shadow-sm focus:ring-institutional-blue focus:border-institutional-blue sm:text-sm border-gray-300 rounded-md p-3 border bg-white"
+                        required
+                    />
+                </div>
+            </div>
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <!-- Donor Searcher -->
@@ -480,7 +498,7 @@ const submitDonacion = async () => {
 
         <!-- Section 2: Item Management -->
         <div class="bg-white shadow rounded-lg p-5 border border-gray-200">
-            <h3 class="text-base font-semibold text-gray-800 mb-4">2. Gestión de ítems</h3>
+            <h3 class="text-base font-semibold text-gray-900 mb-4">2. Gestión de ítems</h3>
             
             <!-- Item Searcher -->
             <div class="relative mb-6">

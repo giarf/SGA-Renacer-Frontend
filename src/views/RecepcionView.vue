@@ -20,7 +20,10 @@ const showGestorDropdown = ref(false);
 const gestorLoading = ref(false);
 const selectedGestor = ref<EntidadResumen | null>(null);
 
+const today = new Date().toISOString().split('T')[0] ?? '';
+
 const donationForm = ref({
+    fecha: today,
     monto: 0,
     proposito: '',
     anotaciones: ''
@@ -118,7 +121,14 @@ const clearGestor = () => {
 };
 
 const submitDonacion = async () => {
-    if (!selectedEntidad.value) return;
+    if (!selectedEntidad.value) {
+        message.value = { type: 'error', text: 'Debes seleccionar un donante.' };
+        return;
+    }
+    if (!donationForm.value.monto || donationForm.value.monto <= 0) {
+        message.value = { type: 'error', text: 'Debes ingresar un monto mayor a cero.' };
+        return;
+    }
     if (!selectedFondo.value) {
         message.value = { type: 'error', text: 'Debes seleccionar un fondo destino.' };
         return;
@@ -138,6 +148,7 @@ const submitDonacion = async () => {
             montoTotal: donationForm.value.monto,
             tipoTransaccion: 'Donacion',
             estado: 'Cerrado',
+            fecha: donationForm.value.fecha,
             anotaciones: anotaciones || undefined
         },
         donacion: {
@@ -155,7 +166,7 @@ const submitDonacion = async () => {
         await apiService.registrarDonacion(payload);
         message.value = { type: 'success', text: 'Donación registrada exitosamente.' };
         // Reset
-        donationForm.value = { monto: 0, proposito: '', anotaciones: '' };
+        donationForm.value = { fecha: today, monto: 0, proposito: '', anotaciones: '' };
         selectedEntidad.value = null;
         selectedGestor.value = null;
         selectedFondoId.value = fondos.value[0]?.id ?? null;
@@ -177,106 +188,107 @@ onMounted(() => {
         <div v-if="message" :class="`p-4 rounded-md ${message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`">
             {{ message.text }}
         </div>
-        
-        <!-- STEP 1: Select Entity -->
-        <div class="bg-white shadow rounded-lg p-6 relative border border-gray-100">
+        <div class="bg-white shadow rounded-lg p-6 border border-gray-100">
             <div class="mb-4">
-                <p class="text-xs uppercase tracking-widest text-blue-500 font-semibold">Paso 1</p>
-                <h3 class="text-lg font-semibold text-gray-900">Identificar donante <span class="text-red-500">*</span></h3>
+                <h3 class="text-lg font-semibold text-gray-900">Donación pecuniaria</h3>
+                <p class="text-sm text-gray-500">Completa todos los campos en el orden que prefieras.</p>
             </div>
-            
-            <div v-if="selectedEntidad" class="flex flex-col gap-4 bg-blue-50 p-4 rounded-md border border-blue-200">
-                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <div>
-                        <span class="block font-bold text-lg text-institutional-blue">{{ selectedEntidad.nombreCompleto }}</span>
-                        <span class="text-sm text-gray-600">{{ formatRutForDisplay(selectedEntidad.identificador) }}</span>
+
+            <form @submit.prevent="submitDonacion" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="md:col-span-2 relative">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Donante <span class="text-red-500">*</span>
+                    </label>
+                    <div v-if="selectedEntidad" class="flex flex-col gap-3 bg-blue-50 p-4 rounded-md border border-blue-200">
+                        <div>
+                            <span class="block font-bold text-lg text-institutional-blue">{{ selectedEntidad.nombreCompleto }}</span>
+                            <span class="text-sm text-gray-600">{{ formatRutForDisplay(selectedEntidad.identificador) }}</span>
+                        </div>
+                        <button type="button" @click="selectedEntidad = null" class="self-start text-sm px-3 py-1.5 rounded-md border border-gray-300 text-gray-600 hover:text-gray-800">
+                            Cambiar donante
+                        </button>
                     </div>
-                    <button @click="selectedEntidad = null" class="self-start text-sm px-3 py-1.5 rounded-md border border-gray-300 text-gray-600 hover:text-gray-800">
-                        Cambiar
-                    </button>
-                </div>
-            </div>
-
-            <div v-else class="relative">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Buscar por Nombre o RUT</label>
-                <input 
-                    type="text" 
-                    v-model="searchQuery"
-                    @focus="isDropdownOpen = true"
-                    placeholder="Escriba para buscar..."
-                    class="block w-full shadow-sm focus:ring-institutional-blue focus:border-institutional-blue sm:text-sm border-gray-300 rounded-md p-3 border"
-                >
-
-                <!-- Dropdown -->
-                <div v-if="isDropdownOpen" class="absolute z-10 mt-1 w-full bg-white shadow-xl rounded-md overflow-hidden border border-gray-100">
-                    <ul class="max-h-60 overflow-auto">
-                        <li v-for="entidad in filteredEntidades" :key="entidad.id" 
-                            @click="selectEntidad(entidad)"
-                            class="px-4 py-3 hover:bg-blue-50 cursor-pointer border-b border-gray-50 last:border-0"
+                    <div v-else class="relative">
+                        <input
+                            type="text"
+                            v-model="searchQuery"
+                            @focus="isDropdownOpen = true"
+                            placeholder="Buscar por nombre o RUT..."
+                            class="block w-full shadow-sm focus:ring-institutional-blue focus:border-institutional-blue sm:text-sm border-gray-300 rounded-md p-3 border"
                         >
-                            <p class="font-medium text-gray-900">{{ entidad.nombreCompleto }}</p>
-                            <p class="text-xs text-gray-500">{{ formatRutForDisplay(entidad.identificador) }}</p>
-                        </li>
-                    </ul>
-                    <!-- Not Found State -->
-                    <div v-if="filteredEntidades.length === 0" class="p-4 text-center bg-gray-50 text-sm text-gray-500">
-                        No se encontraron resultados para "{{ searchQuery }}"
+                        <div v-if="isDropdownOpen" class="absolute z-10 mt-1 w-full bg-white shadow-xl rounded-md overflow-hidden border border-gray-100">
+                            <ul class="max-h-60 overflow-auto">
+                                <li
+                                    v-for="entidad in filteredEntidades"
+                                    :key="entidad.id"
+                                    @click="selectEntidad(entidad)"
+                                    class="px-4 py-3 hover:bg-blue-50 cursor-pointer border-b border-gray-50 last:border-0"
+                                >
+                                    <p class="font-medium text-gray-900">{{ entidad.nombreCompleto }}</p>
+                                    <p class="text-xs text-gray-500">{{ formatRutForDisplay(entidad.identificador) }}</p>
+                                </li>
+                            </ul>
+                            <div v-if="filteredEntidades.length === 0" class="p-4 text-center bg-gray-50 text-sm text-gray-500">
+                                No se encontraron resultados para "{{ searchQuery }}"
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="mt-5">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Gestor interno (opcional)</label>
-                <div v-if="selectedGestor" class="flex items-center justify-between bg-amber-50 p-3 border border-amber-200 rounded-md">
-                    <div>
-                        <p class="font-semibold text-amber-800">{{ selectedGestor.nombreCompleto }}</p>
-                        <p class="text-xs text-gray-600">{{ formatRutForDisplay(selectedGestor.identificador) }}</p>
+                <div class="md:col-span-2 relative">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Gestor interno (opcional)</label>
+                    <div v-if="selectedGestor" class="flex items-center justify-between bg-amber-50 p-3 border border-amber-200 rounded-md">
+                        <div>
+                            <p class="font-semibold text-amber-800">{{ selectedGestor.nombreCompleto }}</p>
+                            <p class="text-xs text-gray-600">{{ formatRutForDisplay(selectedGestor.identificador) }}</p>
+                        </div>
+                        <button type="button" class="text-xs text-amber-700 hover:underline" @click="clearGestor">Cambiar</button>
                     </div>
-                    <button type="button" class="text-xs text-amber-700 hover:underline" @click="clearGestor">Cambiar</button>
+                    <div v-else class="relative">
+                        <input
+                            type="text"
+                            v-model="gestorQuery"
+                            @input="searchGestores(gestorQuery)"
+                            @focus="showGestorDropdown = true"
+                            @blur="closeGestorDropdownDelayed"
+                            placeholder="Buscar gestor por nombre o RUT..."
+                            class="block w-full shadow-sm focus:ring-institutional-blue focus:border-institutional-blue sm:text-sm border-gray-300 rounded-md p-2.5 border"
+                        />
+                        <div v-if="gestorLoading" class="absolute right-3 top-2.5 text-xs text-gray-400">Buscando...</div>
+                        <ul
+                            v-if="showGestorDropdown && gestorResults.length > 0"
+                            class="absolute z-10 mt-1 w-full bg-white shadow-xl rounded-md border border-gray-100 max-h-60 overflow-auto"
+                        >
+                            <li
+                                v-for="ent in gestorResults"
+                                :key="ent.id"
+                                @mousedown.prevent="selectGestor(ent)"
+                                class="px-4 py-2 hover:bg-blue-50 cursor-pointer"
+                            >
+                                <p class="font-medium text-gray-900">{{ ent.nombreCompleto }}</p>
+                                <p class="text-xs text-gray-500">{{ formatRutForDisplay(ent.identificador) }}</p>
+                            </li>
+                        </ul>
+                        <div
+                            v-else-if="showGestorDropdown && gestorQuery.length >= 2 && !gestorLoading"
+                            class="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md py-3 px-4 text-xs text-gray-500 border border-gray-100"
+                        >
+                            Sin coincidencias
+                        </div>
+                    </div>
                 </div>
-                <div v-else class="relative">
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">
+                        Fecha del ingreso <span class="text-red-500">*</span>
+                    </label>
                     <input
-                        type="text"
-                        v-model="gestorQuery"
-                        @input="searchGestores(gestorQuery)"
-                        @focus="showGestorDropdown = true"
-                        @blur="closeGestorDropdownDelayed"
-                        placeholder="Buscar gestor por nombre o RUT..."
-                        class="block w-full shadow-sm focus:ring-institutional-blue focus:border-institutional-blue sm:text-sm border-gray-300 rounded-md p-2.5 border"
-                    />
-                    <div v-if="gestorLoading" class="absolute right-3 top-2.5 text-xs text-gray-400">Buscando...</div>
-                    <ul
-                        v-if="showGestorDropdown && gestorResults.length > 0"
-                        class="absolute z-10 mt-1 w-full bg-white shadow-xl rounded-md border border-gray-100 max-h-60 overflow-auto"
+                        v-model="donationForm.fecha"
+                        type="date"
+                        required
+                        class="mt-1 block w-full shadow-sm focus:ring-institutional-blue focus:border-institutional-blue sm:text-sm border-gray-300 rounded-md p-2 border bg-white"
                     >
-                        <li
-                            v-for="ent in gestorResults"
-                            :key="ent.id"
-                            @mousedown.prevent="selectGestor(ent)"
-                            class="px-4 py-2 hover:bg-blue-50 cursor-pointer"
-                        >
-                            <p class="font-medium text-gray-900">{{ ent.nombreCompleto }}</p>
-                            <p class="text-xs text-gray-500">{{ formatRutForDisplay(ent.identificador) }}</p>
-                        </li>
-                    </ul>
-                    <div
-                        v-else-if="showGestorDropdown && gestorQuery.length >= 2 && !gestorLoading"
-                        class="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md py-3 px-4 text-xs text-gray-500 border border-gray-100"
-                    >
-                        Sin coincidencias
-                    </div>
                 </div>
-            </div>
-        </div>
-
-        <!-- STEP 2: Donation Details -->
-        <div class="bg-white shadow rounded-lg p-6 border border-gray-100" :class="{ 'opacity-50 pointer-events-none': !selectedEntidad }">
-             <div class="mb-4">
-                <p class="text-xs uppercase tracking-widest text-blue-500 font-semibold">Paso 2</p>
-                <h3 class="text-lg font-medium text-gray-900">Detalle del ingreso</h3>
-             </div>
-             
-             <form @submit.prevent="submitDonacion" class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                     <label class="block text-sm font-medium text-gray-700">
                         Monto ($) <span class="text-red-500">*</span>
@@ -343,8 +355,7 @@ onMounted(() => {
                         {{ submitting ? 'Guardando...' : 'Registrar Donación' }}
                     </button>
                 </div>
-             </form>
+            </form>
         </div>
-
     </div>
 </template>

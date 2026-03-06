@@ -1,78 +1,68 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import type { EntidadResumen, CatalogoItem, EgresoAyudaSocialPayload, EgresoConsumoInternoPayload } from '../types';
+import { computed, onMounted, ref, watch } from 'vue';
+import { Boxes, HandCoins, Loader2, Plus, Trash2 } from 'lucide-vue-next';
 import { apiService } from '../api/apiService';
+import type { CatalogoItem, Cuenta, EgresoPayload, EntidadResumen, MetodoTransferencia } from '../types';
 import { formatRutForDisplay } from '../utils/rutFormatter';
-import { Handshake, Building2, Plus, Trash2 } from 'lucide-vue-next';
 
-type LocalItem = {
-    itemCatalogoId: number;
-    nombre: string;
+type EgresoMode = 'all' | 'ayuda' | 'consumo' | 'ajusteBienes' | 'ajustePecuniario';
+type FormKind = 'items' | 'pecuniario';
+type AjusteSentido = 'Ingreso' | 'Egreso';
+
+type DetalleForm = {
+    itemCatalogoId: number | null;
     cantidad: number;
-    valorReferencia: number;
 };
 
-const activeTab = ref<'ayuda' | 'consumo'>('ayuda');
+const props = withDefaults(defineProps<{ mode?: EgresoMode }>(), {
+    mode: 'all'
+});
 
-const debounce = (fn: (...args: any[]) => void, delay = 300) => {
-    let timer: ReturnType<typeof setTimeout>;
-    return (...args: any[]) => {
-        clearTimeout(timer);
-        timer = setTimeout(() => fn(...args), delay);
-    };
-};
+const transferenciaOptions: MetodoTransferencia[] = ['Transferencia', 'Efectivo', 'Cheque'];
+const today = new Date().toISOString().split('T')[0] ?? '';
+
+const form = ref({
+    fecha: today,
+    tipoEgreso: 'Ayuda Social' as string,
+    sentidoAjuste: 'Egreso' as AjusteSentido,
+    anotaciones: '',
+    propositoEspecifico: '',
+    modo: 'items' as FormKind,
+    montoManual: 0,
+    cuentaOrigenId: null as number | null,
+    metodoTransferencia: 'Transferencia' as MetodoTransferencia | '',
+    detalles: [] as DetalleForm[]
+});
+
+const cuentas = ref<Cuenta[]>([]);
+const catalogo = ref<CatalogoItem[]>([]);
+const loadingOptions = ref(false);
+const submitting = ref(false);
 
 const message = ref<{ type: 'success' | 'error'; text: string } | null>(null);
-const setMessage = (type: 'success' | 'error', text: string) => {
-    message.value = { type, text };
-    setTimeout(() => {
-        if (message.value?.text === text) {
-            message.value = null;
-        }
-    }, 4000);
-};
 
-// Ayuda Social state
-const ayudaMotivo = ref('');
-const ayudaBeneficiario = ref<EntidadResumen | null>(null);
-const ayudaBeneficiarioQuery = ref('');
-const ayudaBeneficiarioResults = ref<EntidadResumen[]>([]);
-const ayudaBeneficiarioLoading = ref(false);
-const showAyudaBeneficiarioDropdown = ref(false);
+const responsableQuery = ref('');
+const responsableResults = ref<EntidadResumen[]>([]);
+const responsableLoading = ref(false);
+const showResponsableDropdown = ref(false);
+const selectedResponsable = ref<EntidadResumen | null>(null);
 
-const ayudaItems = ref<LocalItem[]>([]);
-const ayudaItemQuery = ref('');
-const ayudaItemResults = ref<CatalogoItem[]>([]);
-const ayudaItemLoading = ref(false);
-const showAyudaItemDropdown = ref(false);
-const ayudaCantidad = ref(1);
-const ayudaValorReferencia = ref(0);
-const ayudaSelectedItem = ref<CatalogoItem | null>(null);
+const destinoQuery = ref('');
+const destinoResults = ref<EntidadResumen[]>([]);
+const destinoLoading = ref(false);
+const showDestinoDropdown = ref(false);
+const selectedDestino = ref<EntidadResumen | null>(null);
 
-const ayudaTotal = computed(() =>
-    ayudaItems.value.reduce((sum, item) => sum + item.cantidad * item.valorReferencia, 0)
-);
+const itemQuery = ref('');
+const itemResults = ref<CatalogoItem[]>([]);
+const itemLoading = ref(false);
+const showItemDropdown = ref(false);
+const selectedItem = ref<CatalogoItem | null>(null);
+const itemCantidad = ref(1);
 
-// Consumo Interno state
-const consumoPrograma = ref('');
-const consumoResponsable = ref<EntidadResumen | null>(null);
-const consumoResponsableQuery = ref('');
-const consumoResponsableResults = ref<EntidadResumen[]>([]);
-const consumoResponsableLoading = ref(false);
-const showConsumoResponsableDropdown = ref(false);
-
-const consumoItems = ref<LocalItem[]>([]);
-const consumoItemQuery = ref('');
-const consumoItemResults = ref<CatalogoItem[]>([]);
-const consumoItemLoading = ref(false);
-const showConsumoItemDropdown = ref(false);
-const consumoCantidad = ref(1);
-const consumoValorReferencia = ref(0);
-const consumoSelectedItem = ref<CatalogoItem | null>(null);
-
-const consumoTotal = computed(() =>
-    consumoItems.value.reduce((sum, item) => sum + item.cantidad * item.valorReferencia, 0)
-);
+let responsableTimer: ReturnType<typeof setTimeout> | null = null;
+let destinoTimer: ReturnType<typeof setTimeout> | null = null;
+let itemTimer: ReturnType<typeof setTimeout> | null = null;
 
 const currency = new Intl.NumberFormat('es-CL', {
     style: 'currency',
@@ -80,562 +70,675 @@ const currency = new Intl.NumberFormat('es-CL', {
     minimumFractionDigits: 0
 });
 
-const searchBeneficiario = debounce(async (query: string) => {
-    if (!query || query.trim().length < 2) {
-        ayudaBeneficiarioResults.value = [];
-        return;
-    }
-    ayudaBeneficiarioLoading.value = true;
-    try {
-        ayudaBeneficiarioResults.value = await apiService.buscarEntidades(query);
-    } catch (e: any) {
-        setMessage('error', e.message || 'No se pudieron buscar personas.');
-    } finally {
-        ayudaBeneficiarioLoading.value = false;
-    }
-});
+const unitLabel = (item?: CatalogoItem | null) => item?.unidadMedidaEstandar || 'Unidad';
+const roundedPpp = (item?: CatalogoItem | null) => Math.round(Number(item?.precioPromedioPonderado || 0));
 
-const searchResponsable = debounce(async (query: string) => {
-    if (!query || query.trim().length < 2) {
-        consumoResponsableResults.value = [];
-        return;
-    }
-    consumoResponsableLoading.value = true;
-    try {
-        consumoResponsableResults.value = await apiService.buscarEntidades(query);
-    } catch (e: any) {
-        setMessage('error', e.message || 'No se pudieron buscar personas.');
-    } finally {
-        consumoResponsableLoading.value = false;
-    }
-});
-
-const searchAyudaItems = debounce(async (query: string) => {
-    if (!query || query.trim().length < 2) {
-        ayudaItemResults.value = [];
-        return;
-    }
-    ayudaItemLoading.value = true;
-    try {
-        ayudaItemResults.value = await apiService.buscarCatalogo(query);
-    } catch (e: any) {
-        setMessage('error', e.message || 'No se pudieron buscar ítems.');
-    } finally {
-        ayudaItemLoading.value = false;
-    }
-});
-
-const searchConsumoItems = debounce(async (query: string) => {
-    if (!query || query.trim().length < 2) {
-        consumoItemResults.value = [];
-        return;
-    }
-    consumoItemLoading.value = true;
-    try {
-        consumoItemResults.value = await apiService.buscarCatalogo(query);
-    } catch (e: any) {
-        setMessage('error', e.message || 'No se pudieron buscar ítems.');
-    } finally {
-        consumoItemLoading.value = false;
-    }
-});
-
-const selectBeneficiario = (entidad: EntidadResumen) => {
-    ayudaBeneficiario.value = entidad;
-    ayudaBeneficiarioQuery.value = '';
-    showAyudaBeneficiarioDropdown.value = false;
+const normalizeTipo = (value: string | undefined) => {
+    if (!value) return '';
+    const normalized = value.trim().toLowerCase();
+    if (normalized === 'ayudasocial' || normalized === 'ayuda social') return 'Ayuda Social';
+    if (normalized === 'consumointerno' || normalized === 'consumo interno') return 'Consumo Interno';
+    if (normalized === 'ajuste') return 'Ajuste';
+    return value;
 };
 
-const selectResponsable = (entidad: EntidadResumen) => {
-    consumoResponsable.value = entidad;
-    consumoResponsableQuery.value = '';
-    showConsumoResponsableDropdown.value = false;
+const lockedTipo = computed(() => {
+    if (props.mode === 'ayuda') return 'Ayuda Social';
+    if (props.mode === 'consumo') return 'Consumo Interno';
+    if (props.mode === 'ajusteBienes' || props.mode === 'ajustePecuniario') return 'Ajuste';
+    return '';
+});
+
+const lockedFormMode = computed<FormKind | ''>(() => {
+    if (props.mode === 'ajusteBienes') return 'items';
+    if (props.mode === 'ajustePecuniario') return 'pecuniario';
+    return '';
+});
+
+const showKindTabs = computed(() => props.mode !== 'ajusteBienes' && props.mode !== 'ajustePecuniario');
+
+const sectionTitle = computed(() => {
+    if (props.mode === 'ayuda') return 'Ayuda Social';
+    if (props.mode === 'consumo') return 'Consumo Interno';
+    if (props.mode === 'ajusteBienes') return 'Ajuste de Bienes';
+    if (props.mode === 'ajustePecuniario') return 'Ajuste Pecuniario';
+    return 'Registro de Egresos';
+});
+
+const sectionDescription = computed(() => {
+    if (props.mode === 'ayuda') return 'Registra ayudas sociales con destino, responsable y detalle valorizado.';
+    if (props.mode === 'consumo') return 'Registra consumo interno pecuniario asociado a programas o eventos.';
+    if (props.mode === 'ajusteBienes') return 'Registra ajustes de inventario con detalle de ítems.';
+    if (props.mode === 'ajustePecuniario') return 'Registra ajustes monetarios indicando cuenta y método.';
+    return 'Registra egresos. El historial y listado se visualiza en la sección Logs.';
+});
+
+const anotacionesLabel = computed(() =>
+    normalizeTipo(form.value.tipoEgreso) === 'Ayuda Social' ? 'Motivo de entrega' : 'Anotaciones'
+);
+
+const showProposito = computed(() => normalizeTipo(form.value.tipoEgreso) === 'Consumo Interno');
+const showAjusteSentido = computed(() => props.mode === 'ajusteBienes');
+const entidadLabel = computed(() => (props.mode === 'ajusteBienes' || props.mode === 'ajustePecuniario' ? 'Entidad' : 'Entidad destino'));
+const usesItems = computed(() => form.value.modo === 'items');
+const usesPecuniario = computed(() => form.value.modo === 'pecuniario');
+
+const catalogoById = computed(() => {
+    const map = new Map<number, CatalogoItem>();
+    catalogo.value.forEach(item => map.set(item.id, item));
+    return map;
+});
+
+const resolveDetallePrice = (detalle: DetalleForm) => {
+    const item = detalle.itemCatalogoId ? catalogoById.value.get(detalle.itemCatalogoId) : null;
+    return roundedPpp(item);
 };
 
-const selectAyudaItem = (item: CatalogoItem) => {
-    ayudaSelectedItem.value = item;
-    ayudaItemQuery.value = item.nombre;
-    ayudaValorReferencia.value = item.precioReferencia;
-    showAyudaItemDropdown.value = false;
+const totalItems = computed(() =>
+    form.value.detalles.reduce((sum, detalle) => sum + Number(detalle.cantidad || 0) * resolveDetallePrice(detalle), 0)
+);
+
+const montoCalculado = computed(() => (usesItems.value ? totalItems.value : Number(form.value.montoManual || 0)));
+
+const setMessage = (type: 'success' | 'error', text: string) => {
+    message.value = { type, text };
+    setTimeout(() => {
+        if (message.value?.text === text) {
+            message.value = null;
+        }
+    }, 5000);
 };
 
-const selectConsumoItem = (item: CatalogoItem) => {
-    consumoSelectedItem.value = item;
-    consumoItemQuery.value = item.nombre;
-    consumoValorReferencia.value = item.precioReferencia;
-    showConsumoItemDropdown.value = false;
+const applyModeDefaults = () => {
+    form.value.tipoEgreso = lockedTipo.value || 'Ayuda Social';
+    if (lockedFormMode.value) form.value.modo = lockedFormMode.value;
 };
 
-const addAyudaItem = () => {
-    if (!ayudaSelectedItem.value || ayudaCantidad.value <= 0) {
-        setMessage('error', 'Debes seleccionar un ítem y definir una cantidad válida.');
+const loadOptions = async () => {
+    loadingOptions.value = true;
+    try {
+        const [cuentasData, catalogoData] = await Promise.all([apiService.getCuentas(), apiService.getCatalogoItems()]);
+        cuentas.value = cuentasData;
+        catalogo.value = catalogoData;
+    } catch (error: any) {
+        setMessage('error', error.message || 'No se pudieron cargar cuentas o catálogo.');
+    } finally {
+        loadingOptions.value = false;
+    }
+};
+
+const searchResponsable = (query: string) => {
+    if (responsableTimer) clearTimeout(responsableTimer);
+    if (!query || query.trim().length < 2) {
+        responsableResults.value = [];
         return;
     }
-    ayudaItems.value.push({
-        itemCatalogoId: ayudaSelectedItem.value.id,
-        nombre: ayudaSelectedItem.value.nombre,
-        cantidad: ayudaCantidad.value,
-        valorReferencia: ayudaValorReferencia.value
+    responsableTimer = setTimeout(async () => {
+        responsableLoading.value = true;
+        try {
+            responsableResults.value = await apiService.buscarEntidades(query);
+            showResponsableDropdown.value = true;
+        } catch {
+            responsableResults.value = [];
+        } finally {
+            responsableLoading.value = false;
+        }
+    }, 250);
+};
+
+const searchDestino = (query: string) => {
+    if (destinoTimer) clearTimeout(destinoTimer);
+    if (!query || query.trim().length < 2) {
+        destinoResults.value = [];
+        return;
+    }
+    destinoTimer = setTimeout(async () => {
+        destinoLoading.value = true;
+        try {
+            destinoResults.value = await apiService.buscarEntidades(query);
+            showDestinoDropdown.value = true;
+        } catch {
+            destinoResults.value = [];
+        } finally {
+            destinoLoading.value = false;
+        }
+    }, 250);
+};
+
+const searchItems = (query: string) => {
+    if (itemTimer) clearTimeout(itemTimer);
+    if (!query || query.trim().length < 2) {
+        itemResults.value = [];
+        return;
+    }
+    itemTimer = setTimeout(async () => {
+        itemLoading.value = true;
+        try {
+            itemResults.value = await apiService.buscarCatalogo(query);
+            showItemDropdown.value = true;
+        } catch {
+            itemResults.value = [];
+        } finally {
+            itemLoading.value = false;
+        }
+    }, 250);
+};
+
+const closeResponsableDropdownDelayed = () => {
+    setTimeout(() => (showResponsableDropdown.value = false), 200);
+};
+
+const closeDestinoDropdownDelayed = () => {
+    setTimeout(() => (showDestinoDropdown.value = false), 200);
+};
+
+const closeItemDropdownDelayed = () => {
+    setTimeout(() => (showItemDropdown.value = false), 200);
+};
+
+const resetForm = () => {
+    form.value = {
+        fecha: today,
+        tipoEgreso: lockedTipo.value || 'Ayuda Social',
+        sentidoAjuste: 'Egreso',
+        anotaciones: '',
+        propositoEspecifico: '',
+        modo: lockedFormMode.value || 'pecuniario',
+        montoManual: 0,
+        cuentaOrigenId: null,
+        metodoTransferencia: 'Transferencia',
+        detalles: []
+    };
+    selectedResponsable.value = null;
+    selectedDestino.value = null;
+    responsableQuery.value = '';
+    destinoQuery.value = '';
+    responsableResults.value = [];
+    destinoResults.value = [];
+    itemQuery.value = '';
+    itemResults.value = [];
+    showItemDropdown.value = false;
+    selectedItem.value = null;
+    itemCantidad.value = 1;
+};
+
+const addItemToList = () => {
+    if (!selectedItem.value || itemCantidad.value <= 0) {
+        setMessage('error', 'Debes seleccionar un ítem con una cantidad válida.');
+        return;
+    }
+    form.value.detalles.push({
+        itemCatalogoId: selectedItem.value.id,
+        cantidad: Number(itemCantidad.value)
     });
-    ayudaSelectedItem.value = null;
-    ayudaItemQuery.value = '';
-    ayudaCantidad.value = 1;
-    ayudaValorReferencia.value = 0;
+    selectedItem.value = null;
+    itemQuery.value = '';
+    itemCantidad.value = 1;
+    showItemDropdown.value = false;
 };
 
-const addConsumoItem = () => {
-    if (!consumoSelectedItem.value || consumoCantidad.value <= 0) {
-        setMessage('error', 'Debes seleccionar un ítem y definir una cantidad válida.');
-        return;
+const selectItem = (item: CatalogoItem) => {
+    selectedItem.value = item;
+    itemQuery.value = '';
+    showItemDropdown.value = false;
+    itemCantidad.value = 1;
+};
+
+const removeDetalle = (index: number) => {
+    form.value.detalles.splice(index, 1);
+};
+
+const getPayload = (): EgresoPayload | null => {
+    if (!form.value.fecha) {
+        setMessage('error', 'La fecha es obligatoria.');
+        return null;
     }
-    consumoItems.value.push({
-        itemCatalogoId: consumoSelectedItem.value.id,
-        nombre: consumoSelectedItem.value.nombre,
-        cantidad: consumoCantidad.value,
-        valorReferencia: consumoValorReferencia.value
-    });
-    consumoSelectedItem.value = null;
-    consumoItemQuery.value = '';
-    consumoCantidad.value = 1;
-    consumoValorReferencia.value = 0;
-};
-
-const removeAyudaItem = (index: number) => {
-    ayudaItems.value.splice(index, 1);
-};
-
-const removeConsumoItem = (index: number) => {
-    consumoItems.value.splice(index, 1);
-};
-
-const resetAyudaForm = () => {
-    ayudaMotivo.value = '';
-    ayudaBeneficiario.value = null;
-    ayudaItems.value = [];
-    ayudaSelectedItem.value = null;
-    ayudaItemQuery.value = '';
-    ayudaCantidad.value = 1;
-    ayudaValorReferencia.value = 0;
-};
-
-const resetConsumoForm = () => {
-    consumoPrograma.value = '';
-    consumoResponsable.value = null;
-    consumoItems.value = [];
-    consumoSelectedItem.value = null;
-    consumoItemQuery.value = '';
-    consumoCantidad.value = 1;
-    consumoValorReferencia.value = 0;
-};
-
-const submitAyuda = async () => {
-    if (!ayudaBeneficiario.value) {
-        setMessage('error', 'Debes seleccionar a la persona beneficiaria.');
-        return;
+    if (!selectedResponsable.value) {
+        setMessage('error', 'Debes seleccionar una persona responsable.');
+        return null;
     }
-    if (ayudaItems.value.length === 0) {
-        setMessage('error', 'Agrega al menos un ítem a entregar.');
-        return;
+    if (!selectedDestino.value) {
+        setMessage('error', 'Debes seleccionar una entidad destino.');
+        return null;
     }
 
-    const payload: EgresoAyudaSocialPayload = {
+    const detallesValidos = form.value.detalles
+        .filter(item => item.itemCatalogoId && item.cantidad > 0)
+        .map(item => ({
+            itemCatalogoId: Number(item.itemCatalogoId),
+            cantidad: Number(item.cantidad)
+        }));
+
+    if (usesItems.value && detallesValidos.length === 0) {
+        setMessage('error', 'Debes agregar al menos un ítem.');
+        return null;
+    }
+
+    if (usesPecuniario.value) {
+        if (!form.value.cuentaOrigenId) {
+            setMessage('error', 'Debes seleccionar una cuenta de origen.');
+            return null;
+        }
+        if (!form.value.metodoTransferencia) {
+            setMessage('error', 'Debes seleccionar un método de transferencia.');
+            return null;
+        }
+        if (Number(form.value.montoManual || 0) <= 0) {
+            setMessage('error', 'El monto total debe ser mayor a cero.');
+            return null;
+        }
+    }
+
+    const anotacionesTexto = form.value.anotaciones.trim();
+    const anotacionesFinales = showAjusteSentido.value
+        ? `[Ajuste ${form.value.sentidoAjuste}]${anotacionesTexto ? ` ${anotacionesTexto}` : ''}`
+        : anotacionesTexto;
+
+    const payload: EgresoPayload = {
         egreso: {
-            tipoEgreso: 'AyudaSocial' as const,
-            montoValorizadoTotal: ayudaTotal.value
-        },
-        ayuda: {
-            beneficiarioPersonaId: ayudaBeneficiario.value.id,
-            motivoEntrega: ayudaMotivo.value || 'Ayuda social'
-        },
-        detalles: ayudaItems.value.map(item => ({
-            itemCatalogoId: item.itemCatalogoId,
-            cantidad: item.cantidad
-        }))
+            fecha: form.value.fecha,
+            tipoEgreso: normalizeTipo(lockedTipo.value || form.value.tipoEgreso || 'Ayuda Social'),
+            montoTotal: usesItems.value ? totalItems.value : Number(form.value.montoManual || 0),
+            responsableInternoId: selectedResponsable.value.id,
+            destinoEntidadId: selectedDestino.value.id,
+            anotaciones: anotacionesFinales || undefined,
+            propositoEspecifico: showProposito.value ? form.value.propositoEspecifico.trim() || undefined : undefined
+        }
     };
 
+    if (usesItems.value) payload.detalles = detallesValidos;
+
+    if (usesPecuniario.value && form.value.cuentaOrigenId) {
+        payload.pecuniario = {
+            cuentaOrigenId: Number(form.value.cuentaOrigenId),
+            metodoTransferencia: form.value.metodoTransferencia
+        };
+    }
+
+    return payload;
+};
+
+const submitForm = async () => {
+    const payload = getPayload();
+    if (!payload) return;
+
+    submitting.value = true;
     try {
-        await apiService.crearEgresoAyudaSocial(payload);
-        setMessage('success', 'Ayuda social registrada exitosamente.');
-        resetAyudaForm();
-    } catch (e: any) {
-        setMessage('error', e.message || 'No se pudo registrar la ayuda.');
+        const response = await apiService.crearEgreso(payload);
+        setMessage('success', `Egreso registrado correctamente (ID ${response.id}).`);
+        resetForm();
+    } catch (error: any) {
+        setMessage('error', error.message || 'No se pudo registrar el egreso.');
+    } finally {
+        submitting.value = false;
     }
 };
 
-const submitConsumo = async () => {
-    if (!consumoResponsable.value) {
-        setMessage('error', 'Selecciona la persona responsable del consumo interno.');
-        return;
+watch(
+    () => props.mode,
+    () => {
+        applyModeDefaults();
+        resetForm();
     }
-    if (!consumoPrograma.value.trim()) {
-        setMessage('error', 'Indica el programa o actividad asociada.');
-        return;
-    }
-    if (consumoItems.value.length === 0) {
-        setMessage('error', 'Agrega al menos un ítem para registrar el consumo.');
-        return;
-    }
+);
 
-    const payload: EgresoConsumoInternoPayload = {
-        egreso: {
-            tipoEgreso: 'ConsumoInterno' as const,
-            montoValorizadoTotal: consumoTotal.value
-        },
-        consumo: {
-            programaEvento: consumoPrograma.value,
-            responsablePersonaId: consumoResponsable.value.id
-        },
-        detalles: consumoItems.value.map(item => ({
-            itemCatalogoId: item.itemCatalogoId,
-            cantidad: item.cantidad
-        }))
-    };
-
-    try {
-        await apiService.crearEgresoConsumoInterno(payload);
-        setMessage('success', 'Consumo interno registrado con éxito.');
-        resetConsumoForm();
-    } catch (e: any) {
-        setMessage('error', e.message || 'No se pudo registrar el consumo interno.');
+watch(
+    () => form.value.modo,
+    value => {
+        if (lockedFormMode.value && value !== lockedFormMode.value) {
+            form.value.modo = lockedFormMode.value;
+        }
     }
-};
+);
+
+onMounted(async () => {
+    applyModeDefaults();
+    await loadOptions();
+});
 </script>
 
 <template>
     <div class="px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         <header class="space-y-2">
-            <p class="text-sm uppercase tracking-widest text-rose-600 font-semibold">Egresos programáticos</p>
-            <h2 class="text-3xl font-bold text-gray-900">Ayudas sociales y consumos internos</h2>
-            <p class="text-gray-600">Registra apoyos a beneficiarios y consumos de programas con trazabilidad completa.</p>
+            <p class="text-xs uppercase tracking-[0.35em] text-blue-500 font-semibold">Egreso</p>
+            <h2 class="text-3xl font-bold text-gray-900">{{ sectionTitle }}</h2>
+            <p class="text-gray-600 text-sm max-w-3xl">{{ sectionDescription }}</p>
         </header>
 
-        <div v-if="message" :class="`rounded-md p-4 ${message.type === 'success' ? 'bg-green-50 border border-green-200 text-green-800' : 'bg-red-50 border border-red-200 text-red-800'}`">
+        <div
+            v-if="message"
+            :class="`p-4 rounded-md ${message.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'}`"
+        >
             {{ message.text }}
         </div>
 
         <div class="bg-white rounded-xl shadow border border-gray-100">
-            <div class="flex flex-wrap">
+            <div v-if="showKindTabs" class="p-2 border-b border-gray-100">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
                     <button
-                    class="flex-1 md:flex-none px-5 py-3 text-sm font-semibold transition"
-                    :class="activeTab === 'ayuda' ? 'text-rose-600 border-b-2 border-rose-500 bg-rose-50' : 'text-gray-500 hover:text-gray-700'"
-                    @click="activeTab = 'ayuda'"
-                >
-                    <span class="inline-flex items-center gap-2">
-                        <Handshake class="w-4 h-4" />
-                        Ayuda Social
-                    </span>
-                </button>
+                        class="w-full rounded-lg px-5 py-3 text-sm font-semibold transition text-left"
+                        :class="form.modo === 'pecuniario' ? 'text-white bg-[#006d8f] shadow-sm' : 'text-gray-600 hover:bg-gray-50'"
+                        @click="form.modo = 'pecuniario'"
+                    >
+                        <span class="inline-flex items-center gap-2">
+                            <HandCoins class="w-4 h-4" /> Egreso Pecuniario
+                        </span>
+                        <p class="text-xs mt-1" :class="form.modo === 'pecuniario' ? 'text-white/85' : 'text-gray-500'">
+                            Cuenta de origen, método de pago y monto.
+                        </p>
+                    </button>
                     <button
-                    class="flex-1 md:flex-none px-5 py-3 text-sm font-semibold transition"
-                    :class="activeTab === 'consumo' ? 'text-indigo-600 border-b-2 border-indigo-500 bg-indigo-50' : 'text-gray-500 hover:text-gray-700'"
-                    @click="activeTab = 'consumo'"
-                >
-                    <span class="inline-flex items-center gap-2">
-                        <Building2 class="w-4 h-4" />
-                        Consumo Interno
-                    </span>
-                </button>
+                        class="w-full rounded-lg px-5 py-3 text-sm font-semibold transition text-left"
+                        :class="form.modo === 'items' ? 'text-white bg-[#006d8f] shadow-sm' : 'text-gray-600 hover:bg-gray-50'"
+                        @click="form.modo = 'items'"
+                    >
+                        <span class="inline-flex items-center gap-2">
+                            <Boxes class="w-4 h-4" /> Egreso en Especie
+                        </span>
+                        <p class="text-xs mt-1" :class="form.modo === 'items' ? 'text-white/85' : 'text-gray-500'">
+                            Catálogo, cantidades y valorización PPP.
+                        </p>
+                    </button>
+                </div>
             </div>
 
             <div class="p-6">
-                <!-- Ayuda Social Form -->
-                <div v-if="activeTab === 'ayuda'" class="space-y-8">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div class="space-y-4">
-                            <div class="relative">
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Beneficiario *</label>
-                                <div v-if="ayudaBeneficiario" class="flex items-center justify-between bg-rose-50 border border-rose-200 rounded-md px-3 py-3">
+                <div class="bg-white shadow rounded-lg p-6 border border-gray-100">
+                    <div class="mb-4 flex items-start justify-between gap-3">
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-900">{{ form.modo === 'pecuniario' ? 'Egreso pecuniario' : 'Egreso en especie' }}</h3>
+                            <p class="text-sm text-gray-500">Completa todos los campos en el orden que prefieras.</p>
+                        </div>
+                        <button
+                            type="button"
+                            class="inline-flex items-center gap-2 px-4 py-2 rounded-md border border-gray-300 text-sm text-gray-700 hover:bg-gray-50"
+                            @click="resetForm"
+                        >
+                            Limpiar
+                        </button>
+                    </div>
+
+                    <form class="space-y-6" @submit.prevent="submitForm">
+                        <section
+                            class="grid grid-cols-1 md:grid-cols-2 gap-6"
+                            :class="usesItems ? 'bg-white shadow rounded-lg p-5 border border-gray-200' : ''"
+                        >
+                            <div v-if="usesItems" class="md:col-span-2">
+                                <h3 class="text-base font-semibold text-gray-900 mb-1">1. Identificar actores</h3>
+                            </div>
+                            <div class="md:col-span-2 relative">
+                                <label>Responsable interno <span class="text-red-500">*</span></label>
+                                <div v-if="selectedResponsable" class="mt-1 flex items-center justify-between bg-blue-50 p-4 rounded-md border border-blue-200">
                                     <div>
-                                        <p class="font-semibold text-rose-700">{{ ayudaBeneficiario.nombreCompleto }}</p>
-                                        <p class="text-sm text-gray-600">{{ formatRutForDisplay(ayudaBeneficiario.identificador) }}</p>
+                                        <p class="font-semibold text-gray-900">{{ selectedResponsable.nombreCompleto }}</p>
+                                        <p class="text-xs text-gray-500">{{ formatRutForDisplay(selectedResponsable.identificador) }}</p>
                                     </div>
-                                    <button class="text-sm text-rose-600 hover:text-rose-800" @click="ayudaBeneficiario = null">Cambiar</button>
+                                    <button type="button" class="text-xs text-[#006d8f] hover:underline" @click="selectedResponsable = null">
+                                        Cambiar
+                                    </button>
                                 </div>
-                                <div v-else>
+                                <div v-else class="relative mt-1">
                                     <input
-                                        v-model="ayudaBeneficiarioQuery"
+                                        v-model="responsableQuery"
                                         type="text"
-                                        placeholder="Busca por nombre o RUT..."
-                                        class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
-                                        @input="searchBeneficiario(ayudaBeneficiarioQuery)"
-                                        @focus="showAyudaBeneficiarioDropdown = true"
+                                        placeholder="Buscar por nombre o RUT..."
+                                        class="block w-full shadow-sm focus:ring-[#006d8f] focus:border-[#006d8f] sm:text-sm border-gray-300 rounded-md p-2.5 border bg-white"
+                                        @input="searchResponsable(responsableQuery)"
+                                        @focus="showResponsableDropdown = true"
+                                        @blur="closeResponsableDropdownDelayed"
                                     />
-                                    <div
-                                        v-if="showAyudaBeneficiarioDropdown && ayudaBeneficiarioQuery.length >= 2"
-                                        class="absolute z-10 w-full bg-white shadow-lg border border-gray-200 rounded-md mt-1 max-h-60 overflow-y-auto"
-                                    >
-                                        <div v-if="ayudaBeneficiarioLoading" class="p-3 text-sm text-gray-500">Buscando...</div>
-                                        <template v-else>
-                                            <button
-                                                v-for="entidad in ayudaBeneficiarioResults"
-                                                :key="entidad.id"
-                                                type="button"
-                                                class="w-full text-left px-4 py-2 hover:bg-rose-50"
-                                                @click="selectBeneficiario(entidad)"
-                                            >
-                                                <p class="font-medium text-gray-900">{{ entidad.nombreCompleto }}</p>
-                                                <p class="text-xs text-gray-500">{{ formatRutForDisplay(entidad.identificador) }}</p>
-                                            </button>
-                                            <p v-if="ayudaBeneficiarioResults.length === 0" class="p-3 text-sm text-gray-400">Sin resultados</p>
-                                        </template>
-                                    </div>
+                                    <div v-if="responsableLoading" class="absolute right-3 top-2.5 text-xs text-gray-400">Buscando...</div>
+                                    <ul v-if="showResponsableDropdown && responsableResults.length > 0" class="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-md shadow max-h-56 overflow-auto">
+                                        <li
+                                            v-for="entidad in responsableResults"
+                                            :key="entidad.id"
+                                            class="px-3 py-2 hover:bg-[#006d8f]/5 cursor-pointer"
+                                            @mousedown.prevent="selectedResponsable = entidad; responsableQuery = ''; showResponsableDropdown = false"
+                                        >
+                                            <p class="text-sm font-medium text-gray-900">{{ entidad.nombreCompleto }}</p>
+                                            <p class="text-xs text-gray-500">{{ formatRutForDisplay(entidad.identificador) }}</p>
+                                        </li>
+                                    </ul>
                                 </div>
                             </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Motivo / contexto de la entrega</label>
+
+                            <div class="md:col-span-2 relative">
+                                <label>{{ entidadLabel }} <span class="text-red-500">*</span></label>
+                                <div v-if="selectedDestino" class="mt-1 flex items-center justify-between bg-blue-50 p-4 rounded-md border border-blue-200">
+                                    <div>
+                                        <p class="font-semibold text-gray-900">{{ selectedDestino.nombreCompleto }}</p>
+                                        <p class="text-xs text-gray-500">{{ formatRutForDisplay(selectedDestino.identificador) }}</p>
+                                    </div>
+                                    <button type="button" class="text-xs text-[#006d8f] hover:underline" @click="selectedDestino = null">
+                                        Cambiar
+                                    </button>
+                                </div>
+                                <div v-else class="relative mt-1">
+                                    <input
+                                        v-model="destinoQuery"
+                                        type="text"
+                                        placeholder="Buscar por nombre o RUT..."
+                                        class="block w-full shadow-sm focus:ring-[#006d8f] focus:border-[#006d8f] sm:text-sm border-gray-300 rounded-md p-2.5 border bg-white"
+                                        @input="searchDestino(destinoQuery)"
+                                        @focus="showDestinoDropdown = true"
+                                        @blur="closeDestinoDropdownDelayed"
+                                    />
+                                    <div v-if="destinoLoading" class="absolute right-3 top-2.5 text-xs text-gray-400">Buscando...</div>
+                                    <ul v-if="showDestinoDropdown && destinoResults.length > 0" class="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-md shadow max-h-56 overflow-auto">
+                                        <li
+                                            v-for="entidad in destinoResults"
+                                            :key="entidad.id"
+                                            class="px-3 py-2 hover:bg-[#006d8f]/5 cursor-pointer"
+                                            @mousedown.prevent="selectedDestino = entidad; destinoQuery = ''; showDestinoDropdown = false"
+                                        >
+                                            <p class="text-sm font-medium text-gray-900">{{ entidad.nombreCompleto }}</p>
+                                            <p class="text-xs text-gray-500">{{ formatRutForDisplay(entidad.identificador) }}</p>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <div class="md:col-span-2">
+                                <label>Fecha <span class="text-red-500">*</span></label>
+                                <input
+                                    v-model="form.fecha"
+                                    type="date"
+                                    required
+                                    class="mt-1 block w-full shadow-sm focus:ring-[#006d8f] focus:border-[#006d8f] sm:text-sm border-gray-300 rounded-md p-2.5 border bg-white"
+                                />
+                            </div>
+
+                            <div v-if="showAjusteSentido" class="md:col-span-2">
+                                <label>Tipo de ajuste <span class="text-red-500">*</span></label>
+                                <select
+                                    v-model="form.sentidoAjuste"
+                                    class="mt-1 block w-full shadow-sm focus:ring-[#006d8f] focus:border-[#006d8f] sm:text-sm border-gray-300 rounded-md p-2.5 border bg-white"
+                                >
+                                    <option value="Egreso">Egreso</option>
+                                    <option value="Ingreso">Ingreso</option>
+                                </select>
+                            </div>
+
+                            <div v-if="showProposito" class="md:col-span-2">
+                                <label>Programa / Evento</label>
+                                <input
+                                    v-model="form.propositoEspecifico"
+                                    type="text"
+                                    placeholder="Programa de invierno, jornada especial..."
+                                    class="mt-1 block w-full shadow-sm focus:ring-[#006d8f] focus:border-[#006d8f] sm:text-sm border-gray-300 rounded-md p-2.5 border bg-white"
+                                />
+                            </div>
+
+                            <div class="md:col-span-2">
+                                <label>{{ anotacionesLabel }}</label>
                                 <textarea
-                                    v-model="ayudaMotivo"
-                                    rows="3"
-                                    class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
-                                    placeholder="Ej: Compra de alimentos por emergencia climática"
+                                    v-model="form.anotaciones"
+                                    rows="2"
+                                    placeholder="Describe el contexto del egreso..."
+                                    class="mt-1 block w-full shadow-sm focus:ring-[#006d8f] focus:border-[#006d8f] sm:text-sm border-gray-300 rounded-md p-2.5 border bg-white"
                                 ></textarea>
                             </div>
-                        </div>
 
-                        <div class="space-y-4">
-                            <p class="text-sm font-medium text-gray-700">Agregar ítems entregados</p>
-                            <div class="relative">
-                                <input
-                                    v-model="ayudaItemQuery"
-                                    type="text"
-                                    placeholder="Buscar ítem del catálogo..."
-                                    class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
-                                    @input="searchAyudaItems(ayudaItemQuery)"
-                                    @focus="showAyudaItemDropdown = true"
-                                />
-                                <div
-                                    v-if="showAyudaItemDropdown && ayudaItemQuery.length >= 2"
-                                    class="absolute z-10 w-full bg-white shadow-lg border border-gray-200 rounded-md mt-1 max-h-60 overflow-y-auto"
-                                >
-                                    <div v-if="ayudaItemLoading" class="p-3 text-sm text-gray-500">Buscando ítems...</div>
-                                    <template v-else>
-                                        <button
-                                            v-for="item in ayudaItemResults"
-                                            :key="item.id"
-                                            type="button"
-                                            class="w-full text-left px-4 py-2 hover:bg-rose-50"
-                                            @click="selectAyudaItem(item)"
-                                        >
-                                            <p class="font-medium text-gray-900">{{ item.nombre }}</p>
-                                            <p class="text-xs text-gray-500">Stock: {{ item.stockActual }} · Ref: {{ currency.format(item.precioReferencia) }}</p>
-                                        </button>
-                                        <p v-if="ayudaItemResults.length === 0" class="p-3 text-sm text-gray-400">Sin resultados</p>
-                                    </template>
-                                </div>
-                            </div>
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <template v-if="!usesItems">
                                 <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Cantidad</label>
-                                    <input
-                                        v-model.number="ayudaCantidad"
-                                        type="number"
-                                        min="1"
-                                        class="w-full border border-gray-300 rounded-md px-3 py-2"
-                                    />
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Valor referencia (PPP)</label>
-                                    <div class="w-full border border-gray-200 rounded-md px-3 py-2 bg-gray-50 text-sm text-gray-700">
-                                        <span v-if="ayudaSelectedItem">{{ currency.format(ayudaValorReferencia) }}</span>
-                                        <span v-else class="text-gray-400">Selecciona un ítem</span>
-                                    </div>
-                                    <p class="text-[11px] text-gray-500 mt-1">Se usa el precio promedio ponderado del catálogo.</p>
-                                </div>
-                                <div class="flex items-end">
-                                    <button class="btn btn-primary w-full justify-center" type="button" @click="addAyudaItem">
-                                        <Plus class="w-4 h-4" /> Agregar
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="space-y-4" v-if="ayudaItems.length">
-                        <div class="flex items-center justify-between">
-                            <h4 class="text-lg font-semibold text-gray-900">Detalle de la entrega</h4>
-                            <span class="text-sm font-semibold text-rose-600">Total: {{ currency.format(ayudaTotal) }}</span>
-                        </div>
-                        <div class="overflow-x-auto border border-gray-100 rounded-lg">
-                            <table class="min-w-full divide-y divide-gray-100">
-                                <thead class="bg-gray-50">
-                                    <tr>
-                                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Ítem</th>
-                                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Cantidad</th>
-                                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Valor ref.</th>
-                                        <th class="px-4 py-2"></th>
-                                    </tr>
-                                </thead>
-                                <tbody class="bg-white divide-y divide-gray-100">
-                                    <tr v-for="(item, index) in ayudaItems" :key="index">
-                                        <td class="px-4 py-3 text-sm text-gray-900">{{ item.nombre }}</td>
-                                        <td class="px-4 py-3 text-sm text-gray-600">{{ item.cantidad }}</td>
-                                        <td class="px-4 py-3 text-sm font-semibold text-gray-900">{{ currency.format(item.valorReferencia) }}</td>
-                                        <td class="px-4 py-3 text-right">
-                                            <button class="inline-flex items-center gap-1 text-sm text-red-600" @click="removeAyudaItem(index)">
-                                                <Trash2 class="w-4 h-4" /> Eliminar
-                                            </button>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <div class="flex justify-end">
-                        <button class="btn btn-primary px-6 py-3" @click="submitAyuda">
-                            Registrar ayuda social
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Consumo Interno Form -->
-                <div v-else class="space-y-8">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div class="space-y-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Programa / actividad *</label>
-                                <input
-                                    v-model="consumoPrograma"
-                                    type="text"
-                                    class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                    placeholder="Ej: Taller de invierno, Jornada familiar..."
-                                />
-                            </div>
-                            <div class="relative">
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Responsable *</label>
-                                <div v-if="consumoResponsable" class="flex items-center justify-between bg-indigo-50 border border-indigo-200 rounded-md px-3 py-3">
-                                    <div>
-                                        <p class="font-semibold text-indigo-700">{{ consumoResponsable.nombreCompleto }}</p>
-                                        <p class="text-sm text-gray-600">{{ formatRutForDisplay(consumoResponsable.identificador) }}</p>
-                                    </div>
-                                    <button class="text-sm text-indigo-600 hover:text-indigo-800" @click="consumoResponsable = null">Cambiar</button>
-                                </div>
-                                <div v-else>
-                                    <input
-                                        v-model="consumoResponsableQuery"
-                                        type="text"
-                                        placeholder="Busca por nombre o RUT..."
-                                        class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                        @input="searchResponsable(consumoResponsableQuery)"
-                                        @focus="showConsumoResponsableDropdown = true"
-                                    />
-                                    <div
-                                        v-if="showConsumoResponsableDropdown && consumoResponsableQuery.length >= 2"
-                                        class="absolute z-10 w-full bg-white shadow-lg border border-gray-200 rounded-md mt-1 max-h-60 overflow-y-auto"
+                                    <label>Cuenta origen <span class="text-red-500">*</span></label>
+                                    <select
+                                        v-model.number="form.cuentaOrigenId"
+                                        required
+                                        class="mt-1 block w-full shadow-sm focus:ring-[#006d8f] focus:border-[#006d8f] sm:text-sm border-gray-300 rounded-md p-2.5 border bg-white"
                                     >
-                                        <div v-if="consumoResponsableLoading" class="p-3 text-sm text-gray-500">Buscando...</div>
-                                        <template v-else>
-                                            <button
-                                                v-for="entidad in consumoResponsableResults"
-                                                :key="entidad.id"
-                                                type="button"
-                                                class="w-full text-left px-4 py-2 hover:bg-indigo-50"
-                                                @click="selectResponsable(entidad)"
-                                            >
-                                                <p class="font-medium text-gray-900">{{ entidad.nombreCompleto }}</p>
-                                                <p class="text-xs text-gray-500">{{ formatRutForDisplay(entidad.identificador) }}</p>
-                                            </button>
-                                            <p v-if="consumoResponsableResults.length === 0" class="p-3 text-sm text-gray-400">Sin resultados</p>
-                                        </template>
-                                    </div>
+                                        <option :value="null" disabled>Seleccionar cuenta</option>
+                                        <option v-for="cuenta in cuentas" :key="cuenta.id" :value="cuenta.id">
+                                            {{ cuenta.nombre }}
+                                        </option>
+                                    </select>
                                 </div>
-                            </div>
-                        </div>
-
-                        <div class="space-y-4">
-                            <p class="text-sm font-medium text-gray-700">Ítems utilizados</p>
-                            <div class="relative">
-                                <input
-                                    v-model="consumoItemQuery"
-                                    type="text"
-                                    placeholder="Buscar ítem del catálogo..."
-                                    class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                    @input="searchConsumoItems(consumoItemQuery)"
-                                    @focus="showConsumoItemDropdown = true"
-                                />
-                                <div
-                                    v-if="showConsumoItemDropdown && consumoItemQuery.length >= 2"
-                                    class="absolute z-10 w-full bg-white shadow-lg border border-gray-200 rounded-md mt-1 max-h-60 overflow-y-auto"
-                                >
-                                    <div v-if="consumoItemLoading" class="p-3 text-sm text-gray-500">Buscando ítems...</div>
-                                    <template v-else>
-                                        <button
-                                            v-for="item in consumoItemResults"
-                                            :key="item.id"
-                                            type="button"
-                                            class="w-full text-left px-4 py-2 hover:bg-indigo-50"
-                                            @click="selectConsumoItem(item)"
-                                        >
-                                            <p class="font-medium text-gray-900">{{ item.nombre }}</p>
-                                            <p class="text-xs text-gray-500">Stock: {{ item.stockActual }} · Ref: {{ currency.format(item.precioReferencia) }}</p>
-                                        </button>
-                                        <p v-if="consumoItemResults.length === 0" class="p-3 text-sm text-gray-400">Sin resultados</p>
-                                    </template>
-                                </div>
-                            </div>
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                                 <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Cantidad</label>
+                                    <label>Método de transferencia <span class="text-red-500">*</span></label>
+                                    <select
+                                        v-model="form.metodoTransferencia"
+                                        required
+                                        class="mt-1 block w-full shadow-sm focus:ring-[#006d8f] focus:border-[#006d8f] sm:text-sm border-gray-300 rounded-md p-2.5 border bg-white"
+                                    >
+                                        <option v-for="metodo in transferenciaOptions" :key="metodo" :value="metodo">{{ metodo }}</option>
+                                    </select>
+                                </div>
+                                <div class="md:col-span-2">
+                                    <label>Monto total <span class="text-red-500">*</span></label>
                                     <input
-                                        v-model.number="consumoCantidad"
+                                        v-model.number="form.montoManual"
                                         type="number"
                                         min="1"
-                                        class="w-full border border-gray-300 rounded-md px-3 py-2"
+                                        step="1"
+                                        required
+                                        class="mt-1 block w-full shadow-sm focus:ring-[#006d8f] focus:border-[#006d8f] sm:text-sm border-gray-300 rounded-md p-2.5 border bg-white"
                                     />
                                 </div>
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Valor referencia (PPP)</label>
-                                    <div class="w-full border border-gray-200 rounded-md px-3 py-2 bg-gray-50 text-sm text-gray-700">
-                                        <span v-if="consumoSelectedItem">{{ currency.format(consumoValorReferencia) }}</span>
-                                        <span v-else class="text-gray-400">Selecciona un ítem</span>
+                            </template>
+                        </section>
+
+                        <template v-if="usesItems">
+                            <section class="bg-white shadow rounded-lg p-5 border border-gray-200 space-y-4">
+                                <h3 class="text-base font-semibold text-gray-900 mb-1">2. Gestión de ítems</h3>
+                                <div class="relative">
+                                    <label>Buscar Ítem del Catálogo <span class="text-red-500">*</span></label>
+                                    <div v-if="selectedItem" class="mt-1 flex items-center justify-between bg-blue-50 p-3 rounded-md border border-blue-200">
+                                        <div>
+                                            <p class="font-semibold text-gray-900">{{ selectedItem.nombre }}</p>
+                                            <p class="text-xs text-gray-500">
+                                                Stock: {{ selectedItem.stockActual ?? 0 }} | Precio PPP: {{ currency.format(roundedPpp(selectedItem)) }}
+                                            </p>
+                                            <p class="text-xs text-gray-500">Unidad: {{ unitLabel(selectedItem) }}</p>
+                                        </div>
+                                        <button type="button" class="text-xs text-[#006d8f] hover:underline" @click="selectedItem = null">
+                                            Cambiar
+                                        </button>
                                     </div>
-                                    <p class="text-[11px] text-gray-500 mt-1">Se usa el precio promedio ponderado del catálogo.</p>
+                                    <div v-else class="relative mt-1">
+                                        <input
+                                            v-model="itemQuery"
+                                            type="text"
+                                            placeholder="Buscar ítem por nombre..."
+                                            class="block w-full shadow-sm focus:ring-[#006d8f] focus:border-[#006d8f] sm:text-sm border-gray-300 rounded-md p-2.5 border bg-white"
+                                            @input="searchItems(itemQuery)"
+                                            @focus="showItemDropdown = true"
+                                            @blur="closeItemDropdownDelayed"
+                                        />
+                                        <div v-if="itemLoading" class="absolute right-3 top-2.5 text-xs text-gray-400">Buscando...</div>
+                                        <ul v-if="showItemDropdown && itemResults.length > 0" class="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-md shadow max-h-56 overflow-auto">
+                                            <li
+                                                v-for="item in itemResults"
+                                                :key="item.id"
+                                                class="px-3 py-2 hover:bg-[#006d8f]/5 cursor-pointer"
+                                                @mousedown.prevent="selectItem(item)"
+                                            >
+                                                <p class="text-sm font-medium text-gray-900">{{ item.nombre }}</p>
+                                                <p class="text-xs text-gray-500">
+                                                    Stock: {{ item.stockActual ?? 0 }} | Precio PPP: {{ currency.format(roundedPpp(item)) }}
+                                                </p>
+                                                <p class="text-xs text-gray-500">Unidad: {{ unitLabel(item) }}</p>
+                                            </li>
+                                        </ul>
+                                    </div>
                                 </div>
-                                <div class="flex items-end">
-                                    <button class="btn btn-primary w-full justify-center" type="button" @click="addConsumoItem">
-                                        <Plus class="w-4 h-4" /> Agregar
-                                    </button>
+
+                                <div v-if="selectedItem" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div>
+                                        <label>Cantidad ({{ unitLabel(selectedItem) }}) <span class="text-red-500">*</span></label>
+                                        <input
+                                            v-model.number="itemCantidad"
+                                            type="number"
+                                            min="1"
+                                            step="0.01"
+                                            class="mt-1 block w-full shadow-sm focus:ring-[#006d8f] focus:border-[#006d8f] sm:text-sm border-gray-300 rounded-md p-2.5 border bg-white"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label>Precio PPP por {{ unitLabel(selectedItem) }}</label>
+                                        <input
+                                            :value="currency.format(roundedPpp(selectedItem))"
+                                            type="text"
+                                            readonly
+                                            class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2.5 border bg-gray-50 text-gray-700 cursor-not-allowed"
+                                        />
+                                    </div>
+                                    <div class="flex items-end">
+                                        <button
+                                            type="button"
+                                            class="w-full inline-flex justify-center py-2.5 px-3 border border-[#006d8f] text-sm font-medium rounded-md text-[#006d8f] hover:bg-[#006d8f]/10"
+                                            @click="addItemToList"
+                                        >
+                                            <Plus class="w-4 h-4 mr-1" /> Agregar
+                                        </button>
+                                    </div>
                                 </div>
-                            </div>
-                        </div>
-                    </div>
+                            </section>
 
-                    <div class="space-y-4" v-if="consumoItems.length">
-                        <div class="flex items-center justify-between">
-                            <h4 class="text-lg font-semibold text-gray-900">Detalle del consumo</h4>
-                            <span class="text-sm font-semibold text-indigo-600">Total: {{ currency.format(consumoTotal) }}</span>
-                        </div>
-                        <div class="overflow-x-auto border border-gray-100 rounded-lg">
-                            <table class="min-w-full divide-y divide-gray-100">
-                                <thead class="bg-gray-50">
-                                    <tr>
-                                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Ítem</th>
-                                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Cantidad</th>
-                                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Valor ref.</th>
-                                        <th class="px-4 py-2"></th>
-                                    </tr>
-                                </thead>
-                                <tbody class="bg-white divide-y divide-gray-100">
-                                    <tr v-for="(item, index) in consumoItems" :key="index">
-                                        <td class="px-4 py-3 text-sm text-gray-900">{{ item.nombre }}</td>
-                                        <td class="px-4 py-3 text-sm text-gray-600">{{ item.cantidad }}</td>
-                                        <td class="px-4 py-3 text-sm font-semibold text-gray-900">{{ currency.format(item.valorReferencia) }}</td>
-                                        <td class="px-4 py-3 text-right">
-                                            <button class="inline-flex items-center gap-1 text-sm text-red-600" @click="removeConsumoItem(index)">
-                                                <Trash2 class="w-4 h-4" /> Eliminar
-                                            </button>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                            <section v-if="form.detalles.length" class="bg-white shadow rounded-lg p-5 border border-gray-200 space-y-4">
+                                <h3 class="text-base font-semibold text-gray-900 mb-1">3. Ítems agregados</h3>
+                                <div class="overflow-x-auto rounded-md border border-gray-100">
+                                    <table class="min-w-full divide-y divide-gray-100">
+                                        <thead class="bg-gray-50">
+                                            <tr>
+                                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Ítem</th>
+                                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Cantidad</th>
+                                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Unidad</th>
+                                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">PPP</th>
+                                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Subtotal</th>
+                                                <th class="px-4 py-3"></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="bg-white divide-y divide-gray-100">
+                                            <tr v-for="(detalle, index) in form.detalles" :key="`${detalle.itemCatalogoId}-${index}`">
+                                                <td class="px-4 py-3 text-sm font-medium text-gray-900">{{ catalogoById.get(detalle.itemCatalogoId || 0)?.nombre || `Ítem #${detalle.itemCatalogoId}` }}</td>
+                                                <td class="px-4 py-3 text-sm text-gray-700">{{ detalle.cantidad }}</td>
+                                                <td class="px-4 py-3 text-sm text-gray-700">{{ unitLabel(catalogoById.get(detalle.itemCatalogoId || 0) || null) }}</td>
+                                                <td class="px-4 py-3 text-sm text-gray-700">{{ currency.format(resolveDetallePrice(detalle)) }}</td>
+                                                <td class="px-4 py-3 text-sm font-semibold text-gray-900">{{ currency.format(Number(detalle.cantidad || 0) * resolveDetallePrice(detalle)) }}</td>
+                                                <td class="px-4 py-3 text-right">
+                                                    <button type="button" class="inline-flex items-center justify-center px-2 py-2 rounded-md text-red-600 border border-red-200 hover:bg-red-50" @click="removeDetalle(index)">
+                                                        <Trash2 class="w-4 h-4" />
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </section>
+                        </template>
 
-                    <div class="flex justify-end">
-                        <button class="btn btn-primary px-6 py-3" @click="submitConsumo">
-                            Registrar consumo interno
-                        </button>
-                    </div>
+                        <div class="rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-sm flex items-center justify-between">
+                            <span class="text-gray-600">Monto total del egreso</span>
+                            <strong class="text-gray-900">{{ currency.format(montoCalculado) }}</strong>
+                        </div>
+
+                        <div class="flex justify-end">
+                            <button type="submit" :disabled="submitting || loadingOptions" class="w-full md:w-auto inline-flex justify-center py-3 px-6 border border-transparent shadow-sm text-base font-medium rounded-md text-white bg-[#006d8f] hover:bg-[#005675]">
+                                <Loader2 v-if="submitting" class="w-4 h-4 mr-2 animate-spin" />
+                                {{ submitting ? 'Guardando...' : 'Registrar egreso' }}
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>

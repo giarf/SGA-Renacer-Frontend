@@ -159,6 +159,7 @@ export interface IngresoDonacionPayload {
     montoTotal: number;
     tipoTransaccion: string;
     estado: string;
+    fecha: string;
     anotaciones?: string;
 }
 
@@ -178,6 +179,15 @@ export interface DonacionPayload {
     ingreso: IngresoDonacionPayload;
     donacion: DonacionDetallePayload;
     pecuniario: PecuniarioDestinoPayload;
+}
+
+export interface IngresoResumen {
+    id: number;
+    tipo: string;
+    fecha: string;
+    montoTotal: number;
+    estado?: string;
+    descripcion?: string;
 }
 
 // Form types for donation registration
@@ -223,6 +233,7 @@ export interface DonacionBienesPayload {
         montoTotal: number;
         tipoTransaccion: string;        // "Donacion"
         estado: string;                 // "Cerrado"
+        fecha: string;
         anotaciones?: string;
     };
     donacion: {
@@ -230,6 +241,54 @@ export interface DonacionBienesPayload {
         gestorId?: number;
     };
     items: ItemDonacionBienes[];
+}
+
+// Contract for POST /api/ingresos/compra
+export interface CompraDetallePayload {
+    itemCatalogoId: number;
+    cantidad: number;
+    precioUnitarioIngreso: number;
+}
+
+export interface CompraIngresoPayload {
+    ingreso: {
+        origenEntidadId: number;
+        responsableInternoId: number;
+        fecha: string;
+        montoTotal: number;
+        tipoTransaccion: string; // "Compra"
+        estado: string;
+    };
+    compra: {
+        ingresoId: number;
+        cuentaOrigenId: number;
+        numeroFacturaBoleta: string;
+        montoNeto: number;
+        montoIva: number;
+    };
+    detalles: CompraDetallePayload[];
+}
+
+export interface CompraResumen {
+    idIngreso: number;
+    fecha: string;
+    montoTotal: number;
+    estado?: string;
+    descripcion?: string;
+    numeroFacturaBoleta?: string;
+    tieneBoleta: boolean;
+    boletaEndpoint?: string;
+    boletaDownloadEndpoint?: string;
+}
+
+export interface CompraBoletaMetadata {
+    idIngreso: number;
+    tieneBoleta: boolean;
+    nombre?: string;
+    path?: string;
+    boletaEndpoint?: string;
+    downloadEndpoint?: string;
+    boletaDownloadEndpoint?: string;
 }
 
 // Contracts for catalog item management
@@ -259,15 +318,22 @@ export interface Cuenta {
 export interface CuentaPayload {
     id?: number;
     nombre: string;
-    saldoActual: number;
+    saldoActual?: number;
     descripcion?: string;
 }
 
 export interface CuentaMovimiento {
     id: number;
+    origenEntidadId?: number;
+    responsableInternoId?: number;
     fecha: string;
-    descripcion: string;
-    monto: number;
+    tipoTransaccion?: string;
+    montoTotal: number;
+    estado?: string;
+    anotaciones?: string;
+    // Legacy compatibility
+    descripcion?: string;
+    monto?: number;
     tipo?: 'INGRESO' | 'EGRESO';
 }
 
@@ -301,33 +367,63 @@ export interface BeneficiarioFamilia {
 }
 
 // Egresos
-export interface EgresoDetallePayload {
+export type TipoEgreso = 'Ayuda Social' | 'Consumo Interno' | 'Ajuste';
+export type MetodoTransferencia = 'Transferencia' | 'Efectivo' | 'Cheque';
+
+export interface EgresoPecuniario {
+    cuentaOrigenId: number;
+    metodoTransferencia: MetodoTransferencia | string;
+}
+
+export interface EgresoDetalleRecurso {
     itemCatalogoId: number;
     cantidad: number;
+    precioUnitarioPpp?: number;
 }
 
-export interface EgresoAyudaSocialPayload {
-    egreso: {
-        tipoEgreso: 'AyudaSocial';
-        montoValorizadoTotal: number;
-    };
-    ayuda: {
-        beneficiarioPersonaId: number;
-        motivoEntrega: string;
-    };
-    detalles: EgresoDetallePayload[];
+export interface EgresoCore {
+    id?: number;
+    createdAt?: string;
+    fecha: string;
+    tipoEgreso: TipoEgreso | string;
+    montoTotal: number;
+    responsableInternoId: number;
+    anotaciones?: string;
+    destinoEntidadId: number;
+    propositoEspecifico?: string;
 }
 
-export interface EgresoConsumoInternoPayload {
+export interface EgresoRecurso {
+    id: number;
+    createdAt?: string;
+    fecha: string;
+    tipoEgreso: TipoEgreso | string;
+    montoTotal: number;
+    responsableInternoId: number;
+    anotaciones?: string;
+    destinoEntidadId: number;
+    propositoEspecifico?: string;
+    egresoPecuniario?: EgresoPecuniario | null;
+    detalleEgresoRecurso: EgresoDetalleRecurso[];
+}
+
+export interface EgresoPayload {
     egreso: {
-        tipoEgreso: 'ConsumoInterno';
-        montoValorizadoTotal: number;
+        fecha: string;
+        tipoEgreso: TipoEgreso | string;
+        montoTotal: number;
+        responsableInternoId: number;
+        destinoEntidadId: number;
+        anotaciones?: string;
+        propositoEspecifico?: string;
     };
-    consumo: {
-        programaEvento: string;
-        responsablePersonaId: number;
-    };
-    detalles: EgresoDetallePayload[];
+    pecuniario?: EgresoPecuniario;
+    detalles?: EgresoDetalleRecurso[];
+}
+
+export interface EgresoFiltros {
+    tipoEgreso?: string;
+    destinoEntidadId?: number;
 }
 
 // Solicitudes internas
