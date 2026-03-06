@@ -152,7 +152,7 @@ export interface RegistrarPersonaPayload {
     fechaNacimiento?: string;
 }
 
-// Contracts for POST /api/ingreso/donacion
+// Contracts for POST /api/ingresos/donacion
 export interface IngresoDonacionPayload {
     origenEntidadId: number;
     responsableInternoId: number;

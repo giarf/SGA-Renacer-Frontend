@@ -245,8 +245,7 @@ const submitForm = async () => {
             },
             pecuniario: {
                 cuentaDestinoId: cuentaDestinoId.value!,
-                metodoTransferencia: metodoTransferencia.value,
-                comentarios: notas || undefined
+                metodoTransferencia: metodoTransferencia.value
             }
         };
         

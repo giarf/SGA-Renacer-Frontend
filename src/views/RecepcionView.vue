@@ -157,8 +157,7 @@ const submitDonacion = async () => {
         },
         pecuniario: {
             cuentaDestinoId: selectedFondo.value!.id,
-            metodoTransferencia: 'Transferencia',
-            comentarios: anotaciones || undefined
+            metodoTransferencia: 'Transferencia'
         }
     };
 
