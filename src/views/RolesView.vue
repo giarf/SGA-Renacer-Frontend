@@ -48,14 +48,14 @@ onMounted(() => {
 </script>
 
 <template>
-    <div class="px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+    <div class="px-4 sm:px-6 lg:px-8 py-5 space-y-5">
         <header class="space-y-2">
             <p class="text-sm uppercase tracking-widest text-purple-600 font-semibold">Directorio humano</p>
             <h2 class="text-3xl font-bold text-gray-900">Roles y redes de apoyo</h2>
             <p class="text-gray-600">Consulta rápidamente a las personas clave en cada rol dentro de la organización.</p>
         </header>
 
-        <div class="bg-white rounded-xl shadow border border-gray-100">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100">
             <div class="flex flex-wrap">
                 <button
                     v-for="tab in tabs"
@@ -67,7 +67,7 @@ onMounted(() => {
                     {{ tab.label }}
                 </button>
             </div>
-            <div class="px-6 py-4 border-t border-gray-100 text-sm text-gray-600">
+            <div class="px-5 py-3 border-t border-gray-100 text-sm text-gray-600">
                 {{ tabs.find(tab => tab.id === activeTab)?.description }}
             </div>
         </div>
@@ -85,11 +85,11 @@ onMounted(() => {
                 No se encontraron registros para este rol.
             </div>
 
-            <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 <article
                     v-for="persona in registros"
                     :key="persona.id"
-                    class="border border-gray-100 rounded-xl bg-white shadow-sm hover:shadow-md transition p-5"
+                    class="border border-gray-100 rounded-xl bg-white shadow-sm hover:shadow transition p-4"
                 >
                     <p class="text-xs uppercase tracking-widest text-gray-400">ID {{ persona.id }}</p>
                     <h3 class="text-xl font-bold text-gray-900">{{ persona.nombres }} {{ persona.apellidos }}</h3>

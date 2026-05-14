@@ -203,7 +203,7 @@ onMounted(() => {
 </script>
 
 <template>
-    <div class="px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+    <div class="px-4 sm:px-6 lg:px-8 py-5 space-y-5">
         <header class="space-y-2">
             <p class="text-sm uppercase tracking-widest text-amber-600 font-semibold">Red familiar</p>
             <h2 class="text-3xl font-bold text-gray-900">Familias y beneficiarios</h2>
@@ -214,14 +214,14 @@ onMounted(() => {
             {{ message.text }}
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
             <section class="lg:col-span-2 space-y-6">
-                <div class="bg-white rounded-xl shadow border border-gray-100">
-                    <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+                    <div class="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
                         <h3 class="text-lg font-semibold text-gray-900">Listado de familias</h3>
                         <span v-if="loading" class="text-sm text-gray-500">Cargando...</span>
                     </div>
-                    <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
                         <button
                             v-for="fam in familias"
                             :key="fam.id"
@@ -240,16 +240,16 @@ onMounted(() => {
                 </div>
 
                 <div class="bg-white rounded-xl shadow border border-gray-100 p-6">
-                    <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center justify-between mb-3">
                         <div>
-                            <h3 class="text-lg font-semibold text-gray-900">Beneficiarios</h3>
+                            <h3 class="text-base font-semibold text-gray-900">Beneficiarios</h3>
                             <p class="text-sm text-gray-500" v-if="selectedFamilia">Pertenece a {{ selectedFamilia.nombreFamilia }}</p>
                         </div>
                         <span v-if="beneficiariosLoading" class="text-xs text-gray-500">Actualizando...</span>
                     </div>
 
-                    <div v-if="selectedFamilia" class="space-y-4">
-                        <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                    <div v-if="selectedFamilia" class="space-y-3">
+                        <div class="bg-gray-50 rounded-lg p-3 border border-gray-200">
                             <p class="text-xs uppercase text-gray-500 tracking-wide">Jefe(a) de hogar</p>
                             <p class="text-lg font-semibold text-gray-900">{{ selectedFamilia.jefeHogarNombre || 'Sin información cargada' }}</p>
                         </div>

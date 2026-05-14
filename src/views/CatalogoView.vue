@@ -80,8 +80,8 @@ watch([items, searchQuery], () => {
 </script>
 
 <template>
-    <div class="max-w-7xl mx-auto py-8 px-4">
-        <div class="flex justify-between items-center mb-8">
+    <div class="max-w-7xl mx-auto py-5 px-4">
+        <div class="flex justify-between items-center mb-5">
             <h2 class="text-3xl font-bold text-institutional-blue">Catálogo de Ítems</h2>
             <button 
                 @click="abrirModalRegistro"
@@ -92,7 +92,7 @@ watch([items, searchQuery], () => {
         </div>
 
         <!-- Search Bar -->
-        <div class="mb-6">
+        <div class="mb-4">
             <input 
                 v-model="searchQuery"
                 type="text"
@@ -113,62 +113,62 @@ watch([items, searchQuery], () => {
         </div>
 
         <!-- Table -->
-        <div v-else-if="filteredItems.length > 0" class="bg-white shadow overflow-hidden sm:rounded-lg">
-            <table class="min-w-full divide-y divide-gray-200">
+        <div v-else-if="filteredItems.length > 0" class="bg-white shadow-sm rounded-lg border border-gray-100 overflow-hidden">
+            <table class="min-w-full divide-y divide-gray-100">
                 <thead class="bg-gray-50">
                     <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
                             Nombre
                         </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
                             Categoría
                         </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
                             Unidad
                         </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Stock Actual
+                        <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                            Stock
                         </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
                             Precio Ref.
                         </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
                             PPM
                         </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
                             Valor Total
                         </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th class="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">
                             Acciones
                         </th>
                     </tr>
                 </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
+                <tbody class="bg-white divide-y divide-gray-100">
                     <tr v-for="item in filteredItems" :key="item.id" class="hover:bg-gray-50">
-                        <td class="px-6 py-4 whitespace-nowrap">
+                        <td class="px-4 py-2.5 whitespace-nowrap">
                             <div class="text-sm font-medium text-gray-900">{{ item.nombre }}</div>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
+                        <td class="px-4 py-2.5 whitespace-nowrap">
                             <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
                                 {{ item.categoria }}
                             </span>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <td class="px-4 py-2.5 whitespace-nowrap text-sm text-gray-500">
                             {{ item.unidadMedidaEstandar }}
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <td class="px-4 py-2.5 whitespace-nowrap text-sm text-gray-900">
                             {{ item.stockActual }}
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <td class="px-4 py-2.5 whitespace-nowrap text-sm text-gray-900">
                             ${{ item.precioReferencia.toLocaleString('es-CL') }}
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <td class="px-4 py-2.5 whitespace-nowrap text-sm text-gray-500">
                             ${{ item.precioPromedioPonderado.toLocaleString('es-CL') }}
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
+                        <td class="px-4 py-2.5 whitespace-nowrap text-sm font-semibold text-gray-900">
                             ${{ item.valorTotalStock.toLocaleString('es-CL') }}
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <td class="px-4 py-2.5 whitespace-nowrap text-right">
                             <button 
                                 @click="abrirModalEditar(item)"
                                 class="btn btn-outline px-3 py-1 text-sm"

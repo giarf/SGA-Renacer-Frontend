@@ -207,7 +207,7 @@ const submitSolicitud = async () => {
 </script>
 
 <template>
-    <div class="px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+    <div class="px-4 sm:px-6 lg:px-8 py-5 space-y-5">
         <header class="space-y-2">
             <p class="text-sm uppercase tracking-widest text-sky-600 font-semibold">Solicitudes internas</p>
             <h2 class="text-3xl font-bold text-gray-900">Requerimientos de programas y talleres</h2>
@@ -218,8 +218,8 @@ const submitSolicitud = async () => {
             {{ message.text }}
         </div>
 
-        <div class="bg-white rounded-xl shadow border border-gray-100 p-6 space-y-6">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-5">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="relative">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Solicitante *</label>
                     <div v-if="solicitante" class="flex items-center justify-between bg-sky-50 border border-sky-200 rounded-md px-3 py-3">
@@ -280,7 +280,7 @@ const submitSolicitud = async () => {
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
                     <input
@@ -299,8 +299,8 @@ const submitSolicitud = async () => {
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="space-y-3">
                     <p class="text-sm font-semibold text-gray-800">Ítems desde catálogo</p>
                     <div class="relative">
                         <input

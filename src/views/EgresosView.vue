@@ -411,7 +411,7 @@ onMounted(async () => {
 </script>
 
 <template>
-    <div class="px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+    <div class="px-4 sm:px-6 lg:px-8 py-5 space-y-5">
         <header class="space-y-2">
             <p class="text-xs uppercase tracking-[0.35em] text-blue-500 font-semibold">Egreso</p>
             <h2 class="text-3xl font-bold text-gray-900">{{ sectionTitle }}</h2>
@@ -425,7 +425,7 @@ onMounted(async () => {
             {{ message.text }}
         </div>
 
-        <div class="bg-white rounded-xl shadow border border-gray-100">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100">
             <div v-if="showKindTabs" class="p-2 border-b border-gray-100">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
                     <button
@@ -455,12 +455,12 @@ onMounted(async () => {
                 </div>
             </div>
 
-            <div class="p-6">
-                <div class="bg-white shadow rounded-lg p-6 border border-gray-100">
-                    <div class="mb-4 flex items-start justify-between gap-3">
+            <div class="p-5">
+                <div class="bg-white shadow-sm rounded-lg p-5 border border-gray-100">
+                    <div class="mb-3 flex items-start justify-between gap-3">
                         <div>
-                            <h3 class="text-lg font-semibold text-gray-900">{{ form.modo === 'pecuniario' ? 'Egreso pecuniario' : 'Egreso en especie' }}</h3>
-                            <p class="text-sm text-gray-500">Completa todos los campos en el orden que prefieras.</p>
+                            <h3 class="text-base font-semibold text-gray-900">{{ form.modo === 'pecuniario' ? 'Egreso pecuniario' : 'Egreso en especie' }}</h3>
+                            <p class="text-sm text-gray-500">Completa todos los campos.</p>
                         </div>
                         <button
                             type="button"
@@ -471,27 +471,26 @@ onMounted(async () => {
                         </button>
                     </div>
 
-                    <form class="space-y-6" @submit.prevent="submitForm">
+                    <form class="space-y-4" @submit.prevent="submitForm">
                         <section
-                            class="grid grid-cols-1 md:grid-cols-2 gap-6"
-                            :class="usesItems ? 'bg-white shadow rounded-lg p-5 border border-gray-200' : ''"
+                            class="grid grid-cols-1 md:grid-cols-2 gap-4"
+                            :class="usesItems ? 'bg-white shadow-sm rounded-lg p-4 border border-gray-100' : ''"
                         >
                             <div v-if="usesItems" class="md:col-span-2">
                                 <h3 class="text-base font-semibold text-gray-900 mb-1">1. Identificar actores</h3>
                             </div>
                             <div class="md:col-span-2 relative">
                                 <label>Responsable interno <span class="text-red-500">*</span></label>
-                                <div v-if="selectedResponsable" class="mt-1 flex items-center justify-between bg-blue-50 p-4 rounded-md border border-blue-200">
+                                <div v-if="selectedResponsable" class="mt-1 flex items-center justify-between bg-blue-50 p-3 rounded-lg border border-blue-200">
                                     <div>
                                         <p class="font-semibold text-gray-900">{{ selectedResponsable.nombreCompleto }}</p>
                                         <p class="text-xs text-gray-500">{{ formatRutForDisplay(selectedResponsable.identificador) }}</p>
-                                        <p v-if="!canChangeResponsible" class="text-xs text-gray-500 mt-1">Asignado automáticamente desde Authentik</p>
                                     </div>
                                     <button v-if="canChangeResponsible" type="button" class="text-xs text-[#006d8f] hover:underline" @click="selectedResponsable = null">
                                         Cambiar
                                     </button>
                                 </div>
-                                <div v-else-if="resolvingResponsable" class="mt-1 bg-gray-50 p-4 rounded-md border border-gray-200 text-sm text-gray-500">
+                                <div v-else-if="resolvingResponsable" class="mt-1 bg-gray-50 p-3 rounded-md border border-gray-200 text-sm text-gray-500">
                                     Resolviendo responsable interno...
                                 </div>
                                 <div v-else class="relative mt-1">
@@ -525,7 +524,7 @@ onMounted(async () => {
 
                             <div class="md:col-span-2 relative">
                                 <label>{{ entidadLabel }} <span class="text-red-500">*</span></label>
-                                <div v-if="selectedDestino" class="mt-1 flex items-center justify-between bg-blue-50 p-4 rounded-md border border-blue-200">
+                                <div v-if="selectedDestino" class="mt-1 flex items-center justify-between bg-blue-50 p-3 rounded-lg border border-blue-200">
                                     <div>
                                         <p class="font-semibold text-gray-900">{{ selectedDestino.nombreCompleto }}</p>
                                         <p class="text-xs text-gray-500">{{ formatRutForDisplay(selectedDestino.identificador) }}</p>
@@ -639,11 +638,11 @@ onMounted(async () => {
                         </section>
 
                         <template v-if="usesItems">
-                            <section class="bg-white shadow rounded-lg p-5 border border-gray-200 space-y-4">
-                                <h3 class="text-base font-semibold text-gray-900 mb-1">2. Gestión de ítems</h3>
+                            <section class="bg-white shadow-sm rounded-lg p-4 border border-gray-100 space-y-3">
+                                <h3 class="text-sm font-semibold text-gray-900 mb-1">2. Gestión de ítems</h3>
                                 <div class="relative">
                                     <label>Buscar Ítem del Catálogo <span class="text-red-500">*</span></label>
-                                    <div v-if="selectedItem" class="mt-1 flex items-center justify-between bg-blue-50 p-3 rounded-md border border-blue-200">
+                                    <div v-if="selectedItem" class="mt-1 flex items-center justify-between bg-blue-50 p-2.5 rounded-md border border-blue-200">
                                         <div>
                                             <p class="font-semibold text-gray-900">{{ selectedItem.nombre }}</p>
                                             <p class="text-xs text-gray-500">
@@ -715,28 +714,28 @@ onMounted(async () => {
                                 </div>
                             </section>
 
-                            <section v-if="form.detalles.length" class="bg-white shadow rounded-lg p-5 border border-gray-200 space-y-4">
-                                <h3 class="text-base font-semibold text-gray-900 mb-1">3. Ítems agregados</h3>
+                            <section v-if="form.detalles.length" class="bg-white shadow-sm rounded-lg p-4 border border-gray-100 space-y-3">
+                                <h3 class="text-sm font-semibold text-gray-900 mb-1">3. Ítems agregados</h3>
                                 <div class="overflow-x-auto rounded-md border border-gray-100">
                                     <table class="min-w-full divide-y divide-gray-100">
                                         <thead class="bg-gray-50">
                                             <tr>
-                                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Ítem</th>
-                                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Cantidad</th>
-                                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Unidad</th>
-                                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">PPP</th>
-                                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Subtotal</th>
-                                                <th class="px-4 py-3"></th>
+                                                <th class="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Ítem</th>
+                                                <th class="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Cantidad</th>
+                                                <th class="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Unidad</th>
+                                                <th class="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">PPP</th>
+                                                <th class="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Subtotal</th>
+                                                <th class="px-3 py-2.5"></th>
                                             </tr>
                                         </thead>
                                         <tbody class="bg-white divide-y divide-gray-100">
                                             <tr v-for="(detalle, index) in form.detalles" :key="`${detalle.itemCatalogoId}-${index}`">
-                                                <td class="px-4 py-3 text-sm font-medium text-gray-900">{{ catalogoById.get(detalle.itemCatalogoId || 0)?.nombre || `Ítem #${detalle.itemCatalogoId}` }}</td>
-                                                <td class="px-4 py-3 text-sm text-gray-700">{{ detalle.cantidad }}</td>
-                                                <td class="px-4 py-3 text-sm text-gray-700">{{ unitLabel(catalogoById.get(detalle.itemCatalogoId || 0) || null) }}</td>
-                                                <td class="px-4 py-3 text-sm text-gray-700">{{ currency.format(resolveDetallePrice(detalle)) }}</td>
-                                                <td class="px-4 py-3 text-sm font-semibold text-gray-900">{{ currency.format(Number(detalle.cantidad || 0) * resolveDetallePrice(detalle)) }}</td>
-                                                <td class="px-4 py-3 text-right">
+                                                <td class="px-3 py-2.5 text-sm font-medium text-gray-900">{{ catalogoById.get(detalle.itemCatalogoId || 0)?.nombre || `Ítem #${detalle.itemCatalogoId}` }}</td>
+                                                <td class="px-3 py-2.5 text-sm text-gray-700">{{ detalle.cantidad }}</td>
+                                                <td class="px-3 py-2.5 text-sm text-gray-700">{{ unitLabel(catalogoById.get(detalle.itemCatalogoId || 0) || null) }}</td>
+                                                <td class="px-3 py-2.5 text-sm text-gray-700">{{ currency.format(resolveDetallePrice(detalle)) }}</td>
+                                                <td class="px-3 py-2.5 text-sm font-semibold text-gray-900">{{ currency.format(Number(detalle.cantidad || 0) * resolveDetallePrice(detalle)) }}</td>
+                                                <td class="px-3 py-2.5 text-right">
                                                     <button type="button" class="inline-flex items-center justify-center px-2 py-2 rounded-md text-red-600 border border-red-200 hover:bg-red-50" @click="removeDetalle(index)">
                                                         <Trash2 class="w-4 h-4" />
                                                     </button>

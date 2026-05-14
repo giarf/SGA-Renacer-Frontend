@@ -305,7 +305,7 @@ loadCurrentResponsible();
 </script>
 
 <template>
-    <div class="px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+    <div class="px-4 sm:px-6 lg:px-8 py-5 space-y-5">
         <div class="space-y-2">
             <p class="text-xs uppercase tracking-[0.35em] text-indigo-500 font-semibold">Recepción</p>
             <h2 class="text-3xl font-bold text-gray-900">Donaciones no pecuniarias</h2>
@@ -320,9 +320,9 @@ loadCurrentResponsible();
         </div>
 
         <!-- Section 1: Actores (Donor, Receiver, Purpose) -->
-        <div class="bg-white shadow rounded-lg p-5 border border-gray-200">
-            <h3 class="text-base font-semibold text-gray-900 mb-4">1. Identificar actores</h3>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <div class="bg-white shadow-sm rounded-lg p-4 border border-gray-100">
+            <h3 class="text-base font-semibold text-gray-900 mb-3">1. Identificar actores</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">
                         Fecha de recepción <span class="text-red-500">*</span>
@@ -336,14 +336,14 @@ loadCurrentResponsible();
                 </div>
             </div>
             
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <!-- Donor Searcher -->
                 <div class="relative">
                     <label class="block text-sm font-medium text-gray-700 mb-2">
                         Donador <span class="text-red-500">*</span>
                     </label>
                     
-                    <div v-if="selectedDonador" class="flex flex-col gap-3 bg-indigo-50 p-4 rounded-md border border-indigo-200">
+                    <div v-if="selectedDonador" class="flex flex-col gap-2 bg-indigo-50 p-3 rounded-lg border border-indigo-200">
                         <div>
                             <span class="block font-bold text-institutional-blue">{{ selectedDonador.nombreCompleto }}</span>
                             <span class="text-sm text-gray-600">{{ formatRutForDisplay(selectedDonador.identificador) }}</span>
@@ -391,7 +391,7 @@ loadCurrentResponsible();
                         Responsable interno <span class="text-red-500">*</span>
                     </label>
                     
-                    <div v-if="selectedReceptor" class="flex flex-col gap-3 bg-indigo-50 p-4 rounded-md border border-indigo-200">
+                    <div v-if="selectedReceptor" class="flex flex-col gap-2 bg-indigo-50 p-3 rounded-lg border border-indigo-200">
                         <div>
                             <span class="block font-bold text-green-700">{{ selectedReceptor.nombreCompleto }}</span>
                             <span class="text-sm text-gray-600">{{ formatRutForDisplay(selectedReceptor.identificador) }}</span>
@@ -463,7 +463,7 @@ loadCurrentResponsible();
                         Gestor / Responsable (opcional)
                     </label>
 
-                    <div v-if="selectedGestor" class="flex flex-col gap-2 bg-amber-50 border border-amber-200 rounded-md p-4">
+                    <div v-if="selectedGestor" class="flex flex-col gap-2 bg-amber-50 border border-amber-200 rounded-lg p-3">
                         <div>
                             <p class="font-semibold text-amber-900">{{ selectedGestor.nombreCompleto }}</p>
                             <p class="text-xs text-gray-600">{{ formatRutForDisplay(selectedGestor.identificador) }}</p>
@@ -626,61 +626,61 @@ loadCurrentResponsible();
         </div>
 
         <!-- Section 3: Items Table -->
-        <div v-if="items.length > 0" class="bg-white shadow rounded-2xl p-6 border border-gray-100">
-            <h3 class="text-xl font-semibold text-gray-900 mb-4">3. Ítems Agregados</h3>
+        <div v-if="items.length > 0" class="bg-white shadow-sm rounded-xl p-4 border border-gray-100">
+            <h3 class="text-base font-semibold text-gray-900 mb-3">3. Ítems Agregados</h3>
             
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
+            <div class="overflow-x-auto rounded-md border border-gray-100">
+                <table class="min-w-full divide-y divide-gray-100">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
                                 Ítem
                             </th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
                                 Cantidad
                             </th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Precio Unitario
+                            <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                                Precio Unit.
                             </th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
                                 Subtotal
                             </th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th class="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">
                                 Acciones
                             </th>
                         </tr>
                     </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
+                    <tbody class="bg-white divide-y divide-gray-100">
                         <tr v-for="(item, index) in items" :key="index">
-                            <td class="px-6 py-4 whitespace-nowrap">
+                            <td class="px-4 py-2.5 whitespace-nowrap">
                                 <div class="text-sm font-medium text-gray-900">{{ item.nombre }}</div>
                                 <div class="text-xs text-gray-500">{{ item.categoria }} • {{ item.unidad }}</div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <td class="px-4 py-2.5 whitespace-nowrap text-sm text-gray-900">
                                 {{ item.cantidad }}
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <td class="px-4 py-2.5 whitespace-nowrap text-sm text-gray-900">
                                 ${{ item.precio.toLocaleString('es-CL') }}
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
+                            <td class="px-4 py-2.5 whitespace-nowrap text-sm font-semibold text-gray-900">
                                 ${{ (item.cantidad * item.precio).toLocaleString('es-CL') }}
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                            <td class="px-4 py-2.5 whitespace-nowrap text-right">
                                 <button 
                                     @click="removeItem(index)"
-                                    class="inline-flex items-center gap-1 text-red-600 hover:text-red-800 font-medium"
+                                    class="inline-flex items-center gap-1 text-red-600 hover:text-red-800 text-xs font-medium"
                                 >
-                                    <Trash2 class="w-4 h-4" /> Eliminar
+                                    <Trash2 class="w-3.5 h-3.5" /> Eliminar
                                 </button>
                             </td>
                         </tr>
                     </tbody>
                     <tfoot class="bg-gray-50">
                         <tr>
-                            <td colspan="3" class="px-6 py-4 text-right text-sm font-bold text-gray-900">
+                            <td colspan="3" class="px-4 py-2.5 text-right text-sm font-bold text-gray-900">
                                 Total General:
                             </td>
-                            <td class="px-6 py-4 text-sm font-bold text-institutional-blue">
+                            <td class="px-4 py-2.5 text-sm font-bold text-institutional-blue">
                                 ${{ montoTotal.toLocaleString('es-CL') }}
                             </td>
                             <td></td>

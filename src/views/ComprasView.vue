@@ -338,7 +338,7 @@ onBeforeUnmount(clearBoletaPreview);
 </script>
 
 <template>
-    <div class="px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+    <div class="px-4 sm:px-6 lg:px-8 py-5 space-y-5">
         <header class="space-y-2">
             <p class="text-xs uppercase tracking-[0.35em] text-[#006d8f] font-semibold">Gestionar</p>
             <h2 class="text-3xl font-bold text-gray-900">Compras</h2>
@@ -351,8 +351,8 @@ onBeforeUnmount(clearBoletaPreview);
             {{ message.text }}
         </div>
 
-        <form @submit.prevent="submitCompra" class="bg-white rounded-xl border border-gray-100 shadow p-6 space-y-6">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <form @submit.prevent="submitCompra" class="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-5">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="relative">
                     <label class="block text-sm font-medium text-gray-700 mb-1">
                         Proveedor / Origen <span class="text-red-500">*</span>
@@ -430,7 +430,7 @@ onBeforeUnmount(clearBoletaPreview);
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Fecha <span class="text-red-500">*</span></label>
                     <input v-model="fecha" type="date" class="block w-full border border-gray-300 rounded-md p-2.5 bg-white" required />
@@ -457,7 +457,7 @@ onBeforeUnmount(clearBoletaPreview);
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Monto neto</label>
                     <input v-model.number="montoNeto" type="number" min="0" class="block w-full border border-gray-300 rounded-md p-2.5" />
@@ -472,7 +472,7 @@ onBeforeUnmount(clearBoletaPreview);
                 </div>
             </div>
 
-            <div class="rounded-lg border border-gray-200 p-4 space-y-3">
+            <div class="rounded-lg border border-gray-200 p-3 space-y-2">
                 <div class="flex items-center gap-2">
                     <FileImage class="w-4 h-4 text-[#006d8f]" />
                     <p class="text-sm font-semibold text-gray-800">Boleta de compra (opcional)</p>

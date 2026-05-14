@@ -231,22 +231,22 @@ onMounted(() => {
 </script>
 
 <template>
-    <div class="space-y-8">
+    <div class="space-y-5">
         <div v-if="message" :class="`p-4 rounded-md ${message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`">
             {{ message.text }}
         </div>
-        <div class="bg-white shadow rounded-lg p-6 border border-gray-100">
-            <div class="mb-4">
-                <h3 class="text-lg font-semibold text-gray-900">Donación pecuniaria</h3>
-                <p class="text-sm text-gray-500">Completa todos los campos en el orden que prefieras.</p>
+        <div class="bg-white shadow-sm rounded-lg p-5 border border-gray-100">
+            <div class="mb-3">
+                <h3 class="text-base font-semibold text-gray-900">Donación pecuniaria</h3>
+                <p class="text-sm text-gray-500">Completa todos los campos.</p>
             </div>
 
-            <form @submit.prevent="submitDonacion" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <form @submit.prevent="submitDonacion" class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="md:col-span-2 relative">
                     <label class="block text-sm font-medium text-gray-700 mb-1">
                         Donante <span class="text-red-500">*</span>
                     </label>
-                    <div v-if="selectedEntidad" class="flex flex-col gap-3 bg-blue-50 p-4 rounded-md border border-blue-200">
+                    <div v-if="selectedEntidad" class="flex flex-col gap-2 bg-blue-50 p-3 rounded-lg border border-blue-200">
                         <div>
                             <span class="block font-bold text-lg text-institutional-blue">{{ selectedEntidad.nombreCompleto }}</span>
                             <span class="text-sm text-gray-600">{{ formatRutForDisplay(selectedEntidad.identificador) }}</span>
@@ -286,7 +286,7 @@ onMounted(() => {
                     <label class="block text-sm font-medium text-gray-700 mb-1">
                         Responsable interno <span class="text-red-500">*</span>
                     </label>
-                    <div v-if="selectedResponsable" class="flex items-center justify-between bg-blue-50 p-3 border border-blue-200 rounded-md">
+                    <div v-if="selectedResponsable" class="flex items-center justify-between bg-blue-50 p-2.5 border border-blue-200 rounded-lg">
                         <div>
                             <p class="font-semibold text-blue-800">{{ selectedResponsable.nombreCompleto }}</p>
                             <p class="text-xs text-gray-600">{{ formatRutForDisplay(selectedResponsable.identificador) }}</p>
@@ -328,7 +328,7 @@ onMounted(() => {
 
                 <div class="md:col-span-2 relative">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Gestor interno (opcional)</label>
-                    <div v-if="selectedGestor" class="flex items-center justify-between bg-amber-50 p-3 border border-amber-200 rounded-md">
+                    <div v-if="selectedGestor" class="flex items-center justify-between bg-amber-50 p-2.5 border border-amber-200 rounded-lg">
                         <div>
                             <p class="font-semibold text-amber-800">{{ selectedGestor.nombreCompleto }}</p>
                             <p class="text-xs text-gray-600">{{ formatRutForDisplay(selectedGestor.identificador) }}</p>
