@@ -2,6 +2,9 @@
 import { computed, onMounted, reactive, ref } from 'vue';
 import { Edit3, KeyRound, Loader2, Plus, RefreshCw, Shield, ShieldCheck, UserCheck, UserX, X } from 'lucide-vue-next';
 import { authentikAdminService, type ManagedAuthentikUser } from '../api/authentikAdminService';
+import { apiService } from '../api/apiService';
+import type { EntidadResumen } from '../types';
+import { formatRutForDisplay } from '../utils/rutFormatter';
 
 const users = ref<ManagedAuthentikUser[]>([]);
 const loading = ref(false);
@@ -13,6 +16,12 @@ const message = ref<{ type: 'success' | 'error'; text: string } | null>(null);
 const modalMode = ref<'create' | 'edit' | null>(null);
 const selectedUser = ref<ManagedAuthentikUser | null>(null);
 const showPasswordModal = ref(false);
+const personaQuery = ref('');
+const personaResults = ref<EntidadResumen[]>([]);
+const selectedPersona = ref<EntidadResumen | null>(null);
+const searchingPersona = ref(false);
+const generatingUsername = ref(false);
+const showPersonaDropdown = ref(false);
 
 const form = reactive({
     name: '',
@@ -27,6 +36,8 @@ const passwordForm = reactive({
     password: '',
     confirm: ''
 });
+
+let personaSearchTimer: ReturnType<typeof setTimeout> | null = null;
 
 const filteredUsers = computed(() => {
     const term = search.value.trim().toLowerCase();
@@ -47,6 +58,60 @@ const initials = (user: ManagedAuthentikUser) => {
 const formattedDate = (date?: string | null) => {
     if (!date) return 'Sin ingreso';
     return new Intl.DateTimeFormat('es-CL', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(date));
+};
+
+const normalizeUsernamePart = (value: string) =>
+    value
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/ñ/g, 'n')
+        .replace(/Ñ/g, 'n')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '')
+        .trim();
+
+const getNameParts = (persona: EntidadResumen) => {
+    const nombres = (persona.nombres || persona.nombreCompleto || '').trim().split(/\s+/).filter(Boolean);
+    const apellidos = (persona.apellidos || '').trim().split(/\s+/).filter(Boolean);
+    if (!apellidos.length && persona.nombreCompleto) {
+        const fullParts = persona.nombreCompleto.trim().split(/\s+/).filter(Boolean);
+        return {
+            firstName: fullParts[0] || '',
+            firstSurname: fullParts[1] || '',
+            secondSurname: fullParts[2] || ''
+        };
+    }
+    return {
+        firstName: nombres[0] || '',
+        firstSurname: apellidos[0] || '',
+        secondSurname: apellidos[1] || ''
+    };
+};
+
+const buildUsernameCandidates = (persona: EntidadResumen) => {
+    const { firstName, firstSurname, secondSurname } = getNameParts(persona);
+    const name = normalizeUsernamePart(firstName);
+    const surname = normalizeUsernamePart(firstSurname);
+    const second = normalizeUsernamePart(secondSurname);
+    return [
+        name,
+        [name, surname].filter(Boolean).join('.'),
+        [name, surname, second].filter(Boolean).join('.')
+    ].filter((candidate, index, all) => candidate && all.indexOf(candidate) === index);
+};
+
+const generateUsername = async (persona: EntidadResumen) => {
+    generatingUsername.value = true;
+    try {
+        const candidates = buildUsernameCandidates(persona);
+        for (const candidate of candidates) {
+            const exists = await authentikAdminService.usernameExists(candidate);
+            if (!exists) return candidate;
+        }
+        return candidates[candidates.length - 1] || '';
+    } finally {
+        generatingUsername.value = false;
+    }
 };
 
 const setMessage = (type: 'success' | 'error', text: string) => {
@@ -74,6 +139,46 @@ const resetForm = () => {
     form.password = '';
     form.isAdmin = false;
     form.isActive = true;
+    personaQuery.value = '';
+    personaResults.value = [];
+    selectedPersona.value = null;
+    showPersonaDropdown.value = false;
+};
+
+const searchPersonas = (query: string) => {
+    if (personaSearchTimer) clearTimeout(personaSearchTimer);
+    if (!query.trim() || query.trim().length < 2) {
+        personaResults.value = [];
+        return;
+    }
+
+    personaSearchTimer = setTimeout(async () => {
+        searchingPersona.value = true;
+        try {
+            personaResults.value = (await apiService.buscarEntidades(query)).filter(entidad => entidad.tipoEntidad === 'Persona');
+            showPersonaDropdown.value = true;
+        } catch (error: any) {
+            setMessage('error', error.message || 'No se pudieron buscar personas.');
+            personaResults.value = [];
+        } finally {
+            searchingPersona.value = false;
+        }
+    }, 250);
+};
+
+const closePersonaDropdownDelayed = () => {
+    window.setTimeout(() => {
+        showPersonaDropdown.value = false;
+    }, 180);
+};
+
+const selectPersona = async (persona: EntidadResumen) => {
+    selectedPersona.value = persona;
+    personaQuery.value = '';
+    showPersonaDropdown.value = false;
+    form.name = persona.nombreCompleto || form.name;
+    form.email = persona.correo || persona.email || form.email;
+    form.username = await generateUsername(persona);
 };
 
 const openCreate = () => {
@@ -304,9 +409,48 @@ onMounted(loadUsers);
                     </button>
                 </div>
                 <div class="space-y-4 p-5">
+                    <div v-if="modalMode === 'create'" class="relative">
+                        <label class="block text-sm font-medium">Buscar persona en SGA</label>
+                        <div v-if="selectedPersona" class="mt-1 flex items-center justify-between rounded-xl border border-blue-200 bg-blue-50 p-3">
+                            <div>
+                                <p class="text-sm font-semibold text-blue-900">{{ selectedPersona.nombreCompleto }}</p>
+                                <p class="text-xs text-blue-700">{{ formatRutForDisplay(selectedPersona.identificador) }}</p>
+                            </div>
+                            <button type="button" class="text-xs text-blue-700 underline" @click="selectedPersona = null">Cambiar</button>
+                        </div>
+                        <div v-else class="relative mt-1">
+                            <input
+                                v-model="personaQuery"
+                                type="search"
+                                placeholder="Escribe nombre o RUT..."
+                                @input="searchPersonas(personaQuery)"
+                                @focus="showPersonaDropdown = true"
+                                @blur="closePersonaDropdownDelayed"
+                            />
+                            <div v-if="searchingPersona" class="absolute right-3 top-2.5 text-xs text-[var(--text-muted)]">Buscando...</div>
+                            <ul v-if="showPersonaDropdown && personaResults.length > 0" class="absolute z-20 mt-1 max-h-52 w-full overflow-auto rounded-xl border border-[var(--card-border)] bg-[var(--bg-card)] shadow-xl">
+                                <li
+                                    v-for="persona in personaResults"
+                                    :key="persona.id"
+                                    class="cursor-pointer px-3 py-2 hover:bg-blue-50"
+                                    @mousedown.prevent="selectPersona(persona)"
+                                >
+                                    <p class="text-sm font-medium text-[var(--text-primary)]">{{ persona.nombreCompleto }}</p>
+                                    <p class="text-xs text-[var(--text-muted)]">{{ formatRutForDisplay(persona.identificador) }}</p>
+                                </li>
+                            </ul>
+                            <div v-else-if="showPersonaDropdown && personaQuery.length >= 2 && !searchingPersona" class="absolute z-20 mt-1 w-full rounded-xl border border-[var(--card-border)] bg-[var(--bg-card)] p-3 text-xs text-[var(--text-muted)] shadow-xl">
+                                Sin coincidencias en personas.
+                            </div>
+                        </div>
+                    </div>
                     <label class="block text-sm font-medium">Nombre completo<input v-model="form.name" required class="mt-1" /></label>
                     <label class="block text-sm font-medium">Correo<input v-model="form.email" required type="email" class="mt-1" /></label>
-                    <label class="block text-sm font-medium">Usuario<input v-model="form.username" :disabled="modalMode === 'edit'" :required="modalMode === 'create'" class="mt-1 disabled:bg-black/5" placeholder="Opcional, se deriva del correo" /></label>
+                    <label class="block text-sm font-medium">
+                        Usuario
+                        <span v-if="generatingUsername" class="ml-2 text-xs font-normal text-[var(--text-muted)]">generando...</span>
+                        <input v-model="form.username" :disabled="modalMode === 'edit' || generatingUsername" :required="modalMode === 'create'" class="mt-1 disabled:bg-black/5" placeholder="Se genera al seleccionar persona" />
+                    </label>
                     <label v-if="modalMode === 'create'" class="block text-sm font-medium">Contraseña temporal<input v-model="form.password" type="password" minlength="8" class="mt-1" /></label>
                     <label class="flex items-center gap-3 rounded-xl border border-[var(--card-border)] bg-black/5 p-3 text-sm dark:bg-white/5">
                         <input v-model="form.isAdmin" type="checkbox" class="h-4 w-4" />

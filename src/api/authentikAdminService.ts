@@ -170,6 +170,15 @@ export const authentikAdminService = {
         return userId;
     },
 
+    async usernameExists(username: string) {
+        const cleanUsername = username.trim().toLowerCase();
+        if (!cleanUsername) return false;
+
+        const params = new URLSearchParams({ search: cleanUsername, page_size: '20' });
+        const data = await requestAuthentik<any>(`/core/users/?${params.toString()}`);
+        return getResults<any>(data).some(user => String(user?.username || '').toLowerCase() === cleanUsername);
+    },
+
     async updateUser(userId: number, payload: UpdateAuthentikUserPayload) {
         const patch: Record<string, unknown> = {};
         if (typeof payload.name === 'string') patch.name = payload.name.trim();
