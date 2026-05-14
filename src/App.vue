@@ -14,6 +14,7 @@ import {
     Home,
     IdCard,
     Landmark,
+    LogOut,
     Menu,
     Monitor,
     Moon,
@@ -25,6 +26,8 @@ import {
     Users,
     Wallet
 } from 'lucide-vue-next';
+import { authService, hasAnyGroup } from './auth/authService';
+import { ADMIN_GROUPS, DAILY_OPERATION_GROUPS } from './auth/permissions';
 
 type NavigationChild = {
     key: string;
@@ -32,6 +35,7 @@ type NavigationChild = {
     label: string;
     helper: string;
     icon: Component;
+    requiredGroups: readonly string[];
 };
 
 type NavigationItem = {
@@ -41,6 +45,7 @@ type NavigationItem = {
     helper: string;
     icon: Component;
     badge?: string;
+    requiredGroups?: readonly string[];
     children?: NavigationChild[];
 };
 
@@ -52,6 +57,7 @@ type NavigationLeaf = {
     icon: Component;
     badge?: string;
     mobileLabel: string;
+    requiredGroups: readonly string[];
 };
 
 const route = useRoute();
@@ -61,16 +67,16 @@ const navigationGroups: { title: string; items: NavigationItem[] }[] = [
     {
         title: 'Operación diaria',
         items: [
-            { key: 'donaciones', to: '/donaciones', label: 'Donaciones', helper: 'Registrar aportes monetarios o en especie', icon: HandCoins },
-            { key: 'compras', to: '/compras', label: 'Compras', helper: 'Ingresar compras y boletas', icon: ShoppingCart },
+            { key: 'donaciones', to: '/donaciones', label: 'Donaciones', helper: 'Registrar aportes monetarios o en especie', icon: HandCoins, requiredGroups: DAILY_OPERATION_GROUPS },
+            { key: 'compras', to: '/compras', label: 'Compras', helper: 'Ingresar compras y boletas', icon: ShoppingCart, requiredGroups: DAILY_OPERATION_GROUPS },
             {
                 key: 'ayudasConsumos',
                 label: 'Entregas y consumos',
                 helper: 'Salida de recursos para personas o uso interno',
                 icon: HandHeart,
                 children: [
-                    { key: 'ayudaSocial', to: '/ayuda-social', label: 'Ayuda social', helper: 'Entregar recursos a beneficiarios', icon: Handshake },
-                    { key: 'consumoInterno', to: '/consumo-interno', label: 'Consumo interno', helper: 'Registrar uso interno de recursos', icon: Building2 }
+                    { key: 'ayudaSocial', to: '/ayuda-social', label: 'Ayuda social', helper: 'Entregar recursos a beneficiarios', icon: Handshake, requiredGroups: DAILY_OPERATION_GROUPS },
+                    { key: 'consumoInterno', to: '/consumo-interno', label: 'Consumo interno', helper: 'Registrar uso interno de recursos', icon: Building2, requiredGroups: DAILY_OPERATION_GROUPS }
                 ]
             },
             {
@@ -79,8 +85,8 @@ const navigationGroups: { title: string; items: NavigationItem[] }[] = [
                 helper: 'Corregir inventario o saldos',
                 icon: SlidersHorizontal,
                 children: [
-                    { key: 'ajusteBienes', to: '/ajustes/bienes', label: 'Ajuste de bienes', helper: 'Ajustar stock físico', icon: PackageSearch },
-                    { key: 'ajustePecuniario', to: '/ajustes/pecuniario', label: 'Ajuste pecuniario', helper: 'Ajustar fondos o cuentas', icon: Landmark }
+                    { key: 'ajusteBienes', to: '/ajustes/bienes', label: 'Ajuste de bienes', helper: 'Ajustar stock físico', icon: PackageSearch, requiredGroups: DAILY_OPERATION_GROUPS },
+                    { key: 'ajustePecuniario', to: '/ajustes/pecuniario', label: 'Ajuste pecuniario', helper: 'Ajustar fondos o cuentas', icon: Landmark, requiredGroups: DAILY_OPERATION_GROUPS }
                 ]
             }
         ]
@@ -88,30 +94,47 @@ const navigationGroups: { title: string; items: NavigationItem[] }[] = [
     {
         title: 'Personas y atención',
         items: [
-            { key: 'entidades', to: '/entidades', label: 'Entidades', helper: 'Personas e instituciones', icon: Users },
-            { key: 'familias', to: '/familias', label: 'Familias', helper: 'Grupos familiares y beneficiarios', icon: Home },
-            { key: 'solicitudes', to: '/solicitudes', label: 'Solicitudes', helper: 'Requerimientos de programas', icon: ClipboardList }
+            { key: 'entidades', to: '/entidades', label: 'Entidades', helper: 'Personas e instituciones', icon: Users, requiredGroups: ADMIN_GROUPS },
+            { key: 'familias', to: '/familias', label: 'Familias', helper: 'Grupos familiares y beneficiarios', icon: Home, requiredGroups: ADMIN_GROUPS },
+            { key: 'solicitudes', to: '/solicitudes', label: 'Solicitudes', helper: 'Requerimientos de programas', icon: ClipboardList, requiredGroups: ADMIN_GROUPS }
         ]
     },
     {
         title: 'Inventario y finanzas',
         items: [
-            { key: 'catalogo', to: '/catalogo', label: 'Catálogo', helper: 'Ítems, stock y valorización', icon: Boxes },
-            { key: 'cuentas', to: '/cuentas', label: 'Cuentas', helper: 'Fondos internos y movimientos', icon: Wallet, badge: 'Nuevo' },
-            { key: 'roles', to: '/roles', label: 'Roles', helper: 'Directorio por rol', icon: IdCard }
+            { key: 'catalogo', to: '/catalogo', label: 'Catálogo', helper: 'Ítems, stock y valorización', icon: Boxes, requiredGroups: ADMIN_GROUPS },
+            { key: 'cuentas', to: '/cuentas', label: 'Cuentas', helper: 'Fondos internos y movimientos', icon: Wallet, badge: 'Nuevo', requiredGroups: ADMIN_GROUPS },
+            { key: 'roles', to: '/roles', label: 'Roles', helper: 'Directorio por rol', icon: IdCard, requiredGroups: ADMIN_GROUPS }
         ]
     },
     {
         title: 'Seguimiento',
         items: [
-            { key: 'logs', to: '/logs', label: 'Logs', helper: 'Historial y reportes', icon: ScrollText }
+            { key: 'logs', to: '/logs', label: 'Logs', helper: 'Historial y reportes', icon: ScrollText, requiredGroups: ADMIN_GROUPS }
         ]
     }
 ];
 
+const filteredNavigationGroups = computed(() =>
+    navigationGroups
+        .map(group => ({
+            ...group,
+            items: group.items
+                .map(item => {
+                    if (item.children?.length) {
+                        const children = item.children.filter(child => hasAnyGroup(child.requiredGroups));
+                        return children.length ? { ...item, children } : null;
+                    }
+                    return hasAnyGroup(item.requiredGroups ?? []) ? item : null;
+                })
+                .filter((item): item is NavigationItem => Boolean(item))
+        }))
+        .filter(group => group.items.length > 0)
+);
+
 const flatNavigation = computed<NavigationLeaf[]>(() => {
     const leaves: NavigationLeaf[] = [];
-    navigationGroups.forEach(group => {
+    filteredNavigationGroups.value.forEach(group => {
         group.items.forEach(item => {
             if (item.children?.length) {
                 item.children.forEach(child => {
@@ -130,7 +153,8 @@ const flatNavigation = computed<NavigationLeaf[]>(() => {
                     helper: item.helper,
                     icon: item.icon,
                     badge: item.badge,
-                    mobileLabel: item.label
+                    mobileLabel: item.label,
+                    requiredGroups: item.requiredGroups ?? []
                 });
             }
         });
@@ -274,10 +298,15 @@ const navigateFromMobile = (event: Event) => {
         router.push(target.value);
     }
 };
+
+const logout = () => {
+    authService.logout();
+};
 </script>
 
 <template>
-    <div class="min-h-screen flex" :class="layoutClasses">
+    <RouterView v-if="route.meta.public" />
+    <div v-else class="min-h-screen flex" :class="layoutClasses">
         <transition name="fade">
             <div v-if="showLoadingBar" class="fixed top-0 left-0 right-0 h-1.5 z-50">
                 <div
@@ -339,7 +368,7 @@ const navigateFromMobile = (event: Event) => {
             </nav>
 
             <nav v-else class="flex-1 overflow-y-auto px-4 py-6 space-y-6 text-sm" aria-label="Navegación principal">
-                <section v-for="group in navigationGroups" :key="group.title">
+                <section v-for="group in filteredNavigationGroups" :key="group.title">
                     <button
                         type="button"
                         class="w-full flex items-center justify-between text-[11px] uppercase tracking-[0.35em] font-semibold mb-2 text-slate-500"
@@ -428,7 +457,13 @@ const navigateFromMobile = (event: Event) => {
                             {{ currentViewMeta?.helper || 'Accede directo al flujo que necesitas realizar.' }}
                         </p>
                     </div>
-                    <div class="flex items-center gap-2">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <div class="hidden sm:block text-right mr-2">
+                            <p class="text-sm font-medium" :class="effectiveTheme === 'dark' ? 'text-white' : 'text-slate-900'">
+                                {{ authService.displayName }}
+                            </p>
+                            <p class="text-xs text-[var(--text-muted)]">Authentik</p>
+                        </div>
                         <button
                             type="button"
                             class="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm transition"
@@ -439,6 +474,17 @@ const navigateFromMobile = (event: Event) => {
                         >
                             <component :is="themeMeta.icon" class="w-4 h-4" />
                             {{ themeMeta.label }}
+                        </button>
+                        <button
+                            type="button"
+                            class="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm transition"
+                            :class="effectiveTheme === 'dark'
+                                ? 'border border-white/15 text-slate-200 hover:bg-white/5'
+                                : 'border border-slate-200 text-slate-600 hover:bg-black/5'"
+                            @click="logout"
+                        >
+                            <LogOut class="w-4 h-4" />
+                            Salir
                         </button>
                     </div>
                 </div>

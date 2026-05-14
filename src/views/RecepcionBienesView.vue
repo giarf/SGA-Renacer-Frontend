@@ -5,6 +5,7 @@ import { apiService } from '../api/apiService';
 import { formatRutForDisplay } from '../utils/rutFormatter';
 import ModalRegistroCatalogo from '../components/ModalRegistroCatalogo.vue';
 import { Trash2, ClipboardList, Loader2, Plus } from 'lucide-vue-next';
+import { canChangeResponsible, resolveCurrentResponsible } from '../auth/currentResponsible';
 
 // Debounce utility
 const today = new Date().toISOString().split('T')[0] ?? '';
@@ -28,6 +29,7 @@ const selectedDonador = ref<EntidadResumen | null>(null);
 const receptorQuery = ref('');
 const receptorResults = ref<EntidadResumen[]>([]);
 const loadingReceptor = ref(false);
+const resolvingReceptor = ref(false);
 const showReceptorDropdown = ref(false);
 const selectedReceptor = ref<EntidadResumen | null>(null);
 
@@ -109,6 +111,17 @@ const searchReceptor = debounce(async (query: string) => {
         loadingReceptor.value = false;
     }
 }, 300);
+
+const loadCurrentResponsible = async () => {
+    resolvingReceptor.value = true;
+    try {
+        selectedReceptor.value = await resolveCurrentResponsible();
+    } catch (e: any) {
+        message.value = { type: 'error', text: e.message || 'No se pudo resolver el responsable interno.' };
+    } finally {
+        resolvingReceptor.value = false;
+    }
+};
 
 const searchItems = debounce(async (query: string) => {
     if (!query || query.trim().length < 2) {
@@ -270,7 +283,7 @@ const submitDonacion = async () => {
         
         // Reset form
         selectedDonador.value = null;
-        selectedReceptor.value = null;
+        if (canChangeResponsible.value) selectedReceptor.value = null;
         proposito.value = '';
         anotaciones.value = '';
         selectedGestor.value = null;
@@ -287,6 +300,8 @@ const submitDonacion = async () => {
         submitting.value = false;
     }
 };
+
+loadCurrentResponsible();
 </script>
 
 <template>
@@ -371,24 +386,29 @@ const submitDonacion = async () => {
                     </div>
                 </div>
 
-                <!-- Receiver Searcher -->
                 <div class="relative">
                     <label class="block text-sm font-medium text-gray-700 mb-2">
-                        Receptor <span class="text-red-500">*</span>
+                        Responsable interno <span class="text-red-500">*</span>
                     </label>
                     
                     <div v-if="selectedReceptor" class="flex flex-col gap-3 bg-indigo-50 p-4 rounded-md border border-indigo-200">
                         <div>
                             <span class="block font-bold text-green-700">{{ selectedReceptor.nombreCompleto }}</span>
                             <span class="text-sm text-gray-600">{{ formatRutForDisplay(selectedReceptor.identificador) }}</span>
+                            <span v-if="!canChangeResponsible" class="block text-xs text-gray-500 mt-1">Asignado automáticamente desde Authentik</span>
                         </div>
-                        <button @click="selectedReceptor = null" class="self-start px-3 py-1.5 rounded-md border border-gray-300 text-gray-600 hover:text-gray-800 text-sm">
+                        <button v-if="canChangeResponsible" @click="selectedReceptor = null" class="self-start px-3 py-1.5 rounded-md border border-gray-300 text-gray-600 hover:text-gray-800 text-sm">
                             Cambiar
                         </button>
                     </div>
 
+                    <div v-else-if="resolvingReceptor" class="rounded-md border border-gray-200 bg-gray-50 p-4 text-sm text-gray-500">
+                        Resolviendo responsable interno...
+                    </div>
+
                     <div v-else>
                         <input 
+                            v-if="canChangeResponsible"
                             type="text" 
                             v-model="receptorQuery"
                             @input="searchReceptor(receptorQuery)"
@@ -396,6 +416,9 @@ const submitDonacion = async () => {
                             placeholder="Buscar por nombre o RUT..."
                             class="block w-full shadow-sm focus:ring-institutional-blue focus:border-institutional-blue sm:text-sm border-gray-300 rounded-md p-3 border"
                         />
+                        <div v-else class="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                            No se encontró tu responsable interno. Debe existir una entidad con tu nombre o correo de Authentik.
+                        </div>
                         
                         <!-- Dropdown -->
                         <div v-if="showReceptorDropdown && receptorQuery.length >= 2" class="absolute z-20 mt-1 w-full bg-white shadow-xl rounded-md border border-gray-200 max-h-60 overflow-auto">

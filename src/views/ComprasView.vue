@@ -4,6 +4,7 @@ import { Camera, ExternalLink, FileImage, Loader2, Plus, ShoppingCart, Trash2, X
 import { apiService } from '../api/apiService';
 import { formatRutForDisplay } from '../utils/rutFormatter';
 import type { CatalogoItem, CompraBoletaMetadata, CompraIngresoPayload, Cuenta, EntidadResumen } from '../types';
+import { canChangeResponsible, resolveCurrentResponsible } from '../auth/currentResponsible';
 
 const today = new Date().toISOString().split('T')[0] ?? '';
 
@@ -20,6 +21,7 @@ const selectedProveedor = ref<EntidadResumen | null>(null);
 const responsableQuery = ref('');
 const responsableResults = ref<EntidadResumen[]>([]);
 const responsableLoading = ref(false);
+const resolvingResponsable = ref(false);
 const showResponsableDropdown = ref(false);
 const selectedResponsable = ref<EntidadResumen | null>(null);
 
@@ -89,6 +91,17 @@ const loadCuentas = async () => {
         message.value = { type: 'error', text: e.message || 'No se pudieron cargar las cuentas.' };
     } finally {
         cuentasLoading.value = false;
+    }
+};
+
+const loadCurrentResponsible = async () => {
+    resolvingResponsable.value = true;
+    try {
+        selectedResponsable.value = await resolveCurrentResponsible();
+    } catch (e: any) {
+        message.value = { type: 'error', text: e.message || 'No se pudo resolver el responsable interno.' };
+    } finally {
+        resolvingResponsable.value = false;
     }
 };
 
@@ -223,8 +236,10 @@ const resetForm = () => {
     selectedProveedor.value = null;
     proveedorQuery.value = '';
     proveedorResults.value = [];
-    selectedResponsable.value = null;
-    responsableQuery.value = '';
+    if (canChangeResponsible.value) {
+        selectedResponsable.value = null;
+        responsableQuery.value = '';
+    }
     responsableResults.value = [];
     fecha.value = today;
     numeroFacturaBoleta.value = '';
@@ -315,7 +330,10 @@ const submitCompra = async () => {
     }
 };
 
-onMounted(loadCuentas);
+onMounted(() => {
+    loadCuentas();
+    loadCurrentResponsible();
+});
 onBeforeUnmount(clearBoletaPreview);
 </script>
 
@@ -376,10 +394,15 @@ onBeforeUnmount(clearBoletaPreview);
                     <div v-if="selectedResponsable" class="p-3 border border-[#006d8f]/20 rounded-md bg-[#006d8f]/5">
                         <p class="font-semibold text-[#006d8f]">{{ selectedResponsable.nombreCompleto }}</p>
                         <p class="text-xs text-gray-600">{{ formatRutForDisplay(selectedResponsable.identificador) }}</p>
-                        <button type="button" class="text-xs text-gray-600 underline mt-1" @click="selectedResponsable = null">Cambiar</button>
+                        <p v-if="!canChangeResponsible" class="text-xs text-gray-500 mt-1">Asignado automáticamente desde Authentik</p>
+                        <button v-else type="button" class="text-xs text-gray-600 underline mt-1" @click="selectedResponsable = null">Cambiar</button>
+                    </div>
+                    <div v-else-if="resolvingResponsable" class="p-3 border border-gray-200 rounded-md bg-gray-50 text-sm text-gray-500">
+                        Resolviendo responsable interno...
                     </div>
                     <div v-else>
                         <input
+                            v-if="canChangeResponsible"
                             v-model="responsableQuery"
                             type="text"
                             placeholder="Buscar por nombre o RUT..."
@@ -388,6 +411,9 @@ onBeforeUnmount(clearBoletaPreview);
                             @focus="showResponsableDropdown = true"
                             @blur="closeResponsableDropdownDelayed"
                         />
+                        <div v-else class="p-3 border border-red-200 rounded-md bg-red-50 text-sm text-red-700">
+                            No se encontró tu responsable interno. Debe existir una entidad con tu nombre o correo de Authentik.
+                        </div>
                         <div v-if="responsableLoading" class="absolute right-3 top-10 text-xs text-gray-400">Buscando...</div>
                         <ul v-if="showResponsableDropdown && responsableResults.length > 0" class="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-md shadow max-h-56 overflow-auto">
                             <li

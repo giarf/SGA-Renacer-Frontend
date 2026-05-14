@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue';
 import type { EntidadResumen, DonacionPayload, Cuenta } from '../types';
 import { apiService } from '../api/apiService';
 import { formatRutForDisplay } from '../utils/rutFormatter';
+import { canChangeResponsible, resolveCurrentResponsible } from '../auth/currentResponsible';
 
 // State
 const entidades = ref<EntidadResumen[]>([]);
@@ -19,6 +20,12 @@ const gestorResults = ref<EntidadResumen[]>([]);
 const showGestorDropdown = ref(false);
 const gestorLoading = ref(false);
 const selectedGestor = ref<EntidadResumen | null>(null);
+const responsableQuery = ref('');
+const responsableResults = ref<EntidadResumen[]>([]);
+const showResponsableDropdown = ref(false);
+const responsableLoading = ref(false);
+const resolvingResponsable = ref(false);
+const selectedResponsable = ref<EntidadResumen | null>(null);
 
 const today = new Date().toISOString().split('T')[0] ?? '';
 
@@ -88,6 +95,44 @@ const closeGestorDropdownDelayed = () => {
 };
 
 let gestorSearchTimer: ReturnType<typeof setTimeout> | null = null;
+let responsableSearchTimer: ReturnType<typeof setTimeout> | null = null;
+
+const loadCurrentResponsible = async () => {
+    resolvingResponsable.value = true;
+    try {
+        selectedResponsable.value = await resolveCurrentResponsible();
+    } catch (e: any) {
+        message.value = { type: 'error', text: e.message || 'No se pudo resolver el responsable interno.' };
+    } finally {
+        resolvingResponsable.value = false;
+    }
+};
+
+const searchResponsables = (query: string) => {
+    if (responsableSearchTimer) clearTimeout(responsableSearchTimer);
+    if (!query || query.trim().length < 2) {
+        responsableResults.value = [];
+        return;
+    }
+    responsableSearchTimer = setTimeout(async () => {
+        responsableLoading.value = true;
+        try {
+            responsableResults.value = await apiService.buscarEntidades(query);
+            showResponsableDropdown.value = true;
+        } catch {
+            responsableResults.value = [];
+        } finally {
+            responsableLoading.value = false;
+        }
+    }, 300);
+};
+
+const closeResponsableDropdownDelayed = () => {
+    setTimeout(() => {
+        showResponsableDropdown.value = false;
+    }, 200);
+};
+
 const searchGestores = (query: string) => {
     if (gestorSearchTimer) clearTimeout(gestorSearchTimer);
     if (!query || query.trim().length < 2) {
@@ -133,18 +178,20 @@ const submitDonacion = async () => {
         message.value = { type: 'error', text: 'Debes seleccionar un fondo destino.' };
         return;
     }
+    if (!selectedResponsable.value) {
+        message.value = { type: 'error', text: 'No se pudo identificar el responsable interno.' };
+        return;
+    }
     submitting.value = true;
     message.value = null;
 
     const destinoBase = selectedFondo.value?.nombre || 'Fondo sin nombre';
     const anotaciones = donationForm.value.anotaciones?.trim() || '';
     const proposito = donationForm.value.proposito?.trim() || destinoBase;
-    const responsableId = selectedGestor.value?.id ?? selectedEntidad.value.id;
-
     const payload: DonacionPayload = {
         ingreso: {
             origenEntidadId: selectedEntidad.value.id,
-            responsableInternoId: responsableId,
+            responsableInternoId: selectedResponsable.value.id,
             montoTotal: donationForm.value.monto,
             tipoTransaccion: 'Donacion',
             estado: 'Cerrado',
@@ -179,6 +226,7 @@ const submitDonacion = async () => {
 onMounted(() => {
     loadEntidades();
     loadFondos();
+    loadCurrentResponsible();
 });
 </script>
 
@@ -231,6 +279,50 @@ onMounted(() => {
                                 No se encontraron resultados para "{{ searchQuery }}"
                             </div>
                         </div>
+                    </div>
+                </div>
+
+                <div class="md:col-span-2 relative">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Responsable interno <span class="text-red-500">*</span>
+                    </label>
+                    <div v-if="selectedResponsable" class="flex items-center justify-between bg-blue-50 p-3 border border-blue-200 rounded-md">
+                        <div>
+                            <p class="font-semibold text-blue-800">{{ selectedResponsable.nombreCompleto }}</p>
+                            <p class="text-xs text-gray-600">{{ formatRutForDisplay(selectedResponsable.identificador) }}</p>
+                            <p v-if="!canChangeResponsible" class="text-xs text-gray-500 mt-1">Asignado automáticamente desde Authentik</p>
+                        </div>
+                        <button v-if="canChangeResponsible" type="button" class="text-xs text-blue-700 hover:underline" @click="selectedResponsable = null">Cambiar</button>
+                    </div>
+                    <div v-else-if="resolvingResponsable" class="bg-gray-50 p-3 border border-gray-200 rounded-md text-sm text-gray-500">
+                        Resolviendo responsable interno...
+                    </div>
+                    <div v-else class="relative">
+                        <input
+                            v-if="canChangeResponsible"
+                            type="text"
+                            v-model="responsableQuery"
+                            @input="searchResponsables(responsableQuery)"
+                            @focus="showResponsableDropdown = true"
+                            @blur="closeResponsableDropdownDelayed"
+                            placeholder="Buscar responsable por nombre o RUT..."
+                            class="block w-full shadow-sm focus:ring-institutional-blue focus:border-institutional-blue sm:text-sm border-gray-300 rounded-md p-2.5 border"
+                        />
+                        <div v-else class="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                            No se encontró tu responsable interno. Debe existir una entidad con tu nombre o correo de Authentik.
+                        </div>
+                        <div v-if="responsableLoading" class="absolute right-3 top-2.5 text-xs text-gray-400">Buscando...</div>
+                        <ul v-if="showResponsableDropdown && responsableResults.length > 0" class="absolute z-10 mt-1 w-full bg-white shadow-xl rounded-md border border-gray-100 max-h-60 overflow-auto">
+                            <li
+                                v-for="ent in responsableResults"
+                                :key="ent.id"
+                                @mousedown.prevent="selectedResponsable = ent; responsableQuery = ''; showResponsableDropdown = false"
+                                class="px-4 py-2 hover:bg-blue-50 cursor-pointer"
+                            >
+                                <p class="font-medium text-gray-900">{{ ent.nombreCompleto }}</p>
+                                <p class="text-xs text-gray-500">{{ formatRutForDisplay(ent.identificador) }}</p>
+                            </li>
+                        </ul>
                     </div>
                 </div>
 

@@ -4,6 +4,7 @@ import { Boxes, HandCoins, Loader2, Plus, Trash2 } from 'lucide-vue-next';
 import { apiService } from '../api/apiService';
 import type { CatalogoItem, Cuenta, EgresoPayload, EntidadResumen, MetodoTransferencia } from '../types';
 import { formatRutForDisplay } from '../utils/rutFormatter';
+import { canChangeResponsible, resolveCurrentResponsible } from '../auth/currentResponsible';
 
 type EgresoMode = 'all' | 'ayuda' | 'consumo' | 'ajusteBienes' | 'ajustePecuniario';
 type FormKind = 'items' | 'pecuniario';
@@ -44,6 +45,7 @@ const message = ref<{ type: 'success' | 'error'; text: string } | null>(null);
 const responsableQuery = ref('');
 const responsableResults = ref<EntidadResumen[]>([]);
 const responsableLoading = ref(false);
+const resolvingResponsable = ref(false);
 const showResponsableDropdown = ref(false);
 const selectedResponsable = ref<EntidadResumen | null>(null);
 
@@ -167,6 +169,17 @@ const loadOptions = async () => {
     }
 };
 
+const loadCurrentResponsible = async () => {
+    resolvingResponsable.value = true;
+    try {
+        selectedResponsable.value = await resolveCurrentResponsible();
+    } catch (error: any) {
+        setMessage('error', error.message || 'No se pudo resolver el responsable interno.');
+    } finally {
+        resolvingResponsable.value = false;
+    }
+};
+
 const searchResponsable = (query: string) => {
     if (responsableTimer) clearTimeout(responsableTimer);
     if (!query || query.trim().length < 2) {
@@ -249,9 +262,9 @@ const resetForm = () => {
         metodoTransferencia: 'Transferencia',
         detalles: []
     };
-    selectedResponsable.value = null;
+    if (canChangeResponsible.value) selectedResponsable.value = null;
     selectedDestino.value = null;
-    responsableQuery.value = '';
+    if (canChangeResponsible.value) responsableQuery.value = '';
     destinoQuery.value = '';
     responsableResults.value = [];
     destinoResults.value = [];
@@ -393,7 +406,7 @@ watch(
 
 onMounted(async () => {
     applyModeDefaults();
-    await loadOptions();
+    await Promise.all([loadOptions(), loadCurrentResponsible()]);
 });
 </script>
 
@@ -472,13 +485,18 @@ onMounted(async () => {
                                     <div>
                                         <p class="font-semibold text-gray-900">{{ selectedResponsable.nombreCompleto }}</p>
                                         <p class="text-xs text-gray-500">{{ formatRutForDisplay(selectedResponsable.identificador) }}</p>
+                                        <p v-if="!canChangeResponsible" class="text-xs text-gray-500 mt-1">Asignado automáticamente desde Authentik</p>
                                     </div>
-                                    <button type="button" class="text-xs text-[#006d8f] hover:underline" @click="selectedResponsable = null">
+                                    <button v-if="canChangeResponsible" type="button" class="text-xs text-[#006d8f] hover:underline" @click="selectedResponsable = null">
                                         Cambiar
                                     </button>
                                 </div>
+                                <div v-else-if="resolvingResponsable" class="mt-1 bg-gray-50 p-4 rounded-md border border-gray-200 text-sm text-gray-500">
+                                    Resolviendo responsable interno...
+                                </div>
                                 <div v-else class="relative mt-1">
                                     <input
+                                        v-if="canChangeResponsible"
                                         v-model="responsableQuery"
                                         type="text"
                                         placeholder="Buscar por nombre o RUT..."
@@ -487,6 +505,9 @@ onMounted(async () => {
                                         @focus="showResponsableDropdown = true"
                                         @blur="closeResponsableDropdownDelayed"
                                     />
+                                    <div v-else class="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                                        No se encontró tu responsable interno. Debe existir una entidad con tu nombre o correo de Authentik.
+                                    </div>
                                     <div v-if="responsableLoading" class="absolute right-3 top-2.5 text-xs text-gray-400">Buscando...</div>
                                     <ul v-if="showResponsableDropdown && responsableResults.length > 0" class="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-md shadow max-h-56 overflow-auto">
                                         <li
