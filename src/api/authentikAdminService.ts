@@ -46,10 +46,14 @@ const getApiError = (data: any, fallback: string) => {
 
 const requestAuthentik = async <T>(endpoint: string, init: RequestInit = {}) => {
     if (!config.token) {
+        console.error('[Authentik] Error: Falta VITE_AUTHENTIK_ADMIN_TOKEN');
         throw new Error('Falta VITE_AUTHENTIK_ADMIN_TOKEN para administrar usuarios.');
     }
 
-    const response = await fetch(`${config.baseUrl}/api/v3${endpoint}`, {
+    const url = `${config.baseUrl}/api/v3${endpoint}`;
+    console.log(`[Authentik] ${init.method || 'GET'} ${url}`, init.body ? JSON.parse(init.body as string) : '');
+
+    const response = await fetch(url, {
         ...init,
         headers: {
             Authorization: `Bearer ${config.token}`,
@@ -71,8 +75,11 @@ const requestAuthentik = async <T>(endpoint: string, init: RequestInit = {}) => 
         }
     }
 
+    console.log(`[Authentik] Response ${response.status}:`, data);
+
     if (!response.ok) {
-        throw new Error(getApiError(data, 'Error consultando Authentik.'));
+        console.error(`[Authentik] Error ${response.status} en ${endpoint}:`, data);
+        throw new Error(getApiError(data, `Error consultando Authentik (${response.status}).`));
     }
 
     return data as T;
@@ -93,11 +100,16 @@ const findGroupByName = async (name: string) => {
 };
 
 const getGroups = async () => {
-    if (groupsCache) return groupsCache;
+    if (groupsCache) {
+        console.log('[Authentik] getGroups (cached):', groupsCache);
+        return groupsCache;
+    }
+    console.log(`[Authentik] getGroups buscando: memberGroup="${config.memberGroup}", adminGroup="${config.adminGroup}"`);
     const [member, admin] = await Promise.all([
         findGroupByName(config.memberGroup),
         findGroupByName(config.adminGroup)
     ]);
+    console.log(`[Authentik] getGroups encontrado: member pk=${member?.pk}, admin pk=${admin?.pk}`);
     groupsCache = { member, admin };
     return groupsCache;
 };
@@ -120,13 +132,17 @@ const normalizeUser = (rawUser: any, adminGroup: AuthentikGroup): ManagedAuthent
 });
 
 const addUserToGroup = async (groupPk: string, userId: number) => {
+    console.log(`[Authentik] addUserToGroup: groupPk=${groupPk}, userId=${userId}`);
     try {
         await requestAuthentik(`/core/groups/${encodeURIComponent(groupPk)}/add_user/`, {
             method: 'POST',
             body: JSON.stringify({ pk: userId })
         });
+        console.log(`[Authentik] Usuario ${userId} agregado al grupo ${groupPk}`);
     } catch (err: any) {
+        console.warn(`[Authentik] addUserToGroup error:`, err.message);
         if (err.message?.includes('400') || err.message?.includes('already')) {
+            console.log(`[Authentik] Usuario ${userId} ya está en el grupo ${groupPk}, omitiendo`);
             return;
         }
         throw err;
@@ -134,13 +150,17 @@ const addUserToGroup = async (groupPk: string, userId: number) => {
 };
 
 const removeUserFromGroup = async (groupPk: string, userId: number) => {
+    console.log(`[Authentik] removeUserFromGroup: groupPk=${groupPk}, userId=${userId}`);
     try {
         await requestAuthentik(`/core/groups/${encodeURIComponent(groupPk)}/remove_user/`, {
             method: 'POST',
             body: JSON.stringify({ pk: userId })
         });
+        console.log(`[Authentik] Usuario ${userId} removido del grupo ${groupPk}`);
     } catch (err: any) {
+        console.warn(`[Authentik] removeUserFromGroup error:`, err.message);
         if (err.message?.includes('400') || err.message?.includes('not found')) {
+            console.log(`[Authentik] Usuario ${userId} no está en el grupo ${groupPk}, omitiendo`);
             return;
         }
         throw err;
@@ -215,7 +235,9 @@ export const authentikAdminService = {
     },
 
     async setAdmin(userId: number, isAdmin: boolean) {
+        console.log(`[Authentik] setAdmin: userId=${userId}, isAdmin=${isAdmin}`);
         const { admin } = await getGroups();
+        console.log(`[Authentik] admin group pk:`, admin.pk);
         if (isAdmin) await addUserToGroup(admin.pk, userId);
         else await removeUserFromGroup(admin.pk, userId);
     }
