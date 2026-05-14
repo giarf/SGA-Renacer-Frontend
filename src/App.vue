@@ -1,130 +1,113 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, type Component } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch, type Component } from 'vue';
+import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 import {
+    Boxes,
+    Building2,
+    ChevronDown,
+    ChevronsLeft,
+    ChevronsRight,
+    ClipboardList,
     HandCoins,
     HandHeart,
-    Users,
+    Handshake,
     Home,
-    ClipboardList,
-    Boxes,
-    Wallet,
     IdCard,
-    Sun,
-    Moon,
+    Landmark,
+    Menu,
     Monitor,
-    ChevronDown,
+    Moon,
+    PackageSearch,
     ScrollText,
     ShoppingCart,
-    Handshake,
-    Building2,
     SlidersHorizontal,
-    PackageSearch,
-    Landmark
+    Sun,
+    Users,
+    Wallet
 } from 'lucide-vue-next';
-import EntidadesView from './views/EntidadesView.vue';
-import DonacionesView from './views/DonacionesView.vue';
-import CatalogoView from './views/CatalogoView.vue';
-import CuentasView from './views/CuentasView.vue';
-import FamiliasView from './views/FamiliasView.vue';
-import SolicitudesView from './views/SolicitudesView.vue';
-import RolesView from './views/RolesView.vue';
-import LogsView from './views/LogsView.vue';
-import ComprasView from './views/ComprasView.vue';
-import AyudaSocialView from './views/AyudaSocialView.vue';
-import ConsumoInternoView from './views/ConsumoInternoView.vue';
-import AjusteBienesView from './views/AjusteBienesView.vue';
-import AjustePecuniarioView from './views/AjustePecuniarioView.vue';
-
-type ViewKey =
-    | 'donaciones'
-    | 'entidades'
-    | 'catalogo'
-    | 'cuentas'
-    | 'compras'
-    | 'ayudaSocial'
-    | 'consumoInterno'
-    | 'ajusteBienes'
-    | 'ajustePecuniario'
-    | 'familias'
-    | 'solicitudes'
-    | 'roles'
-    | 'logs';
-
-const currentView = ref<ViewKey>('donaciones');
 
 type NavigationChild = {
     key: string;
-    id: ViewKey;
+    to: string;
     label: string;
+    helper: string;
     icon: Component;
 };
 
 type NavigationItem = {
     key: string;
-    id?: ViewKey;
+    to?: string;
     label: string;
+    helper: string;
     icon: Component;
     badge?: string;
     children?: NavigationChild[];
 };
 
+type NavigationLeaf = {
+    key: string;
+    to: string;
+    label: string;
+    helper: string;
+    icon: Component;
+    badge?: string;
+    mobileLabel: string;
+};
+
+const route = useRoute();
+const router = useRouter();
+
 const navigationGroups: { title: string; items: NavigationItem[] }[] = [
     {
-        title: 'Gestionar',
+        title: 'Operación diaria',
         items: [
-            { key: 'donaciones', id: 'donaciones', label: 'Donaciones', icon: HandCoins },
-            { key: 'compras', id: 'compras', label: 'Compras', icon: ShoppingCart },
+            { key: 'donaciones', to: '/donaciones', label: 'Donaciones', helper: 'Registrar aportes monetarios o en especie', icon: HandCoins },
+            { key: 'compras', to: '/compras', label: 'Compras', helper: 'Ingresar compras y boletas', icon: ShoppingCart },
             {
                 key: 'ayudasConsumos',
-                label: 'Ayudas y Consumos',
+                label: 'Entregas y consumos',
+                helper: 'Salida de recursos para personas o uso interno',
                 icon: HandHeart,
                 children: [
-                    { key: 'ayudaSocial', id: 'ayudaSocial', label: 'Ayuda Social', icon: Handshake },
-                    { key: 'consumoInterno', id: 'consumoInterno', label: 'Consumo Interno', icon: Building2 }
+                    { key: 'ayudaSocial', to: '/ayuda-social', label: 'Ayuda social', helper: 'Entregar recursos a beneficiarios', icon: Handshake },
+                    { key: 'consumoInterno', to: '/consumo-interno', label: 'Consumo interno', helper: 'Registrar uso interno de recursos', icon: Building2 }
                 ]
             },
             {
                 key: 'ajustes',
                 label: 'Ajustes',
+                helper: 'Corregir inventario o saldos',
                 icon: SlidersHorizontal,
                 children: [
-                    { key: 'ajusteBienes', id: 'ajusteBienes', label: 'Ajuste de Bienes', icon: PackageSearch },
-                    { key: 'ajustePecuniario', id: 'ajustePecuniario', label: 'Ajuste Pecuniario', icon: Landmark }
+                    { key: 'ajusteBienes', to: '/ajustes/bienes', label: 'Ajuste de bienes', helper: 'Ajustar stock físico', icon: PackageSearch },
+                    { key: 'ajustePecuniario', to: '/ajustes/pecuniario', label: 'Ajuste pecuniario', helper: 'Ajustar fondos o cuentas', icon: Landmark }
                 ]
             }
         ]
     },
     {
-        title: 'Acceder',
+        title: 'Personas y atención',
         items: [
-            { key: 'entidades', id: 'entidades', label: 'Entidades', icon: Users },
-            { key: 'familias', id: 'familias', label: 'Familias', icon: Home },
-            { key: 'solicitudes', id: 'solicitudes', label: 'Solicitudes', icon: ClipboardList }
+            { key: 'entidades', to: '/entidades', label: 'Entidades', helper: 'Personas e instituciones', icon: Users },
+            { key: 'familias', to: '/familias', label: 'Familias', helper: 'Grupos familiares y beneficiarios', icon: Home },
+            { key: 'solicitudes', to: '/solicitudes', label: 'Solicitudes', helper: 'Requerimientos de programas', icon: ClipboardList }
         ]
     },
     {
-        title: 'Inventario y Finanzas',
+        title: 'Inventario y finanzas',
         items: [
-            { key: 'catalogo', id: 'catalogo', label: 'Catálogo', icon: Boxes },
-            { key: 'cuentas', id: 'cuentas', label: 'Cuentas', icon: Wallet, badge: 'Nuevo' },
-            { key: 'roles', id: 'roles', label: 'Roles', icon: IdCard }
+            { key: 'catalogo', to: '/catalogo', label: 'Catálogo', helper: 'Ítems, stock y valorización', icon: Boxes },
+            { key: 'cuentas', to: '/cuentas', label: 'Cuentas', helper: 'Fondos internos y movimientos', icon: Wallet, badge: 'Nuevo' },
+            { key: 'roles', to: '/roles', label: 'Roles', helper: 'Directorio por rol', icon: IdCard }
         ]
     },
     {
-        title: 'Registros y Analisis',
+        title: 'Seguimiento',
         items: [
-            { key: 'logs', id: 'logs', label: 'Logs', icon: ScrollText }
+            { key: 'logs', to: '/logs', label: 'Logs', helper: 'Historial y reportes', icon: ScrollText }
         ]
     }
 ];
-
-type NavigationLeaf = {
-    id: ViewKey;
-    label: string;
-    icon: Component;
-    badge?: string;
-    mobileLabel: string;
-};
 
 const flatNavigation = computed<NavigationLeaf[]>(() => {
     const leaves: NavigationLeaf[] = [];
@@ -133,18 +116,18 @@ const flatNavigation = computed<NavigationLeaf[]>(() => {
             if (item.children?.length) {
                 item.children.forEach(child => {
                     leaves.push({
-                        id: child.id,
-                        label: child.label,
-                        icon: child.icon,
+                        ...child,
                         mobileLabel: `${item.label} · ${child.label}`
                     });
                 });
                 return;
             }
-            if (item.id) {
+            if (item.to) {
                 leaves.push({
-                    id: item.id,
+                    key: item.key,
+                    to: item.to,
                     label: item.label,
+                    helper: item.helper,
                     icon: item.icon,
                     badge: item.badge,
                     mobileLabel: item.label
@@ -155,7 +138,11 @@ const flatNavigation = computed<NavigationLeaf[]>(() => {
     return leaves;
 });
 
-const currentViewMeta = computed(() => flatNavigation.value.find(item => item.id === currentView.value));
+const currentViewMeta = computed(() => {
+    const exact = flatNavigation.value.find(item => item.to === route.path);
+    return exact ?? flatNavigation.value.find(item => route.path.startsWith(item.to));
+});
+
 const loadingProgress = ref(0);
 const showLoadingBar = ref(false);
 let loadingInterval: number | null = null;
@@ -171,8 +158,6 @@ const startLoadingBar = () => {
         loadingFinishTimeout = null;
     }
     showLoadingBar.value = true;
-    loadingProgress.value = 0;
-    // Initial ramp
     loadingProgress.value = 8;
     loadingInterval = window.setInterval(() => {
         if (loadingProgress.value < 75) {
@@ -194,18 +179,23 @@ const finishLoadingBar = () => {
     }, 250);
 };
 
-const selectView = (view: ViewKey) => {
-    if (currentView.value === view) return;
-    startLoadingBar();
-    currentView.value = view;
-    setTimeout(() => finishLoadingBar(), 500);
-};
+watch(
+    () => route.fullPath,
+    () => {
+        startLoadingBar();
+        window.setTimeout(() => finishLoadingBar(), 320);
+    }
+);
 
 const expandedGroups = ref<Record<string, boolean>>({});
 navigationGroups.forEach(group => {
     expandedGroups.value[group.title] = true;
 });
-const toggleGroup = (title: string) => { expandedGroups.value[title] = !expandedGroups.value[title]; };
+
+const toggleGroup = (title: string) => {
+    if (isSidebarCollapsed.value) return;
+    expandedGroups.value[title] = !expandedGroups.value[title];
+};
 
 const expandedItems = ref<Record<string, boolean>>({
     ayudasConsumos: true,
@@ -213,12 +203,16 @@ const expandedItems = ref<Record<string, boolean>>({
 });
 
 const toggleItem = (itemKey: string) => {
+    if (isSidebarCollapsed.value) return;
     expandedItems.value[itemKey] = !expandedItems.value[itemKey];
 };
 
-const isParentActive = (item: NavigationItem) => {
-    if (!item.children?.length) return false;
-    return item.children.some(child => child.id === currentView.value);
+const isItemActive = (item: { to?: string }) => Boolean(item.to && route.path === item.to);
+const isParentActive = (item: NavigationItem) => Boolean(item.children?.some(child => route.path === child.to));
+
+const isSidebarCollapsed = ref(false);
+const toggleSidebar = () => {
+    isSidebarCollapsed.value = !isSidebarCollapsed.value;
 };
 
 type ThemeOption = 'system' | 'light' | 'dark';
@@ -236,11 +230,7 @@ const applyTheme = () => {
     const prefersDark = mediaQuery?.matches ?? false;
     const finalTheme = theme.value === 'system' ? (prefersDark ? 'dark' : 'light') : theme.value;
     effectiveTheme.value = finalTheme;
-    if (finalTheme === 'dark') {
-        document.documentElement.classList.add('dark');
-    } else {
-        document.documentElement.classList.remove('dark');
-    }
+    document.documentElement.classList.toggle('dark', finalTheme === 'dark');
 };
 
 onMounted(() => {
@@ -277,39 +267,81 @@ const layoutClasses = computed(() =>
         ? 'bg-[#141417] text-slate-100'
         : 'bg-[#f8f6f3] text-slate-900'
 );
+
+const navigateFromMobile = (event: Event) => {
+    const target = event.target as HTMLSelectElement;
+    if (target.value && target.value !== route.path) {
+        router.push(target.value);
+    }
+};
 </script>
 
 <template>
     <div class="min-h-screen flex" :class="layoutClasses">
         <transition name="fade">
-            <div
-                v-if="showLoadingBar"
-                class="fixed top-0 left-0 right-0 h-1.5 z-50"
-                style="background-color: transparent"
-            >
+            <div v-if="showLoadingBar" class="fixed top-0 left-0 right-0 h-1.5 z-50">
                 <div
                     class="h-full rounded-r-full transition-all duration-150"
-                    :style="{
-                        width: loadingProgress + '%',
-                        background: '#006d8f'
-                    }"
+                    :style="{ width: loadingProgress + '%', background: 'var(--accent-color)' }"
                 />
             </div>
         </transition>
-        <!-- Sidebar -->
-        <aside class="hidden lg:flex w-72 flex-col border-r" :class="sidebarClasses">
-            <div class="px-6 py-6 border-b border-white/10">
-                <p class="text-[10px] uppercase tracking-[0.4em] text-slate-500">Organización</p>
-                <p class="text-2xl font-semibold mt-2" :class="effectiveTheme === 'dark' ? 'text-white' : 'text-slate-900'">
-                    SGA Renacer
-                </p>
-                <p class="text-sm mt-2" :class="effectiveTheme === 'dark' ? 'text-slate-400' : 'text-slate-500'">
-                    Panel unificado para operaciones sociales.
-                </p>
+
+        <aside
+            class="hidden lg:flex shrink-0 flex-col border-r transition-[width] duration-300"
+            :class="[sidebarClasses, isSidebarCollapsed ? 'w-20' : 'w-72']"
+        >
+            <div class="border-b border-white/10" :class="isSidebarCollapsed ? 'px-3 py-5' : 'px-6 py-6'">
+                <div class="flex items-start justify-between gap-3">
+                    <div class="min-w-0" :class="isSidebarCollapsed ? 'sr-only' : ''">
+                        <p class="text-[10px] uppercase tracking-[0.4em] text-slate-500">Organización</p>
+                        <p class="text-2xl font-semibold mt-2" :class="effectiveTheme === 'dark' ? 'text-white' : 'text-slate-900'">
+                            SGA Renacer
+                        </p>
+                        <p class="text-sm mt-2" :class="effectiveTheme === 'dark' ? 'text-slate-400' : 'text-slate-500'">
+                            Panel unificado para operaciones sociales.
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border transition"
+                        :class="effectiveTheme === 'dark' ? 'border-white/10 hover:bg-white/5' : 'border-slate-200 hover:bg-black/5'"
+                        :aria-label="isSidebarCollapsed ? 'Expandir barra lateral' : 'Colapsar barra lateral'"
+                        @click="toggleSidebar"
+                    >
+                        <ChevronsRight v-if="isSidebarCollapsed" class="w-4 h-4" />
+                        <ChevronsLeft v-else class="w-4 h-4" />
+                    </button>
+                </div>
             </div>
-            <nav class="flex-1 overflow-y-auto px-4 py-6 space-y-6 text-sm">
+
+            <nav v-if="isSidebarCollapsed" class="flex-1 px-3 py-5 space-y-2 text-sm" aria-label="Navegación compacta">
+                <RouterLink
+                    v-for="item in flatNavigation"
+                    :key="item.key"
+                    :to="item.to"
+                    class="group relative flex h-12 w-12 items-center justify-center rounded-2xl transition"
+                    :class="isItemActive(item)
+                        ? 'bg-[#006d8f] text-white shadow-sm'
+                        : effectiveTheme === 'dark'
+                            ? 'text-slate-300 hover:text-white hover:bg-white/5'
+                            : 'text-slate-600 hover:text-slate-950 hover:bg-black/5'"
+                    :aria-label="item.label"
+                >
+                    <component :is="item.icon" class="w-5 h-5" />
+                    <span
+                        class="pointer-events-none absolute left-[calc(100%+0.75rem)] top-1/2 z-40 -translate-y-1/2 whitespace-nowrap rounded-2xl border border-[var(--card-border)] bg-[var(--bg-card)] px-3 py-2 text-left text-xs text-[var(--text-primary)] opacity-0 shadow-xl transition group-hover:opacity-100"
+                    >
+                        <strong class="block text-sm">{{ item.label }}</strong>
+                        <span class="text-[var(--text-muted)]">{{ item.helper }}</span>
+                    </span>
+                </RouterLink>
+            </nav>
+
+            <nav v-else class="flex-1 overflow-y-auto px-4 py-6 space-y-6 text-sm" aria-label="Navegación principal">
                 <section v-for="group in navigationGroups" :key="group.title">
                     <button
+                        type="button"
                         class="w-full flex items-center justify-between text-[11px] uppercase tracking-[0.35em] font-semibold mb-2 text-slate-500"
                         @click="toggleGroup(group.title)"
                     >
@@ -319,42 +351,64 @@ const layoutClasses = computed(() =>
                     <transition name="fade">
                         <ul v-if="expandedGroups[group.title]" class="space-y-1">
                             <li v-for="item in group.items" :key="item.key">
-                                <button
-                                    class="w-full flex items-center gap-3 rounded-md px-3 py-2 transition"
-                                    :class="(item.id && currentView === item.id) || isParentActive(item)
-                                        ? 'bg-[#006d8f] text-white'
+                                <RouterLink
+                                    v-if="item.to"
+                                    :to="item.to"
+                                    class="w-full flex items-center gap-3 rounded-2xl px-3 py-2.5 transition"
+                                    :class="isItemActive(item)
+                                        ? 'bg-[#006d8f] text-white shadow-sm'
                                         : effectiveTheme === 'dark'
                                             ? 'text-slate-400 hover:text-white hover:bg-white/5'
                                             : 'text-slate-600 hover:text-slate-900 hover:bg-black/5'"
-                                    @click="item.children?.length ? toggleItem(item.key) : (item.id && selectView(item.id))"
                                 >
-                                    <component :is="item.icon" class="w-4 h-4" :class="((item.id && currentView === item.id) || isParentActive(item)) ? 'text-white' : 'text-slate-400'" />
-                                    <span class="font-medium text-sm flex-1 text-left">{{ item.label }}</span>
-                                    <ChevronDown
-                                        v-if="item.children?.length"
-                                        class="w-3.5 h-3.5 transition-transform"
-                                        :class="expandedItems[item.key] ? 'rotate-180 text-white' : ''"
-                                    />
+                                    <component :is="item.icon" class="w-4 h-4" :class="isItemActive(item) ? 'text-white' : 'text-slate-400'" />
+                                    <span class="min-w-0 flex-1 text-left">
+                                        <span class="block font-medium text-sm">{{ item.label }}</span>
+                                        <span class="block truncate text-xs opacity-70">{{ item.helper }}</span>
+                                    </span>
                                     <span v-if="item.badge" class="text-[10px] uppercase tracking-wide font-semibold px-2 py-0.5 rounded-full bg-white/10">
                                         {{ item.badge }}
                                     </span>
-                                </button>
-                                <ul v-if="item.children?.length && expandedItems[item.key]" class="mt-1 ml-5 pl-4 border-l border-white/10 space-y-1">
-                                    <li v-for="child in item.children" :key="child.key">
-                                        <button
-                                            class="w-full flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition"
-                                            :class="currentView === child.id
-                                                ? 'bg-[#006d8f] text-white'
-                                                : effectiveTheme === 'dark'
-                                                    ? 'text-slate-300 hover:text-white hover:bg-white/5'
-                                                    : 'text-slate-600 hover:text-slate-900 hover:bg-black/5'"
-                                            @click="selectView(child.id)"
-                                        >
-                                            <component :is="child.icon" class="w-3.5 h-3.5" :class="currentView === child.id ? 'text-white' : 'text-slate-400'" />
-                                            <span class="text-left">{{ child.label }}</span>
-                                        </button>
-                                    </li>
-                                </ul>
+                                </RouterLink>
+
+                                <template v-else>
+                                    <button
+                                        type="button"
+                                        class="w-full flex items-center gap-3 rounded-2xl px-3 py-2.5 transition"
+                                        :class="isParentActive(item)
+                                            ? 'bg-[#006d8f] text-white shadow-sm'
+                                            : effectiveTheme === 'dark'
+                                                ? 'text-slate-400 hover:text-white hover:bg-white/5'
+                                                : 'text-slate-600 hover:text-slate-900 hover:bg-black/5'"
+                                        @click="toggleItem(item.key)"
+                                    >
+                                        <component :is="item.icon" class="w-4 h-4" :class="isParentActive(item) ? 'text-white' : 'text-slate-400'" />
+                                        <span class="min-w-0 flex-1 text-left">
+                                            <span class="block font-medium text-sm">{{ item.label }}</span>
+                                            <span class="block truncate text-xs opacity-70">{{ item.helper }}</span>
+                                        </span>
+                                        <ChevronDown class="w-3.5 h-3.5 transition-transform" :class="expandedItems[item.key] ? 'rotate-180' : ''" />
+                                    </button>
+                                    <ul v-if="item.children?.length && expandedItems[item.key]" class="mt-1 ml-5 pl-4 border-l border-white/10 space-y-1">
+                                        <li v-for="child in item.children" :key="child.key">
+                                            <RouterLink
+                                                :to="child.to"
+                                                class="w-full flex items-center gap-2 rounded-xl px-3 py-2 text-sm transition"
+                                                :class="isItemActive(child)
+                                                    ? 'bg-[#006d8f] text-white'
+                                                    : effectiveTheme === 'dark'
+                                                        ? 'text-slate-300 hover:text-white hover:bg-white/5'
+                                                        : 'text-slate-600 hover:text-slate-900 hover:bg-black/5'"
+                                            >
+                                                <component :is="child.icon" class="w-3.5 h-3.5" :class="isItemActive(child) ? 'text-white' : 'text-slate-400'" />
+                                                <span class="min-w-0 text-left">
+                                                    <span class="block">{{ child.label }}</span>
+                                                    <span class="block truncate text-xs opacity-70">{{ child.helper }}</span>
+                                                </span>
+                                            </RouterLink>
+                                        </li>
+                                    </ul>
+                                </template>
                             </li>
                         </ul>
                     </transition>
@@ -362,17 +416,21 @@ const layoutClasses = computed(() =>
             </nav>
         </aside>
 
-        <div class="flex-1 flex flex-col">
+        <div class="min-w-0 flex-1 flex flex-col">
             <header class="border-b border-white/10 px-6 lg:px-10 py-5 flex flex-col gap-4">
                 <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                     <div>
                         <p class="text-xs uppercase tracking-[0.35em] text-slate-500">Panel operativo</p>
                         <h1 class="text-3xl font-bold" :class="effectiveTheme === 'dark' ? 'text-white' : 'text-slate-900'">
-                            {{ currentViewMeta?.label || 'Selecciona una vista' }}
+                            {{ currentViewMeta?.label || route.meta.label || 'SGA Renacer' }}
                         </h1>
+                        <p class="mt-1 text-sm text-[var(--text-muted)]">
+                            {{ currentViewMeta?.helper || 'Accede directo al flujo que necesitas realizar.' }}
+                        </p>
                     </div>
-                    <div class="flex items-center">
+                    <div class="flex items-center gap-2">
                         <button
+                            type="button"
                             class="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm transition"
                             :class="effectiveTheme === 'dark'
                                 ? 'border border-white/15 text-slate-200 hover:bg-white/5'
@@ -385,12 +443,17 @@ const layoutClasses = computed(() =>
                     </div>
                 </div>
 
-                <div class="lg:hidden">
+                <div class="lg:hidden grid grid-cols-[auto,1fr] gap-3 items-center">
+                    <div class="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-[var(--card-border)] bg-[var(--bg-card)]">
+                        <Menu class="w-4 h-4" />
+                    </div>
                     <select
-                        v-model="currentView"
-                        class="w-full bg-black/5 dark:bg-white/10 border border-white/10 rounded-md px-3 py-2 text-sm focus:outline-none"
+                        :value="route.path"
+                        class="w-full bg-black/5 dark:bg-white/10 border border-white/10 rounded-2xl px-3 py-2 text-sm focus:outline-none"
+                        aria-label="Cambiar sección"
+                        @change="navigateFromMobile"
                     >
-                        <option v-for="item in flatNavigation" :key="item.id" :value="item.id">
+                        <option v-for="item in flatNavigation" :key="item.key" :value="item.to">
                             {{ item.mobileLabel }}
                         </option>
                     </select>
@@ -399,49 +462,35 @@ const layoutClasses = computed(() =>
 
             <main class="flex-1 overflow-y-auto">
                 <section class="py-6">
-                    <div v-if="currentView === 'donaciones'">
-                        <DonacionesView />
-                    </div>
-                    <div v-else-if="currentView === 'entidades'">
-                        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                            <EntidadesView />
-                        </div>
-                    </div>
-                    <div v-else-if="currentView === 'catalogo'">
-                        <CatalogoView />
-                    </div>
-                    <div v-else-if="currentView === 'cuentas'">
-                        <CuentasView />
-                    </div>
-                    <div v-else-if="currentView === 'compras'">
-                        <ComprasView />
-                    </div>
-                    <div v-else-if="currentView === 'ayudaSocial'">
-                        <AyudaSocialView />
-                    </div>
-                    <div v-else-if="currentView === 'consumoInterno'">
-                        <ConsumoInternoView />
-                    </div>
-                    <div v-else-if="currentView === 'ajusteBienes'">
-                        <AjusteBienesView />
-                    </div>
-                    <div v-else-if="currentView === 'ajustePecuniario'">
-                        <AjustePecuniarioView />
-                    </div>
-                    <div v-else-if="currentView === 'familias'">
-                        <FamiliasView />
-                    </div>
-                    <div v-else-if="currentView === 'solicitudes'">
-                        <SolicitudesView />
-                    </div>
-                    <div v-else-if="currentView === 'roles'">
-                        <RolesView />
-                    </div>
-                    <div v-else-if="currentView === 'logs'">
-                        <LogsView />
-                    </div>
+                    <RouterView v-slot="{ Component: RouteComponent }">
+                        <transition name="route-fade" mode="out-in">
+                            <div :key="route.fullPath">
+                                <div v-if="route.path === '/entidades'" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                                    <component :is="RouteComponent" />
+                                </div>
+                                <component v-else :is="RouteComponent" />
+                            </div>
+                        </transition>
+                    </RouterView>
                 </section>
             </main>
         </div>
     </div>
 </template>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active,
+.route-fade-enter-active,
+.route-fade-leave-active {
+    transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to,
+.route-fade-enter-from,
+.route-fade-leave-to {
+    opacity: 0;
+    transform: translateY(4px);
+}
+</style>

@@ -1,5 +1,22 @@
-# Vue 3 + TypeScript + Vite
+# SGA Renacer Frontend
 
-This template should help get you started developing with Vue 3 and TypeScript in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+Aplicación Vue 3 + Vite para gestión operativa de donaciones, compras, entidades, familias, solicitudes, inventario y cuentas.
 
-Learn more about the recommended Project Setup and IDE Support in the [Vue Docs TypeScript Guide](https://vuejs.org/guide/typescript/overview.html#project-setup).
+## Desarrollo
+
+```bash
+pnpm install
+pnpm dev
+```
+
+## Producción
+
+```bash
+pnpm build
+```
+
+## Deploy
+
+Nixpacks/Coolify usa `nixpacks.toml`: instala con `pnpm install --frozen-lockfile`, compila con `pnpm build` y sirve `dist` con `pnpm start` en `$PORT`.
+
+El proyecto usa `pnpm-lock.yaml`; no mantener `package-lock.json` en este repositorio.
