@@ -24,6 +24,7 @@ import {
     SlidersHorizontal,
     Sun,
     Users,
+    UserCog,
     Wallet
 } from 'lucide-vue-next';
 import { authService, hasAnyGroup } from './auth/authService';
@@ -110,6 +111,7 @@ const navigationGroups: { title: string; items: NavigationItem[] }[] = [
     {
         title: 'Seguimiento',
         items: [
+            { key: 'usuarios', to: '/usuarios', label: 'Usuarios', helper: 'Crear accesos y permisos Authentik', icon: UserCog, requiredGroups: ADMIN_GROUPS },
             { key: 'logs', to: '/logs', label: 'Logs', helper: 'Historial y reportes', icon: ScrollText, requiredGroups: ADMIN_GROUPS }
         ]
     }

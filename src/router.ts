@@ -17,6 +17,7 @@ import { ADMIN_GROUPS, DAILY_OPERATION_GROUPS } from './auth/permissions';
 import CallbackView from './views/CallbackView.vue';
 import LoginView from './views/LoginView.vue';
 import UnauthorizedView from './views/UnauthorizedView.vue';
+import UsuariosView from './views/UsuariosView.vue';
 
 declare module 'vue-router' {
     interface RouteMeta {
@@ -45,6 +46,7 @@ export const router = createRouter({
         { path: '/catalogo', name: 'catalogo', component: CatalogoView, meta: { label: 'Catálogo', requiredGroups: ADMIN_GROUPS } },
         { path: '/cuentas', name: 'cuentas', component: CuentasView, meta: { label: 'Cuentas', requiredGroups: ADMIN_GROUPS } },
         { path: '/roles', name: 'roles', component: RolesView, meta: { label: 'Roles', requiredGroups: ADMIN_GROUPS } },
+        { path: '/usuarios', name: 'usuarios', component: UsuariosView, meta: { label: 'Usuarios', requiredGroups: ADMIN_GROUPS } },
         { path: '/logs', name: 'logs', component: LogsView, meta: { label: 'Logs', requiredGroups: ADMIN_GROUPS } },
         { path: '/:pathMatch(.*)*', redirect: '/donaciones' }
     ],

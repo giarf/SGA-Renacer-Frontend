@@ -7,6 +7,14 @@ export default defineConfig({
   server: {
     host: true,
     cors: true,
-    allowedHosts: true
+    allowedHosts: true,
+    proxy: {
+      '/authentik-api': {
+        target: 'https://auth.slaksis.com',
+        changeOrigin: true,
+        secure: true,
+        rewrite: (path) => path.replace(/^\/authentik-api/, '')
+      }
+    }
   }
 })
