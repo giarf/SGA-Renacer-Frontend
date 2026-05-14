@@ -227,7 +227,7 @@ const submitSolicitud = async () => {
                             <p class="font-semibold text-sky-700">{{ solicitante.nombreCompleto }}</p>
                             <p class="text-sm text-gray-600">{{ formatRutForDisplay(solicitante.identificador) }}</p>
                         </div>
-                        <button class="text-sm text-sky-600" @click="solicitante = null">Cambiar</button>
+                        <button class="text-xs text-[var(--accent-color)] underline hover:text-[var(--accent-color-hover)]" @click="solicitante = null">Cambiar</button>
                     </div>
                     <div v-else>
                         <input

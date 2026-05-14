@@ -348,7 +348,7 @@ loadCurrentResponsible();
                             <span class="block font-bold text-institutional-blue">{{ selectedDonador.nombreCompleto }}</span>
                             <span class="text-sm text-gray-600">{{ formatRutForDisplay(selectedDonador.identificador) }}</span>
                         </div>
-                        <button @click="selectedDonador = null" class="self-start px-3 py-1.5 rounded-md border border-gray-300 text-gray-600 hover:text-gray-800 text-sm">
+                        <button type="button" @click="selectedDonador = null" class="self-start text-xs text-[var(--accent-color)] underline hover:text-[var(--accent-color-hover)]">
                             Cambiar
                         </button>
                     </div>
@@ -396,7 +396,7 @@ loadCurrentResponsible();
                             <span class="text-sm text-gray-600">{{ formatRutForDisplay(selectedReceptor.identificador) }}</span>
                             <span v-if="!canChangeResponsible" class="block text-xs text-gray-500 mt-1">Asignado automáticamente desde Authentik</span>
                         </div>
-                        <button v-if="canChangeResponsible" @click="selectedReceptor = null" class="self-start px-3 py-1.5 rounded-md border border-gray-300 text-gray-600 hover:text-gray-800 text-sm">
+                        <button v-if="canChangeResponsible" type="button" @click="selectedReceptor = null" class="self-start text-xs text-[var(--accent-color)] underline hover:text-[var(--accent-color-hover)]">
                             Cambiar
                         </button>
                     </div>
@@ -466,7 +466,7 @@ loadCurrentResponsible();
                             <p class="font-semibold text-amber-900">{{ selectedGestor.nombreCompleto }}</p>
                             <p class="text-xs text-gray-600">{{ formatRutForDisplay(selectedGestor.identificador) }}</p>
                         </div>
-                        <button type="button" @click="clearGestor" class="self-start text-xs px-3 py-1.5 rounded-full border border-amber-300 text-amber-700 hover:bg-amber-100">
+                        <button type="button" @click="clearGestor" class="self-start text-xs text-[var(--accent-color)] underline hover:text-[var(--accent-color-hover)]">
                             Cambiar
                         </button>
                     </div>

@@ -349,7 +349,7 @@ onMounted(() => {
                                     <p class="font-semibold text-amber-700">{{ jefeSeleccionado.nombreCompleto }}</p>
                                     <p class="text-xs text-gray-600">{{ formatRutForDisplay(jefeSeleccionado.identificador) }}</p>
                                 </div>
-                                <button class="text-sm text-amber-600" type="button" @click="jefeSeleccionado = null">Cambiar</button>
+                                <button class="text-xs text-[var(--accent-color)] underline hover:text-[var(--accent-color-hover)]" type="button" @click="jefeSeleccionado = null">Cambiar</button>
                             </div>
                             <div v-else>
                                 <input

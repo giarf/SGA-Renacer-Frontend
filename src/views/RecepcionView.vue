@@ -251,8 +251,8 @@ onMounted(() => {
                              <span class="block text-sm font-semibold text-[var(--text-primary)]">{{ selectedEntidad.nombreCompleto }}</span>
                              <span class="text-xs text-[var(--text-muted)]">{{ formatRutForDisplay(selectedEntidad.identificador) }}</span>
                         </div>
-                        <button type="button" @click="selectedEntidad = null" class="btn-secondary px-3 py-1.5 text-xs">
-                            Cambiar donante
+                        <button type="button" @click="selectedEntidad = null" class="self-start text-xs text-[var(--accent-color)] underline hover:text-[var(--accent-color-hover)]">
+                            Cambiar
                         </button>
                     </div>
                     <div v-else class="relative">
