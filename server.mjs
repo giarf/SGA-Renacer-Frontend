@@ -40,11 +40,13 @@ async function proxyAuthentik(req, res, url) {
         headers.set(key, Array.isArray(value) ? value.join(', ') : value);
     }
 
+    const body = ['GET', 'HEAD'].includes(req.method || 'GET') ? undefined : await readRequestBody(req);
+    if (body) headers.set('content-length', String(body.length));
+
     const response = await fetch(targetUrl, {
         method: req.method,
         headers,
-        body: ['GET', 'HEAD'].includes(req.method || 'GET') ? undefined : req,
-        duplex: 'half'
+        body
     });
 
     const responseHeaders = Object.fromEntries(response.headers.entries());
@@ -69,6 +71,14 @@ async function proxyAuthentik(req, res, url) {
         res.write(value);
     }
     res.end();
+}
+
+async function readRequestBody(req) {
+    const chunks = [];
+    for await (const chunk of req) {
+        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    }
+    return chunks.length ? Buffer.concat(chunks) : undefined;
 }
 
 async function serveStatic(req, res, url) {

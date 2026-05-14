@@ -71,9 +71,9 @@ const normalizeUsernamePart = (value: string) =>
         .trim();
 
 const getNameParts = (persona: EntidadResumen) => {
-    const nombres = (persona.nombres || persona.nombreCompleto || '').trim().split(/\s+/).filter(Boolean);
+    const nombres = (persona.nombres || '').trim().split(/\s+/).filter(Boolean);
     const apellidos = (persona.apellidos || '').trim().split(/\s+/).filter(Boolean);
-    if (!apellidos.length && persona.nombreCompleto) {
+    if (!nombres.length && !apellidos.length && persona.nombreCompleto) {
         const fullParts = persona.nombreCompleto.trim().split(/\s+/).filter(Boolean);
         return {
             firstName: fullParts[0] || '',
@@ -173,12 +173,21 @@ const closePersonaDropdownDelayed = () => {
 };
 
 const selectPersona = async (persona: EntidadResumen) => {
-    selectedPersona.value = persona;
+    searchingPersona.value = true;
     personaQuery.value = '';
     showPersonaDropdown.value = false;
-    form.name = persona.nombreCompleto || form.name;
-    form.email = persona.correo || persona.email || form.email;
-    form.username = await generateUsername(persona);
+    try {
+        const detalle = await apiService.getPersona(persona.id);
+        selectedPersona.value = detalle;
+        form.name = detalle.nombreCompleto || `${detalle.nombres ?? ''} ${detalle.apellidos ?? ''}`.trim() || form.name;
+        form.email = detalle.correo || detalle.email || '';
+        form.username = await generateUsername(detalle);
+    } catch (error: any) {
+        selectedPersona.value = persona;
+        setMessage('error', error.message || 'No se pudo cargar el detalle de la persona.');
+    } finally {
+        searchingPersona.value = false;
+    }
 };
 
 const openCreate = () => {
