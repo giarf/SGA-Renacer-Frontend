@@ -99,22 +99,6 @@ const lockedFormMode = computed<FormKind | ''>(() => {
 
 const showKindTabs = computed(() => props.mode !== 'ajusteBienes' && props.mode !== 'ajustePecuniario');
 
-const sectionTitle = computed(() => {
-    if (props.mode === 'ayuda') return 'Ayuda Social';
-    if (props.mode === 'consumo') return 'Consumo Interno';
-    if (props.mode === 'ajusteBienes') return 'Ajuste de Bienes';
-    if (props.mode === 'ajustePecuniario') return 'Ajuste Pecuniario';
-    return 'Registro de Egresos';
-});
-
-const sectionDescription = computed(() => {
-    if (props.mode === 'ayuda') return 'Registra ayudas sociales con destino, responsable y detalle valorizado.';
-    if (props.mode === 'consumo') return 'Registra consumo interno pecuniario asociado a programas o eventos.';
-    if (props.mode === 'ajusteBienes') return 'Registra ajustes de inventario con detalle de ítems.';
-    if (props.mode === 'ajustePecuniario') return 'Registra ajustes monetarios indicando cuenta y método.';
-    return 'Registra egresos. El historial y listado se visualiza en la sección Logs.';
-});
-
 const anotacionesLabel = computed(() =>
     normalizeTipo(form.value.tipoEgreso) === 'Ayuda Social' ? 'Motivo de entrega' : 'Anotaciones'
 );
@@ -411,26 +395,20 @@ onMounted(async () => {
 </script>
 
 <template>
-    <div class="px-4 sm:px-6 lg:px-8 py-5 space-y-5">
-        <header class="space-y-2">
-            <p class="text-xs uppercase tracking-[0.35em] text-blue-500 font-semibold">Egreso</p>
-            <h2 class="text-3xl font-bold text-gray-900">{{ sectionTitle }}</h2>
-            <p class="text-gray-600 text-sm max-w-3xl">{{ sectionDescription }}</p>
-        </header>
-
+    <div class="form-page space-y-4">
         <div
             v-if="message"
-            :class="`p-4 rounded-md ${message.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'}`"
+            :class="['message-banner', message.type === 'success' ? 'message-success' : 'message-error']"
         >
             {{ message.text }}
         </div>
 
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100">
-            <div v-if="showKindTabs" class="p-2 border-b border-gray-100">
+        <div class="form-shell">
+            <div v-if="showKindTabs" class="border-b border-[var(--card-border)] p-2">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
                     <button
                         class="w-full rounded-lg px-5 py-3 text-sm font-semibold transition text-left"
-                        :class="form.modo === 'pecuniario' ? 'text-white bg-[#006d8f] shadow-sm' : 'text-gray-600 hover:bg-gray-50'"
+                        :class="form.modo === 'pecuniario' ? 'bg-[var(--accent-color)] text-white shadow-sm' : 'text-[var(--text-muted)] hover:bg-[var(--surface-muted)]'"
                         @click="form.modo = 'pecuniario'"
                     >
                         <span class="inline-flex items-center gap-2">
@@ -442,7 +420,7 @@ onMounted(async () => {
                     </button>
                     <button
                         class="w-full rounded-lg px-5 py-3 text-sm font-semibold transition text-left"
-                        :class="form.modo === 'items' ? 'text-white bg-[#006d8f] shadow-sm' : 'text-gray-600 hover:bg-gray-50'"
+                        :class="form.modo === 'items' ? 'bg-[var(--accent-color)] text-white shadow-sm' : 'text-[var(--text-muted)] hover:bg-[var(--surface-muted)]'"
                         @click="form.modo = 'items'"
                     >
                         <span class="inline-flex items-center gap-2">
@@ -456,7 +434,7 @@ onMounted(async () => {
             </div>
 
             <div class="p-5">
-                <div class="bg-white shadow-sm rounded-lg p-5 border border-gray-100">
+                <div>
                     <div class="mb-3 flex items-start justify-between gap-3">
                         <div>
                             <h3 class="text-base font-semibold text-gray-900">{{ form.modo === 'pecuniario' ? 'Egreso pecuniario' : 'Egreso en especie' }}</h3>
@@ -464,7 +442,7 @@ onMounted(async () => {
                         </div>
                         <button
                             type="button"
-                            class="inline-flex items-center gap-2 px-4 py-2 rounded-md border border-gray-300 text-sm text-gray-700 hover:bg-gray-50"
+                            class="btn-secondary h-10 px-4 text-sm"
                             @click="resetForm"
                         >
                             Limpiar
@@ -474,14 +452,14 @@ onMounted(async () => {
                     <form class="space-y-4" @submit.prevent="submitForm">
                         <section
                             class="grid grid-cols-1 md:grid-cols-2 gap-4"
-                            :class="usesItems ? 'bg-white shadow-sm rounded-lg p-4 border border-gray-100' : ''"
+                            :class="usesItems ? 'form-panel' : ''"
                         >
                             <div v-if="usesItems" class="md:col-span-2">
                                 <h3 class="text-base font-semibold text-gray-900 mb-1">1. Identificar actores</h3>
                             </div>
                             <div class="md:col-span-2 relative">
                                 <label>Responsable interno <span class="text-red-500">*</span></label>
-                                <div v-if="selectedResponsable" class="mt-1 flex items-center justify-between bg-blue-50 p-3 rounded-lg border border-blue-200">
+                                <div v-if="selectedResponsable" class="selected-card mt-1 flex items-center justify-between p-3">
                                     <div>
                                         <p class="font-semibold text-gray-900">{{ selectedResponsable.nombreCompleto }}</p>
                                         <p class="text-xs text-gray-500">{{ formatRutForDisplay(selectedResponsable.identificador) }}</p>
@@ -490,7 +468,7 @@ onMounted(async () => {
                                         Cambiar
                                     </button>
                                 </div>
-                                <div v-else-if="resolvingResponsable" class="mt-1 bg-gray-50 p-3 rounded-md border border-gray-200 text-sm text-gray-500">
+                                <div v-else-if="resolvingResponsable" class="form-panel-muted mt-1 p-3 text-sm text-[var(--text-muted)]">
                                     Resolviendo responsable interno...
                                 </div>
                                 <div v-else class="relative mt-1">
@@ -499,16 +477,16 @@ onMounted(async () => {
                                         v-model="responsableQuery"
                                         type="text"
                                         placeholder="Buscar por nombre o RUT..."
-                                        class="block w-full shadow-sm focus:ring-[#006d8f] focus:border-[#006d8f] sm:text-sm border-gray-300 rounded-md p-2.5 border bg-white"
+                                        class="compact-control"
                                         @input="searchResponsable(responsableQuery)"
                                         @focus="showResponsableDropdown = true"
                                         @blur="closeResponsableDropdownDelayed"
                                     />
-                                    <div v-else class="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                                    <div v-else class="message-banner message-error">
                                         No se encontró tu responsable interno. Debe existir una entidad con tu nombre o correo de Authentik.
                                     </div>
                                     <div v-if="responsableLoading" class="absolute right-3 top-2.5 text-xs text-gray-400">Buscando...</div>
-                                    <ul v-if="showResponsableDropdown && responsableResults.length > 0" class="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-md shadow max-h-56 overflow-auto">
+                                    <ul v-if="showResponsableDropdown && responsableResults.length > 0" class="dropdown-panel absolute z-20 mt-1 max-h-56 w-full overflow-auto">
                                         <li
                                             v-for="entidad in responsableResults"
                                             :key="entidad.id"
@@ -524,7 +502,7 @@ onMounted(async () => {
 
                             <div class="md:col-span-2 relative">
                                 <label>{{ entidadLabel }} <span class="text-red-500">*</span></label>
-                                <div v-if="selectedDestino" class="mt-1 flex items-center justify-between bg-blue-50 p-3 rounded-lg border border-blue-200">
+                                <div v-if="selectedDestino" class="selected-card mt-1 flex items-center justify-between p-3">
                                     <div>
                                         <p class="font-semibold text-gray-900">{{ selectedDestino.nombreCompleto }}</p>
                                         <p class="text-xs text-gray-500">{{ formatRutForDisplay(selectedDestino.identificador) }}</p>
@@ -538,13 +516,13 @@ onMounted(async () => {
                                         v-model="destinoQuery"
                                         type="text"
                                         placeholder="Buscar por nombre o RUT..."
-                                        class="block w-full shadow-sm focus:ring-[#006d8f] focus:border-[#006d8f] sm:text-sm border-gray-300 rounded-md p-2.5 border bg-white"
+                                        class="compact-control"
                                         @input="searchDestino(destinoQuery)"
                                         @focus="showDestinoDropdown = true"
                                         @blur="closeDestinoDropdownDelayed"
                                     />
                                     <div v-if="destinoLoading" class="absolute right-3 top-2.5 text-xs text-gray-400">Buscando...</div>
-                                    <ul v-if="showDestinoDropdown && destinoResults.length > 0" class="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-md shadow max-h-56 overflow-auto">
+                                    <ul v-if="showDestinoDropdown && destinoResults.length > 0" class="dropdown-panel absolute z-20 mt-1 max-h-56 w-full overflow-auto">
                                         <li
                                             v-for="entidad in destinoResults"
                                             :key="entidad.id"
@@ -564,7 +542,7 @@ onMounted(async () => {
                                     v-model="form.fecha"
                                     type="date"
                                     required
-                                    class="mt-1 block w-full shadow-sm focus:ring-[#006d8f] focus:border-[#006d8f] sm:text-sm border-gray-300 rounded-md p-2.5 border bg-white"
+                                    class="mt-1 compact-control"
                                 />
                             </div>
 
@@ -572,7 +550,7 @@ onMounted(async () => {
                                 <label>Tipo de ajuste <span class="text-red-500">*</span></label>
                                 <select
                                     v-model="form.sentidoAjuste"
-                                    class="mt-1 block w-full shadow-sm focus:ring-[#006d8f] focus:border-[#006d8f] sm:text-sm border-gray-300 rounded-md p-2.5 border bg-white"
+                                    class="mt-1 compact-control"
                                 >
                                     <option value="Egreso">Egreso</option>
                                     <option value="Ingreso">Ingreso</option>
@@ -585,7 +563,7 @@ onMounted(async () => {
                                     v-model="form.propositoEspecifico"
                                     type="text"
                                     placeholder="Programa de invierno, jornada especial..."
-                                    class="mt-1 block w-full shadow-sm focus:ring-[#006d8f] focus:border-[#006d8f] sm:text-sm border-gray-300 rounded-md p-2.5 border bg-white"
+                                    class="mt-1 compact-control"
                                 />
                             </div>
 
@@ -595,7 +573,7 @@ onMounted(async () => {
                                     v-model="form.anotaciones"
                                     rows="2"
                                     placeholder="Describe el contexto del egreso..."
-                                    class="mt-1 block w-full shadow-sm focus:ring-[#006d8f] focus:border-[#006d8f] sm:text-sm border-gray-300 rounded-md p-2.5 border bg-white"
+                                    class="mt-1 compact-control"
                                 ></textarea>
                             </div>
 
@@ -605,7 +583,7 @@ onMounted(async () => {
                                     <select
                                         v-model.number="form.cuentaOrigenId"
                                         required
-                                        class="mt-1 block w-full shadow-sm focus:ring-[#006d8f] focus:border-[#006d8f] sm:text-sm border-gray-300 rounded-md p-2.5 border bg-white"
+                                        class="mt-1 compact-control"
                                     >
                                         <option :value="null" disabled>Seleccionar cuenta</option>
                                         <option v-for="cuenta in cuentas" :key="cuenta.id" :value="cuenta.id">
@@ -618,7 +596,7 @@ onMounted(async () => {
                                     <select
                                         v-model="form.metodoTransferencia"
                                         required
-                                        class="mt-1 block w-full shadow-sm focus:ring-[#006d8f] focus:border-[#006d8f] sm:text-sm border-gray-300 rounded-md p-2.5 border bg-white"
+                                        class="mt-1 compact-control"
                                     >
                                         <option v-for="metodo in transferenciaOptions" :key="metodo" :value="metodo">{{ metodo }}</option>
                                     </select>
@@ -631,18 +609,18 @@ onMounted(async () => {
                                         min="1"
                                         step="1"
                                         required
-                                        class="mt-1 block w-full shadow-sm focus:ring-[#006d8f] focus:border-[#006d8f] sm:text-sm border-gray-300 rounded-md p-2.5 border bg-white"
+                                        class="mt-1 compact-control"
                                     />
                                 </div>
                             </template>
                         </section>
 
                         <template v-if="usesItems">
-                            <section class="bg-white shadow-sm rounded-lg p-4 border border-gray-100 space-y-3">
+                            <section class="form-panel space-y-3">
                                 <h3 class="text-sm font-semibold text-gray-900 mb-1">2. Gestión de ítems</h3>
                                 <div class="relative">
                                     <label>Buscar Ítem del Catálogo <span class="text-red-500">*</span></label>
-                                    <div v-if="selectedItem" class="mt-1 flex items-center justify-between bg-blue-50 p-2.5 rounded-md border border-blue-200">
+                                    <div v-if="selectedItem" class="selected-card mt-1 flex items-center justify-between p-2.5">
                                         <div>
                                             <p class="font-semibold text-gray-900">{{ selectedItem.nombre }}</p>
                                             <p class="text-xs text-gray-500">
@@ -659,13 +637,13 @@ onMounted(async () => {
                                             v-model="itemQuery"
                                             type="text"
                                             placeholder="Buscar ítem por nombre..."
-                                            class="block w-full shadow-sm focus:ring-[#006d8f] focus:border-[#006d8f] sm:text-sm border-gray-300 rounded-md p-2.5 border bg-white"
+                                            class="compact-control"
                                             @input="searchItems(itemQuery)"
                                             @focus="showItemDropdown = true"
                                             @blur="closeItemDropdownDelayed"
                                         />
                                         <div v-if="itemLoading" class="absolute right-3 top-2.5 text-xs text-gray-400">Buscando...</div>
-                                        <ul v-if="showItemDropdown && itemResults.length > 0" class="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-md shadow max-h-56 overflow-auto">
+                                        <ul v-if="showItemDropdown && itemResults.length > 0" class="dropdown-panel absolute z-20 mt-1 max-h-56 w-full overflow-auto">
                                             <li
                                                 v-for="item in itemResults"
                                                 :key="item.id"
@@ -690,7 +668,7 @@ onMounted(async () => {
                                             type="number"
                                             min="1"
                                             step="0.01"
-                                            class="mt-1 block w-full shadow-sm focus:ring-[#006d8f] focus:border-[#006d8f] sm:text-sm border-gray-300 rounded-md p-2.5 border bg-white"
+                                            class="mt-1 compact-control"
                                         />
                                     </div>
                                     <div>
@@ -699,13 +677,13 @@ onMounted(async () => {
                                             :value="currency.format(roundedPpp(selectedItem))"
                                             type="text"
                                             readonly
-                                            class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2.5 border bg-gray-50 text-gray-700 cursor-not-allowed"
+                                            class="mt-1 compact-control cursor-not-allowed bg-[var(--surface-muted)] text-[var(--text-muted)]"
                                         />
                                     </div>
                                     <div class="flex items-end">
                                         <button
                                             type="button"
-                                            class="w-full inline-flex justify-center py-2.5 px-3 border border-[#006d8f] text-sm font-medium rounded-md text-[#006d8f] hover:bg-[#006d8f]/10"
+                                            class="btn-secondary h-10 w-full justify-center px-3 text-sm"
                                             @click="addItemToList"
                                         >
                                             <Plus class="w-4 h-4 mr-1" /> Agregar
@@ -714,7 +692,7 @@ onMounted(async () => {
                                 </div>
                             </section>
 
-                            <section v-if="form.detalles.length" class="bg-white shadow-sm rounded-lg p-4 border border-gray-100 space-y-3">
+                            <section v-if="form.detalles.length" class="form-panel space-y-3">
                                 <h3 class="text-sm font-semibold text-gray-900 mb-1">3. Ítems agregados</h3>
                                 <div class="overflow-x-auto rounded-md border border-gray-100">
                                     <table class="min-w-full divide-y divide-gray-100">
@@ -747,13 +725,13 @@ onMounted(async () => {
                             </section>
                         </template>
 
-                        <div class="rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-sm flex items-center justify-between">
+                        <div class="form-panel-muted flex items-center justify-between px-4 py-3 text-sm">
                             <span class="text-gray-600">Monto total del egreso</span>
                             <strong class="text-gray-900">{{ currency.format(montoCalculado) }}</strong>
                         </div>
 
-                        <div class="flex justify-end">
-                            <button type="submit" :disabled="submitting || loadingOptions" class="w-full md:w-auto inline-flex justify-center py-3 px-6 border border-transparent shadow-sm text-base font-medium rounded-md text-white bg-[#006d8f] hover:bg-[#005675]">
+                        <div class="form-actions flex justify-end border-t pt-4">
+                            <button type="submit" :disabled="submitting || loadingOptions" class="btn-primary h-10 w-full justify-center px-6 md:w-auto">
                                 <Loader2 v-if="submitting" class="w-4 h-4 mr-2 animate-spin" />
                                 {{ submitting ? 'Guardando...' : 'Registrar egreso' }}
                             </button>

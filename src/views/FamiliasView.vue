@@ -203,30 +203,30 @@ onMounted(() => {
 </script>
 
 <template>
-    <div class="px-4 sm:px-6 lg:px-8 py-5 space-y-5">
-        <header class="space-y-2">
-            <p class="text-sm uppercase tracking-widest text-amber-600 font-semibold">Red familiar</p>
-            <h2 class="text-3xl font-bold text-gray-900">Familias y beneficiarios</h2>
-            <p class="text-gray-600">Gestiona grupos familiares, identifica al jefe o jefa de hogar y suma beneficiarios vinculados.</p>
+    <div class="form-page space-y-4">
+        <header class="form-shell px-5 py-4">
+            <p class="eyebrow text-[var(--accent-color)]">Red familiar</p>
+            <h2 class="text-lg font-semibold text-[var(--text-primary)]">Familias y beneficiarios</h2>
+            <p class="text-xs text-[var(--text-muted)]">Gestiona grupos familiares, jefatura de hogar y beneficiarios vinculados.</p>
         </header>
 
-        <div v-if="message" :class="`rounded-md p-4 ${message.type === 'success' ? 'bg-green-50 border border-green-200 text-green-800' : 'bg-red-50 border border-red-200 text-red-800'}`">
+        <div v-if="message" :class="['message-banner', message.type === 'success' ? 'message-success' : 'message-error']">
             {{ message.text }}
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
             <section class="lg:col-span-2 space-y-6">
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100">
-                    <div class="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
-                        <h3 class="text-lg font-semibold text-gray-900">Listado de familias</h3>
+                <div class="form-shell">
+                    <div class="flex items-center justify-between border-b border-[var(--card-border)] px-5 py-3">
+                        <h3 class="text-base font-semibold text-[var(--text-primary)]">Listado de familias</h3>
                         <span v-if="loading" class="text-sm text-gray-500">Cargando...</span>
                     </div>
                     <div class="p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
                         <button
                             v-for="fam in familias"
                             :key="fam.id"
-                            class="text-left rounded-xl border p-4 transition hover:shadow"
-                            :class="selectedFamilia?.id === fam.id ? 'border-amber-500 bg-amber-50' : 'border-gray-200 bg-white'"
+                            class="text-left rounded-xl border p-3 transition hover:shadow"
+                            :class="selectedFamilia?.id === fam.id ? 'border-[var(--accent-color)] bg-[var(--accent-color-muted)]' : 'border-[var(--card-border)] bg-[var(--bg-card)]'"
                             @click="selectFamilia(fam)"
                         >
                             <p class="text-sm text-gray-500">ID {{ fam.id }}</p>
@@ -239,7 +239,7 @@ onMounted(() => {
                     </div>
                 </div>
 
-                <div class="bg-white rounded-xl shadow border border-gray-100 p-6">
+                <div class="form-shell p-5">
                     <div class="flex items-center justify-between mb-3">
                         <div>
                             <h3 class="text-base font-semibold text-gray-900">Beneficiarios</h3>
@@ -249,7 +249,7 @@ onMounted(() => {
                     </div>
 
                     <div v-if="selectedFamilia" class="space-y-3">
-                        <div class="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                        <div class="form-panel-muted p-3">
                             <p class="text-xs uppercase text-gray-500 tracking-wide">Jefe(a) de hogar</p>
                             <p class="text-lg font-semibold text-gray-900">{{ selectedFamilia.jefeHogarNombre || 'Sin información cargada' }}</p>
                         </div>
@@ -260,13 +260,13 @@ onMounted(() => {
                                     v-model="beneficiarioQuery"
                                     type="text"
                                     placeholder="Agregar beneficiario (buscar por RUT o nombre)"
-                                    class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                                    class="compact-control"
                                     @input="searchBeneficiario(beneficiarioQuery)"
                                     @focus="showBeneficiarioDropdown = true"
                                 />
                                 <div
                                     v-if="showBeneficiarioDropdown && beneficiarioQuery.length >= 2"
-                                    class="absolute z-10 w-full bg-white border border-gray-200 rounded-md shadow mt-1 max-h-56 overflow-y-auto"
+                                    class="dropdown-panel absolute z-10 mt-1 max-h-56 w-full overflow-y-auto"
                                 >
                                     <div v-if="beneficiarioLoadingSearch" class="p-3 text-sm text-gray-500">Buscando...</div>
                                     <template v-else>
@@ -274,7 +274,7 @@ onMounted(() => {
                                             v-for="entidad in beneficiarioResults"
                                             :key="entidad.id"
                                             type="button"
-                                            class="w-full text-left px-3 py-2 hover:bg-amber-50"
+                                            class="w-full px-3 py-2 text-left hover:bg-[var(--accent-color-muted)]"
                                             @click="selectNuevoBeneficiario(entidad)"
                                         >
                                             <p class="font-medium text-gray-900">{{ entidad.nombreCompleto }}</p>
@@ -302,7 +302,7 @@ onMounted(() => {
                             <div
                                 v-for="benef in beneficiarios"
                                 :key="benef.id"
-                                class="border border-gray-200 rounded-lg p-4 bg-white shadow-sm"
+                                class="rounded-lg border border-[var(--card-border)] bg-[var(--bg-card)] p-3 shadow-sm"
                             >
                                 <p class="text-sm text-gray-500">Beneficiario #{{ benef.id }}</p>
                                 <p class="text-lg font-semibold text-gray-900">{{ benef.nombres }} {{ benef.apellidos }}</p>
@@ -321,15 +321,15 @@ onMounted(() => {
             </section>
 
             <aside class="space-y-6">
-                <div class="bg-white rounded-xl shadow border border-gray-100 p-6">
-                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Crear nueva familia</h3>
+                <div class="form-shell p-5">
+                    <h3 class="mb-4 text-base font-semibold text-[var(--text-primary)]">Crear nueva familia</h3>
                     <form class="space-y-4" @submit.prevent="crearFamilia">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Nombre de familia *</label>
                             <input
                                 v-model="formFamilia.nombreFamilia"
                                 type="text"
-                                class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                                class="compact-control"
                                 placeholder="Ej: Familia Soto González"
                             />
                         </div>
@@ -340,12 +340,12 @@ onMounted(() => {
                                 type="number"
                                 min="0"
                                 max="100"
-                                class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                                class="compact-control"
                             />
                         </div>
                         <div class="relative">
                             <label class="block text-sm font-medium text-gray-700 mb-1">Jefe(a) de hogar *</label>
-                            <div v-if="jefeSeleccionado" class="bg-amber-50 border border-amber-200 rounded-md px-3 py-3 flex items-center justify-between">
+                            <div v-if="jefeSeleccionado" class="selected-card flex items-center justify-between px-3 py-3">
                                 <div>
                                     <p class="font-semibold text-amber-700">{{ jefeSeleccionado.nombreCompleto }}</p>
                                     <p class="text-xs text-gray-600">{{ formatRutForDisplay(jefeSeleccionado.identificador) }}</p>
@@ -357,13 +357,13 @@ onMounted(() => {
                                     v-model="jefeQuery"
                                     type="text"
                                     placeholder="Busca por nombre o RUT"
-                                    class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                                    class="compact-control"
                                     @input="searchJefe(jefeQuery)"
                                     @focus="showJefeDropdown = true"
                                 />
                                 <div
                                     v-if="showJefeDropdown && jefeQuery.length >= 2"
-                                    class="absolute z-10 w-full bg-white border border-gray-200 rounded-md shadow mt-1 max-h-56 overflow-y-auto"
+                                    class="dropdown-panel absolute z-10 mt-1 max-h-56 w-full overflow-y-auto"
                                 >
                                     <div v-if="jefeLoading" class="p-3 text-sm text-gray-500">Buscando...</div>
                                     <template v-else>
@@ -371,7 +371,7 @@ onMounted(() => {
                                             v-for="entidad in jefeResults"
                                             :key="entidad.id"
                                             type="button"
-                                            class="w-full text-left px-3 py-2 hover:bg-amber-50"
+                                            class="w-full px-3 py-2 text-left hover:bg-[var(--accent-color-muted)]"
                                             @click="selectJefe(entidad)"
                                         >
                                             <p class="font-medium text-gray-900">{{ entidad.nombreCompleto }}</p>
@@ -391,8 +391,8 @@ onMounted(() => {
                                 </div>
                             </div>
                         </div>
-                        <div class="flex justify-end">
-                            <button class="px-5 py-2 bg-amber-600 text-white rounded-md font-semibold hover:bg-amber-700" type="submit">
+                        <div class="flex justify-end border-t border-[var(--card-border)] pt-4">
+                            <button class="btn-primary h-10 px-5" type="submit">
                                 Guardar familia
                             </button>
                         </div>

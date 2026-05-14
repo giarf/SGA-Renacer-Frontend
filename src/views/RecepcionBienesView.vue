@@ -305,23 +305,23 @@ loadCurrentResponsible();
 </script>
 
 <template>
-    <div class="px-4 sm:px-6 lg:px-8 py-5 space-y-5">
-        <div class="space-y-2">
-            <p class="text-xs uppercase tracking-[0.35em] text-indigo-500 font-semibold">Recepción</p>
-            <h2 class="text-3xl font-bold text-gray-900">Donaciones no pecuniarias</h2>
-            <p class="text-gray-600 max-w-3xl text-sm">Replica el flujo de Consumo Interno: identifica actores, detalla el propósito y registra cada ítem valorizado.</p>
+    <div class="form-page space-y-4">
+        <div class="form-shell px-5 py-4">
+            <p class="eyebrow text-[var(--accent-color)]">Recepción</p>
+            <h2 class="text-lg font-semibold text-[var(--text-primary)]">Donaciones no pecuniarias</h2>
+            <p class="max-w-3xl text-xs text-[var(--text-muted)]">Identifica actores, detalla el propósito y registra cada ítem valorizado.</p>
         </div>
 
         <div 
             v-if="message" 
-            :class="`p-4 rounded-xl border ${message.type === 'success' ? 'border-green-200 bg-green-50 text-green-800' : 'border-red-200 bg-red-50 text-red-800'}`"
+            :class="['message-banner', message.type === 'success' ? 'message-success' : 'message-error']"
         >
             {{ message.text }}
         </div>
 
         <!-- Section 1: Actores (Donor, Receiver, Purpose) -->
-        <div class="bg-white shadow-sm rounded-lg p-4 border border-gray-100">
-            <h3 class="text-base font-semibold text-gray-900 mb-3">1. Identificar actores</h3>
+        <div class="form-shell p-5">
+            <h3 class="mb-3 text-base font-semibold text-[var(--text-primary)]">1. Identificar actores</h3>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">
@@ -330,7 +330,7 @@ loadCurrentResponsible();
                     <input
                         type="date"
                         v-model="fechaIngreso"
-                        class="block w-full shadow-sm focus:ring-institutional-blue focus:border-institutional-blue sm:text-sm border-gray-300 rounded-md p-3 border bg-white"
+                        class="compact-control"
                         required
                     />
                 </div>
@@ -343,7 +343,7 @@ loadCurrentResponsible();
                         Donador <span class="text-red-500">*</span>
                     </label>
                     
-                    <div v-if="selectedDonador" class="flex flex-col gap-2 bg-indigo-50 p-3 rounded-lg border border-indigo-200">
+                    <div v-if="selectedDonador" class="selected-card flex flex-col gap-2 p-3">
                         <div>
                             <span class="block font-bold text-institutional-blue">{{ selectedDonador.nombreCompleto }}</span>
                             <span class="text-sm text-gray-600">{{ formatRutForDisplay(selectedDonador.identificador) }}</span>
@@ -360,11 +360,11 @@ loadCurrentResponsible();
                             @input="searchDonador(donadorQuery)"
                             @focus="showDonadorDropdown = true"
                             placeholder="Buscar por nombre o RUT..."
-                            class="block w-full shadow-sm focus:ring-institutional-blue focus:border-institutional-blue sm:text-sm border-gray-300 rounded-md p-3 border"
+                            class="compact-control"
                         />
                         
                         <!-- Dropdown -->
-                        <div v-if="showDonadorDropdown && donadorQuery.length >= 2" class="absolute z-20 mt-1 w-full bg-white shadow-xl rounded-md border border-gray-200 max-h-60 overflow-auto">
+                        <div v-if="showDonadorDropdown && donadorQuery.length >= 2" class="dropdown-panel absolute z-20 mt-1 max-h-60 w-full overflow-auto">
                             <div v-if="loadingDonador" class="p-4 text-center text-gray-500">
                                 Buscando...
                             </div>
@@ -391,7 +391,7 @@ loadCurrentResponsible();
                         Responsable interno <span class="text-red-500">*</span>
                     </label>
                     
-                    <div v-if="selectedReceptor" class="flex flex-col gap-2 bg-indigo-50 p-3 rounded-lg border border-indigo-200">
+                    <div v-if="selectedReceptor" class="selected-card flex flex-col gap-2 p-3">
                         <div>
                             <span class="block font-bold text-green-700">{{ selectedReceptor.nombreCompleto }}</span>
                             <span class="text-sm text-gray-600">{{ formatRutForDisplay(selectedReceptor.identificador) }}</span>
@@ -402,7 +402,7 @@ loadCurrentResponsible();
                         </button>
                     </div>
 
-                    <div v-else-if="resolvingReceptor" class="rounded-md border border-gray-200 bg-gray-50 p-4 text-sm text-gray-500">
+                    <div v-else-if="resolvingReceptor" class="form-panel-muted p-4 text-sm text-[var(--text-muted)]">
                         Resolviendo responsable interno...
                     </div>
 
@@ -414,14 +414,14 @@ loadCurrentResponsible();
                             @input="searchReceptor(receptorQuery)"
                             @focus="showReceptorDropdown = true"
                             placeholder="Buscar por nombre o RUT..."
-                            class="block w-full shadow-sm focus:ring-institutional-blue focus:border-institutional-blue sm:text-sm border-gray-300 rounded-md p-3 border"
+                            class="compact-control"
                         />
-                        <div v-else class="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                        <div v-else class="message-banner message-error">
                             No se encontró tu responsable interno. Debe existir una entidad con tu nombre o correo de Authentik.
                         </div>
                         
                         <!-- Dropdown -->
-                        <div v-if="showReceptorDropdown && receptorQuery.length >= 2" class="absolute z-20 mt-1 w-full bg-white shadow-xl rounded-md border border-gray-200 max-h-60 overflow-auto">
+                        <div v-if="showReceptorDropdown && receptorQuery.length >= 2" class="dropdown-panel absolute z-20 mt-1 max-h-60 w-full overflow-auto">
                             <div v-if="loadingReceptor" class="p-4 text-center text-gray-500">
                                 Buscando...
                             </div>
@@ -453,7 +453,7 @@ loadCurrentResponsible();
                     type="text" 
                     v-model="proposito"
                     placeholder="Ej: Apoyo a familias vulnerables, Mejoramiento de infraestructura, etc."
-                    class="block w-full shadow-sm focus:ring-institutional-blue focus:border-institutional-blue sm:text-sm border-gray-300 rounded-md p-3 border"
+                    class="compact-control"
                 />
             </div>
 
@@ -463,7 +463,7 @@ loadCurrentResponsible();
                         Gestor / Responsable (opcional)
                     </label>
 
-                    <div v-if="selectedGestor" class="flex flex-col gap-2 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                    <div v-if="selectedGestor" class="selected-card flex flex-col gap-2 p-3">
                         <div>
                             <p class="font-semibold text-amber-900">{{ selectedGestor.nombreCompleto }}</p>
                             <p class="text-xs text-gray-600">{{ formatRutForDisplay(selectedGestor.identificador) }}</p>
@@ -480,10 +480,10 @@ loadCurrentResponsible();
                             @input="searchGestor(gestorQuery)"
                             @focus="showGestorDropdown = true"
                             placeholder="Buscar por nombre o RUT..."
-                            class="block w-full shadow-sm focus:ring-institutional-blue focus:border-institutional-blue sm:text-sm border-gray-300 rounded-md p-3 border"
+                            class="compact-control"
                         />
 
-                        <div v-if="showGestorDropdown && gestorQuery.length >= 2" class="absolute z-20 mt-1 w-full bg-white shadow-xl rounded-md border border-gray-200 max-h-60 overflow-auto">
+                        <div v-if="showGestorDropdown && gestorQuery.length >= 2" class="dropdown-panel absolute z-20 mt-1 max-h-60 w-full overflow-auto">
                             <div v-if="loadingGestor" class="p-4 text-center text-gray-500">
                                 Buscando...
                             </div>
@@ -513,15 +513,15 @@ loadCurrentResponsible();
                         v-model="anotaciones"
                         rows="4"
                         placeholder="Notas o contexto adicional para esta donación (opcional)"
-                        class="block w-full shadow-sm focus:ring-institutional-blue focus:border-institutional-blue sm:text-sm border-gray-300 rounded-md p-3 border"
+                        class="compact-control"
                     ></textarea>
                 </div>
             </div>
         </div>
 
         <!-- Section 2: Item Management -->
-        <div class="bg-white shadow rounded-lg p-5 border border-gray-200">
-            <h3 class="text-base font-semibold text-gray-900 mb-4">2. Gestión de ítems</h3>
+        <div class="form-shell p-5">
+            <h3 class="mb-4 text-base font-semibold text-[var(--text-primary)]">2. Gestión de ítems</h3>
             
             <!-- Item Searcher -->
             <div class="relative mb-6">
@@ -529,7 +529,7 @@ loadCurrentResponsible();
                     Buscar Ítem del Catálogo
                 </label>
                 
-                <div v-if="selectedItem" class="flex items-center justify-between bg-purple-50 p-4 rounded-md border-l-4 border-l-purple-600 border border-purple-200 mb-4">
+                <div v-if="selectedItem" class="selected-card mb-4 flex items-center justify-between p-4">
                     <div>
                         <span class="block font-bold text-purple-700">{{ selectedItem.nombre }}</span>
                         <span class="text-sm text-gray-600">
@@ -548,11 +548,11 @@ loadCurrentResponsible();
                         @input="searchItems(itemQuery)"
                         @focus="showItemDropdown = true"
                         placeholder="Buscar por nombre o categoría..."
-                        class="block w-full shadow-sm focus:ring-institutional-blue focus:border-institutional-blue sm:text-sm border-gray-300 rounded-md p-3 border"
+                        class="compact-control"
                     />
                     
                     <!-- Dropdown -->
-                    <div v-if="showItemDropdown && itemQuery.length >= 2" class="absolute z-20 mt-1 w-full bg-white shadow-xl rounded-md border border-gray-200 max-h-60 overflow-auto">
+                    <div v-if="showItemDropdown && itemQuery.length >= 2" class="dropdown-panel absolute z-20 mt-1 max-h-60 w-full overflow-auto">
                         <div v-if="loadingItems" class="p-4 text-center text-gray-500">
                             Buscando ítems...
                         </div>
@@ -594,7 +594,7 @@ loadCurrentResponsible();
                         v-model.number="itemCantidad"
                         min="1"
                         step="0.01"
-                        class="block w-full shadow-sm focus:ring-institutional-blue focus:border-institutional-blue sm:text-sm border-gray-300 rounded-md p-2 border"
+                        class="compact-control"
                     />
                 </div>
                 <div>
@@ -610,14 +610,14 @@ loadCurrentResponsible();
                             v-model.number="itemPrecio"
                             min="0"
                             step="100"
-                            class="block w-full pl-7 shadow-sm focus:ring-institutional-blue focus:border-institutional-blue sm:text-sm border-gray-300 rounded-md p-2 border"
+                            class="compact-control pl-7"
                         />
                     </div>
                 </div>
                 <div class="flex items-end">
                             <button 
                                 @click="addItemToList"
-                                class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-md transition"
+                                class="btn-primary h-10 w-full"
                             >
                                 Agregar ítem
                     </button>
@@ -626,12 +626,12 @@ loadCurrentResponsible();
         </div>
 
         <!-- Section 3: Items Table -->
-        <div v-if="items.length > 0" class="bg-white shadow-sm rounded-xl p-4 border border-gray-100">
-            <h3 class="text-base font-semibold text-gray-900 mb-3">3. Ítems Agregados</h3>
+        <div v-if="items.length > 0" class="form-shell p-4">
+            <h3 class="mb-3 text-base font-semibold text-[var(--text-primary)]">3. Ítems Agregados</h3>
             
-            <div class="overflow-x-auto rounded-md border border-gray-100">
-                <table class="min-w-full divide-y divide-gray-100">
-                    <thead class="bg-gray-50">
+            <div class="overflow-x-auto rounded-md border border-[var(--card-border)]">
+                <table class="min-w-full divide-y divide-[var(--card-border)]">
+                    <thead class="bg-[var(--surface-muted)]">
                         <tr>
                             <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
                                 Ítem
@@ -650,7 +650,7 @@ loadCurrentResponsible();
                             </th>
                         </tr>
                     </thead>
-                    <tbody class="bg-white divide-y divide-gray-100">
+                    <tbody class="divide-y divide-[var(--card-border)] bg-[var(--bg-card)]">
                         <tr v-for="(item, index) in items" :key="index">
                             <td class="px-4 py-2.5 whitespace-nowrap">
                                 <div class="text-sm font-medium text-gray-900">{{ item.nombre }}</div>
@@ -691,11 +691,11 @@ loadCurrentResponsible();
         </div>
 
         <!-- Section 4: Submit Button -->
-        <div class="flex justify-end">
+        <div class="flex justify-end border-t border-[var(--card-border)] pt-4">
                 <button 
                     @click="submitDonacion"
                     :disabled="submitting"
-                    class="btn btn-primary text-lg px-8 py-3 disabled:opacity-50"
+                    class="btn-primary h-10 px-8 disabled:opacity-50"
                 >
                     <template v-if="submitting">
                         <Loader2 class="w-5 h-5 animate-spin" />

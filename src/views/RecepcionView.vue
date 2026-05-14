@@ -231,27 +231,27 @@ onMounted(() => {
 </script>
 
 <template>
-    <div class="space-y-5">
-        <div v-if="message" :class="`p-4 rounded-md ${message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`">
+    <div class="form-page space-y-4">
+        <div v-if="message" :class="['message-banner', message.type === 'success' ? 'message-success' : 'message-error']">
             {{ message.text }}
         </div>
-        <div class="bg-white shadow-sm rounded-lg p-5 border border-gray-100">
-            <div class="mb-3">
-                <h3 class="text-base font-semibold text-gray-900">Donación pecuniaria</h3>
-                <p class="text-sm text-gray-500">Completa todos los campos.</p>
+        <div class="form-shell">
+            <div class="form-shell-header border-b px-5 py-4">
+                <h3 class="text-lg font-semibold text-[var(--text-primary)]">Donación pecuniaria</h3>
+                <p class="text-xs text-[var(--text-muted)]">Completa donante, responsable, fondo y monto.</p>
             </div>
 
-            <form @submit.prevent="submitDonacion" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <form @submit.prevent="submitDonacion" class="grid grid-cols-1 gap-4 p-5 md:grid-cols-2">
                 <div class="md:col-span-2 relative">
                     <label class="block text-sm font-medium text-gray-700 mb-1">
                         Donante <span class="text-red-500">*</span>
                     </label>
-                    <div v-if="selectedEntidad" class="flex flex-col gap-2 bg-blue-50 p-3 rounded-lg border border-blue-200">
+                    <div v-if="selectedEntidad" class="selected-card flex flex-col gap-2 p-3">
                         <div>
-                            <span class="block font-bold text-lg text-institutional-blue">{{ selectedEntidad.nombreCompleto }}</span>
-                            <span class="text-sm text-gray-600">{{ formatRutForDisplay(selectedEntidad.identificador) }}</span>
+                             <span class="block text-sm font-semibold text-[var(--text-primary)]">{{ selectedEntidad.nombreCompleto }}</span>
+                             <span class="text-xs text-[var(--text-muted)]">{{ formatRutForDisplay(selectedEntidad.identificador) }}</span>
                         </div>
-                        <button type="button" @click="selectedEntidad = null" class="self-start text-sm px-3 py-1.5 rounded-md border border-gray-300 text-gray-600 hover:text-gray-800">
+                        <button type="button" @click="selectedEntidad = null" class="btn-secondary px-3 py-1.5 text-xs">
                             Cambiar donante
                         </button>
                     </div>
@@ -261,21 +261,21 @@ onMounted(() => {
                             v-model="searchQuery"
                             @focus="isDropdownOpen = true"
                             placeholder="Buscar por nombre o RUT..."
-                            class="block w-full shadow-sm focus:ring-institutional-blue focus:border-institutional-blue sm:text-sm border-gray-300 rounded-md p-3 border"
+                            class="compact-control"
                         >
-                        <div v-if="isDropdownOpen" class="absolute z-10 mt-1 w-full bg-white shadow-xl rounded-md overflow-hidden border border-gray-100">
+                        <div v-if="isDropdownOpen" class="dropdown-panel absolute z-10 mt-1 w-full overflow-hidden">
                             <ul class="max-h-60 overflow-auto">
                                 <li
                                     v-for="entidad in filteredEntidades"
                                     :key="entidad.id"
                                     @click="selectEntidad(entidad)"
-                                    class="px-4 py-3 hover:bg-blue-50 cursor-pointer border-b border-gray-50 last:border-0"
+                                    class="cursor-pointer border-b border-[var(--card-border)] px-4 py-2.5 hover:bg-[var(--accent-color-muted)] last:border-0"
                                 >
-                                    <p class="font-medium text-gray-900">{{ entidad.nombreCompleto }}</p>
-                                    <p class="text-xs text-gray-500">{{ formatRutForDisplay(entidad.identificador) }}</p>
+                                    <p class="font-medium text-[var(--text-primary)]">{{ entidad.nombreCompleto }}</p>
+                                    <p class="text-xs text-[var(--text-muted)]">{{ formatRutForDisplay(entidad.identificador) }}</p>
                                 </li>
                             </ul>
-                            <div v-if="filteredEntidades.length === 0" class="p-4 text-center bg-gray-50 text-sm text-gray-500">
+                            <div v-if="filteredEntidades.length === 0" class="bg-[var(--surface-muted)] p-4 text-center text-sm text-[var(--text-muted)]">
                                 No se encontraron resultados para "{{ searchQuery }}"
                             </div>
                         </div>
@@ -286,15 +286,15 @@ onMounted(() => {
                     <label class="block text-sm font-medium text-gray-700 mb-1">
                         Responsable interno <span class="text-red-500">*</span>
                     </label>
-                    <div v-if="selectedResponsable" class="flex items-center justify-between bg-blue-50 p-2.5 border border-blue-200 rounded-lg">
+                    <div v-if="selectedResponsable" class="selected-card flex items-center justify-between p-3">
                         <div>
-                            <p class="font-semibold text-blue-800">{{ selectedResponsable.nombreCompleto }}</p>
-                            <p class="text-xs text-gray-600">{{ formatRutForDisplay(selectedResponsable.identificador) }}</p>
-                            <p v-if="!canChangeResponsible" class="text-xs text-gray-500 mt-1">Asignado automáticamente desde Authentik</p>
+                            <p class="font-semibold text-[var(--text-primary)]">{{ selectedResponsable.nombreCompleto }}</p>
+                            <p class="text-xs text-[var(--text-muted)]">{{ formatRutForDisplay(selectedResponsable.identificador) }}</p>
+                            <p v-if="!canChangeResponsible" class="mt-1 text-xs text-[var(--text-muted)]">Asignado automáticamente desde Authentik</p>
                         </div>
                         <button v-if="canChangeResponsible" type="button" class="text-xs text-blue-700 hover:underline" @click="selectedResponsable = null">Cambiar</button>
                     </div>
-                    <div v-else-if="resolvingResponsable" class="bg-gray-50 p-3 border border-gray-200 rounded-md text-sm text-gray-500">
+                    <div v-else-if="resolvingResponsable" class="form-panel-muted p-3 text-sm text-[var(--text-muted)]">
                         Resolviendo responsable interno...
                     </div>
                     <div v-else class="relative">
@@ -306,21 +306,21 @@ onMounted(() => {
                             @focus="showResponsableDropdown = true"
                             @blur="closeResponsableDropdownDelayed"
                             placeholder="Buscar responsable por nombre o RUT..."
-                            class="block w-full shadow-sm focus:ring-institutional-blue focus:border-institutional-blue sm:text-sm border-gray-300 rounded-md p-2.5 border"
+                            class="compact-control"
                         />
-                        <div v-else class="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                        <div v-else class="message-banner message-error">
                             No se encontró tu responsable interno. Debe existir una entidad con tu nombre o correo de Authentik.
                         </div>
-                        <div v-if="responsableLoading" class="absolute right-3 top-2.5 text-xs text-gray-400">Buscando...</div>
-                        <ul v-if="showResponsableDropdown && responsableResults.length > 0" class="absolute z-10 mt-1 w-full bg-white shadow-xl rounded-md border border-gray-100 max-h-60 overflow-auto">
+                        <div v-if="responsableLoading" class="absolute right-3 top-2.5 text-xs text-[var(--text-muted)]">Buscando...</div>
+                        <ul v-if="showResponsableDropdown && responsableResults.length > 0" class="dropdown-panel absolute z-10 mt-1 max-h-60 w-full overflow-auto">
                             <li
                                 v-for="ent in responsableResults"
                                 :key="ent.id"
                                 @mousedown.prevent="selectedResponsable = ent; responsableQuery = ''; showResponsableDropdown = false"
-                                class="px-4 py-2 hover:bg-blue-50 cursor-pointer"
+                                class="cursor-pointer px-4 py-2 hover:bg-[var(--accent-color-muted)]"
                             >
-                                <p class="font-medium text-gray-900">{{ ent.nombreCompleto }}</p>
-                                <p class="text-xs text-gray-500">{{ formatRutForDisplay(ent.identificador) }}</p>
+                                <p class="font-medium text-[var(--text-primary)]">{{ ent.nombreCompleto }}</p>
+                                <p class="text-xs text-[var(--text-muted)]">{{ formatRutForDisplay(ent.identificador) }}</p>
                             </li>
                         </ul>
                     </div>
@@ -328,7 +328,7 @@ onMounted(() => {
 
                 <div class="md:col-span-2 relative">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Gestor interno (opcional)</label>
-                    <div v-if="selectedGestor" class="flex items-center justify-between bg-amber-50 p-2.5 border border-amber-200 rounded-lg">
+                    <div v-if="selectedGestor" class="selected-card flex items-center justify-between p-3">
                         <div>
                             <p class="font-semibold text-amber-800">{{ selectedGestor.nombreCompleto }}</p>
                             <p class="text-xs text-gray-600">{{ formatRutForDisplay(selectedGestor.identificador) }}</p>
@@ -343,18 +343,18 @@ onMounted(() => {
                             @focus="showGestorDropdown = true"
                             @blur="closeGestorDropdownDelayed"
                             placeholder="Buscar gestor por nombre o RUT..."
-                            class="block w-full shadow-sm focus:ring-institutional-blue focus:border-institutional-blue sm:text-sm border-gray-300 rounded-md p-2.5 border"
+                            class="compact-control"
                         />
                         <div v-if="gestorLoading" class="absolute right-3 top-2.5 text-xs text-gray-400">Buscando...</div>
                         <ul
                             v-if="showGestorDropdown && gestorResults.length > 0"
-                            class="absolute z-10 mt-1 w-full bg-white shadow-xl rounded-md border border-gray-100 max-h-60 overflow-auto"
+                            class="dropdown-panel absolute z-10 mt-1 max-h-60 w-full overflow-auto"
                         >
                             <li
                                 v-for="ent in gestorResults"
                                 :key="ent.id"
                                 @mousedown.prevent="selectGestor(ent)"
-                                class="px-4 py-2 hover:bg-blue-50 cursor-pointer"
+                                class="cursor-pointer px-4 py-2 hover:bg-[var(--accent-color-muted)]"
                             >
                                 <p class="font-medium text-gray-900">{{ ent.nombreCompleto }}</p>
                                 <p class="text-xs text-gray-500">{{ formatRutForDisplay(ent.identificador) }}</p>
@@ -362,7 +362,7 @@ onMounted(() => {
                         </ul>
                         <div
                             v-else-if="showGestorDropdown && gestorQuery.length >= 2 && !gestorLoading"
-                            class="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md py-3 px-4 text-xs text-gray-500 border border-gray-100"
+                            class="dropdown-panel absolute z-10 mt-1 w-full px-4 py-3 text-xs text-[var(--text-muted)]"
                         >
                             Sin coincidencias
                         </div>
@@ -377,7 +377,7 @@ onMounted(() => {
                         v-model="donationForm.fecha"
                         type="date"
                         required
-                        class="mt-1 block w-full shadow-sm focus:ring-institutional-blue focus:border-institutional-blue sm:text-sm border-gray-300 rounded-md p-2 border bg-white"
+                        class="mt-1 compact-control"
                     >
                 </div>
                 <div>
@@ -386,13 +386,13 @@ onMounted(() => {
                     </label>
                     <div class="mt-1 relative rounded-md shadow-sm">
                         <div class="absolute inset-y-0 left-0 pl-1 flex items-center pointer-events-none">
-                            <span class="text-gray-500 sm:text-sm">$</span>
+                            <span class="text-[var(--text-muted)] sm:text-sm">$</span>
                         </div>
                         <input
                             v-model.number="donationForm.monto"
                             type="number"
                             required
-                            class="focus:ring-institutional-blue focus:border-institutional-blue block w-full pl-9 pr-12 sm:text-sm border-gray-300 rounded-md p-2 border"
+                            class="compact-control pl-9 pr-12"
                         >
                     </div>
                 </div>
@@ -402,7 +402,7 @@ onMounted(() => {
                         v-model="donationForm.proposito"
                         type="text"
                         placeholder="Ej: Programa Invierno"
-                        class="mt-1 focus:ring-institutional-blue focus:border-institutional-blue block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2 border"
+                        class="mt-1 compact-control"
                     >
                 </div>
 
@@ -410,23 +410,23 @@ onMounted(() => {
                     <label class="block text-sm font-medium text-gray-700">
                         Fondo destino <span class="text-red-500">*</span>
                     </label>
-                    <div v-if="fondosLoading" class="text-sm text-gray-500">Cargando fondos disponibles...</div>
+                    <div v-if="fondosLoading" class="text-sm text-[var(--text-muted)]">Cargando fondos disponibles...</div>
                     <template v-else>
                         <select
                             v-if="fondos.length > 0"
                             v-model="selectedFondoId"
                             required
-                            class="mt-1 focus:ring-institutional-blue focus:border-institutional-blue block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2 border bg-white"
+                            class="mt-1 compact-control"
                         >
                             <option v-for="fondo in fondos" :key="fondo.id" :value="fondo.id">
                                 {{ fondo.nombre }} — Saldo: {{ currencyFormatter.format(fondo.saldoActual ?? 0) }}
                             </option>
                         </select>
-                        <div v-else class="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md p-3">
+                        <div v-else class="message-banner message-error">
                             No existen fondos disponibles. Dirígete a la sección "Cuentas y fondos" para crear uno nuevo.
                         </div>
                     </template>
-                    <p class="text-xs text-gray-500">
+                    <p class="text-xs text-[var(--text-muted)]">
                         Los fondos se administran en la sección "Cuentas y fondos" del menú lateral.
                     </p>
                 </div>
@@ -437,12 +437,12 @@ onMounted(() => {
                         v-model="donationForm.anotaciones"
                         rows="2"
                         placeholder="Notas adicionales o contexto"
-                        class="mt-1 focus:ring-institutional-blue focus:border-institutional-blue block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2 border"
+                        class="mt-1 compact-control"
                     ></textarea>
                 </div>
 
-                <div class="md:col-span-2 flex justify-end">
-                    <button type="submit" :disabled="submitting" class="w-full inline-flex justify-center py-3 px-6 border border-transparent shadow-sm text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                <div class="form-actions md:col-span-2 flex justify-end border-t pt-4">
+                    <button type="submit" :disabled="submitting" class="btn-primary h-10 w-full justify-center md:w-auto">
                         {{ submitting ? 'Guardando...' : 'Registrar Donación' }}
                     </button>
                 </div>

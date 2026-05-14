@@ -207,22 +207,22 @@ const submitSolicitud = async () => {
 </script>
 
 <template>
-    <div class="px-4 sm:px-6 lg:px-8 py-5 space-y-5">
-        <header class="space-y-2">
-            <p class="text-sm uppercase tracking-widest text-sky-600 font-semibold">Solicitudes internas</p>
-            <h2 class="text-3xl font-bold text-gray-900">Requerimientos de programas y talleres</h2>
-            <p class="text-gray-600">Registra las necesidades de insumos vinculadas a beneficiarios y actividades para agilizar aprobaciones.</p>
+    <div class="form-page space-y-4">
+        <header class="form-shell px-5 py-4">
+            <p class="eyebrow text-[var(--accent-color)]">Solicitudes internas</p>
+            <h2 class="text-lg font-semibold text-[var(--text-primary)]">Requerimientos de programas y talleres</h2>
+            <p class="text-xs text-[var(--text-muted)]">Registra necesidades de insumos vinculadas a beneficiarios y actividades.</p>
         </header>
 
-        <div v-if="message" :class="`rounded-md p-4 ${message.type === 'success' ? 'bg-green-50 border border-green-200 text-green-800' : 'bg-red-50 border border-red-200 text-red-800'}`">
+        <div v-if="message" :class="['message-banner', message.type === 'success' ? 'message-success' : 'message-error']">
             {{ message.text }}
         </div>
 
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-5">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="form-shell">
+            <div class="grid grid-cols-1 gap-4 p-5 md:grid-cols-2">
                 <div class="relative">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Solicitante *</label>
-                    <div v-if="solicitante" class="flex items-center justify-between bg-sky-50 border border-sky-200 rounded-md px-3 py-3">
+                    <div v-if="solicitante" class="selected-card flex items-center justify-between px-3 py-3">
                         <div>
                             <p class="font-semibold text-sky-700">{{ solicitante.nombreCompleto }}</p>
                             <p class="text-sm text-gray-600">{{ formatRutForDisplay(solicitante.identificador) }}</p>
@@ -234,13 +234,13 @@ const submitSolicitud = async () => {
                             v-model="solicitanteQuery"
                             type="text"
                             placeholder="Buscar por nombre o RUT"
-                            class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                            class="compact-control"
                             @input="searchSolicitantes(solicitanteQuery)"
                             @focus="showSolicitanteDropdown = true"
                         />
                         <div
                             v-if="showSolicitanteDropdown && solicitanteQuery.length >= 2"
-                            class="absolute z-10 w-full bg-white border border-gray-200 rounded-md shadow mt-1 max-h-64 overflow-y-auto"
+                            class="dropdown-panel absolute z-10 mt-1 max-h-64 w-full overflow-y-auto"
                         >
                             <div v-if="solicitanteLoading" class="p-3 text-sm text-gray-500">Buscando...</div>
                             <template v-else>
@@ -248,7 +248,7 @@ const submitSolicitud = async () => {
                                     v-for="entidad in solicitanteResults"
                                     :key="entidad.id"
                                     type="button"
-                                    class="w-full text-left px-3 py-2 hover:bg-sky-50"
+                                    class="w-full px-3 py-2 text-left hover:bg-[var(--accent-color-muted)]"
                                     @click="selectSolicitante(entidad)"
                                 >
                                     <p class="font-medium text-gray-900">{{ entidad.nombreCompleto }}</p>
@@ -274,19 +274,19 @@ const submitSolicitud = async () => {
                     <input
                         v-model="programa"
                         type="text"
-                        class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                        class="compact-control"
                         placeholder="Ej: Taller de Carpintería, Jornada de invierno..."
                     />
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 gap-4 border-t border-[var(--card-border)] px-5 py-4 md:grid-cols-2">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
                     <input
                         v-model="fechaSolicitud"
                         type="date"
-                        class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                        class="compact-control"
                     />
                 </div>
                 <div>
@@ -294,26 +294,26 @@ const submitSolicitud = async () => {
                     <input
                         v-model="horaSolicitud"
                         type="time"
-                        class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                        class="compact-control"
                     />
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div class="space-y-3">
+            <div class="grid grid-cols-1 gap-4 border-t border-[var(--card-border)] px-5 py-4 md:grid-cols-2">
+                <div class="form-panel space-y-3">
                     <p class="text-sm font-semibold text-gray-800">Ítems desde catálogo</p>
                     <div class="relative">
                         <input
                             v-model="catalogQuery"
                             type="text"
                             placeholder="Buscar ítem del catálogo..."
-                            class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                            class="compact-control"
                             @input="searchCatalogo(catalogQuery)"
                             @focus="showCatalogDropdown = true"
                         />
                         <div
                             v-if="showCatalogDropdown && catalogQuery.length >= 2"
-                            class="absolute z-10 w-full bg-white border border-gray-200 rounded-md shadow mt-1 max-h-56 overflow-y-auto"
+                            class="dropdown-panel absolute z-10 mt-1 max-h-56 w-full overflow-y-auto"
                         >
                             <div v-if="catalogLoading" class="p-3 text-sm text-gray-500">Buscando...</div>
                             <template v-else>
@@ -321,7 +321,7 @@ const submitSolicitud = async () => {
                                     v-for="item in catalogResults"
                                     :key="item.id"
                                     type="button"
-                                    class="w-full text-left px-3 py-2 hover:bg-sky-50"
+                                    class="w-full px-3 py-2 text-left hover:bg-[var(--accent-color-muted)]"
                                     @click="selectCatalogResult(item)"
                                 >
                                     <p class="font-medium text-gray-900">{{ item.nombre }}</p>
@@ -347,7 +347,7 @@ const submitSolicitud = async () => {
                                 v-model.number="cantidadCatalog"
                                 type="number"
                                 min="1"
-                                class="w-full border border-gray-300 rounded-md px-3 py-2"
+                                class="compact-control"
                             />
                         </div>
                         <div class="flex items-end">
@@ -358,14 +358,14 @@ const submitSolicitud = async () => {
                     </div>
                 </div>
 
-                <div class="space-y-4">
+                <div class="form-panel space-y-4">
                     <p class="text-sm font-semibold text-gray-800">Ítems manuales</p>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
                         <input
                             v-model="manualDescripcion"
                             type="text"
-                            class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                            class="compact-control"
                             placeholder="Ej: Tornillos 2'' (manual)"
                         />
                     </div>
@@ -376,7 +376,7 @@ const submitSolicitud = async () => {
                                 v-model.number="cantidadManual"
                                 type="number"
                                 min="1"
-                                class="w-full border border-gray-300 rounded-md px-3 py-2"
+                                class="compact-control"
                             />
                         </div>
                         <div class="flex items-end">
@@ -388,11 +388,11 @@ const submitSolicitud = async () => {
                 </div>
             </div>
 
-            <div class="space-y-3">
-                <h3 class="text-lg font-semibold text-gray-900">Resumen de la solicitud</h3>
-                <div v-if="items.length" class="overflow-x-auto border border-gray-100 rounded-lg">
-                    <table class="min-w-full divide-y divide-gray-100">
-                        <thead class="bg-gray-50">
+            <div class="space-y-3 border-t border-[var(--card-border)] px-5 py-4">
+                <h3 class="text-base font-semibold text-[var(--text-primary)]">Resumen de la solicitud</h3>
+                <div v-if="items.length" class="overflow-x-auto rounded-lg border border-[var(--card-border)]">
+                    <table class="min-w-full divide-y divide-[var(--card-border)]">
+                        <thead class="bg-[var(--surface-muted)]">
                             <tr>
                                 <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Ítem</th>
                                 <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tipo</th>
@@ -400,7 +400,7 @@ const submitSolicitud = async () => {
                                 <th class="px-4 py-2"></th>
                             </tr>
                         </thead>
-                        <tbody class="bg-white divide-y divide-gray-100">
+                        <tbody class="divide-y divide-[var(--card-border)] bg-[var(--bg-card)]">
                             <tr v-for="item in items" :key="item.id">
                                 <td class="px-4 py-3 text-sm text-gray-900">{{ item.nombre }}</td>
                                 <td class="px-4 py-3 text-sm text-gray-500">
@@ -419,8 +419,8 @@ const submitSolicitud = async () => {
                 <p v-else class="text-sm text-gray-500">Todavía no agregas ítems a la solicitud.</p>
             </div>
 
-            <div class="flex justify-end">
-                <button class="btn btn-primary px-6 py-3" @click="submitSolicitud">
+            <div class="form-actions flex justify-end border-t px-5 py-4">
+                <button class="btn-primary h-10 px-6" @click="submitSolicitud">
                     <Send class="w-4 h-4" /> Registrar solicitud
                 </button>
             </div>

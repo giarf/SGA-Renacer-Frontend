@@ -93,6 +93,7 @@ button {
 
 .btn,
 .btn-primary,
+.btn-secondary,
 .btn-outline,
 .btn-ghost {
     border-radius: 999px;
@@ -103,6 +104,17 @@ button {
     gap: 0.45rem;
     padding: 0.65rem 1.4rem;
     transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.btn-secondary {
+    border: 1px solid var(--card-border);
+    background: var(--bg-card);
+    color: var(--text-primary);
+}
+
+.btn-secondary:hover,
+.btn-secondary:focus-visible {
+    background: var(--surface-muted);
 }
 
 .btn-primary {
@@ -340,6 +352,84 @@ button {
 
 .form-grid.two {
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.form-page {
+    padding: 1.25rem 1rem;
+}
+
+@media (min-width: 640px) {
+    .form-page {
+        padding-left: 1.5rem;
+        padding-right: 1.5rem;
+    }
+}
+
+@media (min-width: 1024px) {
+    .form-page {
+        padding-left: 2rem;
+        padding-right: 2rem;
+    }
+}
+
+.form-shell {
+    background: var(--bg-card);
+    border: 1px solid var(--card-border);
+    border-radius: 1rem;
+    box-shadow: var(--shadow-soft);
+    overflow: hidden;
+}
+
+.form-shell-header,
+.form-actions {
+    border-color: var(--card-border);
+}
+
+.form-panel {
+    background: var(--bg-card);
+    border: 1px solid var(--card-border);
+    border-radius: 1rem;
+    padding: 1rem;
+}
+
+.form-panel-muted,
+.selected-card {
+    background: color-mix(in srgb, var(--accent-color) 8%, var(--bg-card));
+    border: 1px solid color-mix(in srgb, var(--accent-color) 22%, var(--card-border));
+    border-radius: 0.875rem;
+}
+
+.dropdown-panel {
+    background: var(--bg-card);
+    border: 1px solid var(--card-border);
+    border-radius: 0.875rem;
+    box-shadow: var(--shadow-soft);
+}
+
+.message-banner {
+    border-radius: 0.875rem;
+    border: 1px solid var(--card-border);
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+}
+
+.message-success {
+    background: color-mix(in srgb, #16a34a 12%, var(--bg-card));
+    border-color: color-mix(in srgb, #16a34a 35%, var(--card-border));
+    color: color-mix(in srgb, #166534 88%, var(--text-primary));
+}
+
+.message-error {
+    background: color-mix(in srgb, #dc2626 10%, var(--bg-card));
+    border-color: color-mix(in srgb, #dc2626 35%, var(--card-border));
+    color: color-mix(in srgb, #991b1b 88%, var(--text-primary));
+}
+
+.compact-control {
+    min-height: 2.5rem;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+    font-size: 0.875rem;
 }
 
 .chip-list {

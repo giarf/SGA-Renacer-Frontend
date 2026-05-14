@@ -180,7 +180,7 @@ const submit = async () => {
 
         <div class="relative">
             <label class="block text-sm font-semibold text-gray-700 mb-1">Gestor</label>
-            <div v-if="selectedGestor" class="flex items-center justify-between bg-blue-50 p-3 rounded-xl border border-blue-200">
+            <div v-if="selectedGestor" class="selected-card flex items-center justify-between p-3">
                 <div>
                     <span class="block font-bold text-blue-700">{{ selectedGestor.nombreCompleto }}</span>
                     <span class="text-xs text-gray-600">{{ formatRutForDisplay(selectedGestor.identificador) }}</span>
@@ -197,7 +197,7 @@ const submit = async () => {
                 />
                 <div
                     v-if="showGestorDropdown && gestorQuery.length >= 2"
-                    class="absolute z-20 mt-2 w-full bg-white dark:bg-[var(--bg-card)] shadow-xl rounded-xl border border-[var(--card-border)] max-h-48 overflow-auto"
+                    class="dropdown-panel absolute z-20 mt-2 max-h-48 w-full overflow-auto"
                 >
                     <div v-if="gestorLoading" class="p-3 text-center text-sm text-gray-500">Buscando...</div>
                     <ul v-else-if="gestorResults.length > 0">
@@ -205,7 +205,7 @@ const submit = async () => {
                             v-for="entidad in gestorResults"
                             :key="entidad.id"
                             @click="selectGestor(entidad)"
-                            class="px-4 py-2.5 hover:bg-blue-50 cursor-pointer border-b last:border-0"
+                            class="cursor-pointer border-b border-[var(--card-border)] px-4 py-2.5 hover:bg-[var(--accent-color-muted)] last:border-0"
                         >
                             <p class="font-medium text-gray-900">{{ entidad.nombreCompleto }}</p>
                             <p class="text-xs text-gray-500">{{ formatRutForDisplay(entidad.identificador) }}</p>
@@ -221,15 +221,15 @@ const submit = async () => {
             <textarea v-model="form.anotaciones" rows="2"></textarea>
         </div>
 
-        <div v-if="error" class="text-red-600 text-sm font-medium bg-red-50 p-2 rounded">
+        <div v-if="error" class="message-banner message-error">
             {{ error }}
         </div>
 
         <div class="flex justify-end gap-3 pt-4 border-t border-[var(--card-border)]">
-            <button type="button" class="btn btn-ghost border border-[var(--card-border)]" @click="emit('cancel')" :disabled="loading">
+            <button type="button" class="btn-secondary" @click="emit('cancel')" :disabled="loading">
                 Cancelar
             </button>
-            <button type="submit" class="btn btn-primary min-w-[160px]" :disabled="loading">
+            <button type="submit" class="btn-primary min-w-[160px]" :disabled="loading">
                 <span v-if="loading" class="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
                 <span v-else>Registrar institución</span>
             </button>

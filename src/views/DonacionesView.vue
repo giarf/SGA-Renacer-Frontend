@@ -8,21 +8,13 @@ const activeTab = ref<'pecuniaria' | 'bienes'>('pecuniaria');
 </script>
 
 <template>
-    <div class="px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        <header class="space-y-2">
-            <p class="text-xs uppercase tracking-[0.35em] text-blue-500 font-semibold">Recepción</p>
-            <h2 class="text-3xl font-bold text-gray-900">Donaciones entrantes</h2>
-            <p class="text-gray-600 text-sm max-w-3xl">
-                Gestiona aportes monetarios y en especie con el mismo flujo, manteniendo el contexto del donante y el tipo de registro.
-            </p>
-        </header>
-
-        <div class="bg-white rounded-xl shadow border border-gray-100">
-            <div class="p-2 border-b border-gray-100">
+    <div class="px-4 py-2 sm:px-6 lg:px-8">
+        <div>
+            <div class="pb-4">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
                 <button
                     class="w-full rounded-lg px-5 py-3 text-sm font-semibold transition text-left"
-                    :class="activeTab === 'pecuniaria' ? 'text-white bg-[#006d8f] shadow-sm' : 'text-gray-600 hover:bg-gray-50'"
+                    :class="activeTab === 'pecuniaria' ? 'bg-[var(--accent-color)] text-white shadow-sm' : 'text-[var(--text-muted)] hover:bg-[var(--surface-muted)]'"
                     @click="activeTab = 'pecuniaria'"
                 >
                     <span class="inline-flex items-center gap-2">
@@ -34,7 +26,7 @@ const activeTab = ref<'pecuniaria' | 'bienes'>('pecuniaria');
                 </button>
                 <button
                     class="w-full rounded-lg px-5 py-3 text-sm font-semibold transition text-left"
-                    :class="activeTab === 'bienes' ? 'text-white bg-[#006d8f] shadow-sm' : 'text-gray-600 hover:bg-gray-50'"
+                    :class="activeTab === 'bienes' ? 'bg-[var(--accent-color)] text-white shadow-sm' : 'text-[var(--text-muted)] hover:bg-[var(--surface-muted)]'"
                     @click="activeTab = 'bienes'"
                 >
                     <span class="inline-flex items-center gap-2">
@@ -47,7 +39,7 @@ const activeTab = ref<'pecuniaria' | 'bienes'>('pecuniaria');
                 </div>
             </div>
 
-            <div class="p-6 animate-fade-in">
+            <div class="animate-fade-in">
                 <template v-if="activeTab === 'pecuniaria'">
                     <RecepcionView />
                 </template>

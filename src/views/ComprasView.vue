@@ -338,26 +338,26 @@ onBeforeUnmount(clearBoletaPreview);
 </script>
 
 <template>
-    <div class="px-4 sm:px-6 lg:px-8 py-5 space-y-5">
-        <header class="space-y-2">
-            <p class="text-xs uppercase tracking-[0.35em] text-[#006d8f] font-semibold">Gestionar</p>
-            <h2 class="text-3xl font-bold text-gray-900">Compras</h2>
-            <p class="text-gray-600 text-sm max-w-3xl">
+    <div class="form-page space-y-4">
+        <header class="form-shell px-5 py-4">
+            <p class="eyebrow text-[var(--accent-color)]">Gestionar</p>
+            <h2 class="text-lg font-semibold text-[var(--text-primary)]">Compras</h2>
+            <p class="max-w-3xl text-xs text-[var(--text-muted)]">
                 Registra compras de inventario, asociando cuenta de origen, documento tributario y detalle valorizado de ítems.
             </p>
         </header>
 
-        <div v-if="message" :class="`p-4 rounded-md ${message.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'}`">
+        <div v-if="message" :class="['message-banner', message.type === 'success' ? 'message-success' : 'message-error']">
             {{ message.text }}
         </div>
 
-        <form @submit.prevent="submitCompra" class="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-5">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <form @submit.prevent="submitCompra" class="form-shell">
+            <div class="grid grid-cols-1 gap-4 p-5 md:grid-cols-2">
                 <div class="relative">
                     <label class="block text-sm font-medium text-gray-700 mb-1">
                         Proveedor / Origen <span class="text-red-500">*</span>
                     </label>
-                    <div v-if="selectedProveedor" class="p-3 border border-[#006d8f]/20 rounded-md bg-[#006d8f]/5">
+                    <div v-if="selectedProveedor" class="selected-card p-3">
                         <p class="font-semibold text-[#006d8f]">{{ selectedProveedor.nombreCompleto }}</p>
                         <p class="text-xs text-gray-600">{{ formatRutForDisplay(selectedProveedor.identificador) }}</p>
                         <button type="button" class="text-xs text-gray-600 underline mt-1" @click="selectedProveedor = null">Cambiar</button>
@@ -367,13 +367,13 @@ onBeforeUnmount(clearBoletaPreview);
                             v-model="proveedorQuery"
                             type="text"
                             placeholder="Buscar por nombre o RUT..."
-                            class="block w-full border border-gray-300 rounded-md p-2.5 shadow-sm focus:ring-[#006d8f] focus:border-[#006d8f]"
+                            class="compact-control"
                             @input="searchProveedor(proveedorQuery)"
                             @focus="showProveedorDropdown = true"
                             @blur="closeProveedorDropdownDelayed"
                         />
                         <div v-if="proveedorLoading" class="absolute right-3 top-10 text-xs text-gray-400">Buscando...</div>
-                        <ul v-if="showProveedorDropdown && proveedorResults.length > 0" class="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-md shadow max-h-56 overflow-auto">
+                        <ul v-if="showProveedorDropdown && proveedorResults.length > 0" class="dropdown-panel absolute z-20 mt-1 max-h-56 w-full overflow-auto">
                             <li
                                 v-for="entidad in proveedorResults"
                                 :key="entidad.id"
@@ -391,13 +391,13 @@ onBeforeUnmount(clearBoletaPreview);
                     <label class="block text-sm font-medium text-gray-700 mb-1">
                         Responsable interno <span class="text-red-500">*</span>
                     </label>
-                    <div v-if="selectedResponsable" class="p-3 border border-[#006d8f]/20 rounded-md bg-[#006d8f]/5">
+                    <div v-if="selectedResponsable" class="selected-card p-3">
                         <p class="font-semibold text-[#006d8f]">{{ selectedResponsable.nombreCompleto }}</p>
                         <p class="text-xs text-gray-600">{{ formatRutForDisplay(selectedResponsable.identificador) }}</p>
                         <p v-if="!canChangeResponsible" class="text-xs text-gray-500 mt-1">Asignado automáticamente desde Authentik</p>
                         <button v-else type="button" class="text-xs text-gray-600 underline mt-1" @click="selectedResponsable = null">Cambiar</button>
                     </div>
-                    <div v-else-if="resolvingResponsable" class="p-3 border border-gray-200 rounded-md bg-gray-50 text-sm text-gray-500">
+                    <div v-else-if="resolvingResponsable" class="form-panel-muted p-3 text-sm text-[var(--text-muted)]">
                         Resolviendo responsable interno...
                     </div>
                     <div v-else>
@@ -406,16 +406,16 @@ onBeforeUnmount(clearBoletaPreview);
                             v-model="responsableQuery"
                             type="text"
                             placeholder="Buscar por nombre o RUT..."
-                            class="block w-full border border-gray-300 rounded-md p-2.5 shadow-sm focus:ring-[#006d8f] focus:border-[#006d8f]"
+                            class="compact-control"
                             @input="searchResponsable(responsableQuery)"
                             @focus="showResponsableDropdown = true"
                             @blur="closeResponsableDropdownDelayed"
                         />
-                        <div v-else class="p-3 border border-red-200 rounded-md bg-red-50 text-sm text-red-700">
+                        <div v-else class="message-banner message-error">
                             No se encontró tu responsable interno. Debe existir una entidad con tu nombre o correo de Authentik.
                         </div>
                         <div v-if="responsableLoading" class="absolute right-3 top-10 text-xs text-gray-400">Buscando...</div>
-                        <ul v-if="showResponsableDropdown && responsableResults.length > 0" class="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-md shadow max-h-56 overflow-auto">
+                        <ul v-if="showResponsableDropdown && responsableResults.length > 0" class="dropdown-panel absolute z-20 mt-1 max-h-56 w-full overflow-auto">
                             <li
                                 v-for="entidad in responsableResults"
                                 :key="entidad.id"
@@ -430,14 +430,14 @@ onBeforeUnmount(clearBoletaPreview);
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="grid grid-cols-1 gap-4 border-t border-[var(--card-border)] px-5 py-4 md:grid-cols-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Fecha <span class="text-red-500">*</span></label>
-                    <input v-model="fecha" type="date" class="block w-full border border-gray-300 rounded-md p-2.5 bg-white" required />
+                    <input v-model="fecha" type="date" class="compact-control" required />
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Factura/Boleta</label>
-                    <input v-model="numeroFacturaBoleta" type="text" placeholder="F-0001" class="block w-full border border-gray-300 rounded-md p-2.5" />
+                    <input v-model="numeroFacturaBoleta" type="text" placeholder="F-0001" class="compact-control" />
                 </div>
                 <div class="md:col-span-2">
                     <label class="block text-sm font-medium text-gray-700 mb-1">
@@ -447,7 +447,7 @@ onBeforeUnmount(clearBoletaPreview);
                     <select
                         v-else
                         v-model="selectedCuentaId"
-                        class="block w-full border border-gray-300 rounded-md p-2.5 bg-white"
+                        class="compact-control"
                         required
                     >
                         <option v-for="cuenta in cuentas" :key="cuenta.id" :value="cuenta.id">
@@ -457,22 +457,22 @@ onBeforeUnmount(clearBoletaPreview);
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="grid grid-cols-1 gap-4 px-5 pb-4 md:grid-cols-3">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Monto neto</label>
-                    <input v-model.number="montoNeto" type="number" min="0" class="block w-full border border-gray-300 rounded-md p-2.5" />
+                    <input v-model.number="montoNeto" type="number" min="0" class="compact-control" />
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Monto IVA</label>
-                    <input v-model.number="montoIva" type="number" min="0" class="block w-full border border-gray-300 rounded-md p-2.5" />
+                    <input v-model.number="montoIva" type="number" min="0" class="compact-control" />
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Monto total ingreso</label>
-                    <input :value="currency.format(montoTotal)" type="text" class="block w-full border border-gray-200 rounded-md p-2.5 bg-gray-50 text-gray-700" readonly />
+                    <input :value="currency.format(montoTotal)" type="text" class="compact-control bg-[var(--surface-muted)] text-[var(--text-muted)]" readonly />
                 </div>
             </div>
 
-            <div class="rounded-lg border border-gray-200 p-3 space-y-2">
+            <div class="mx-5 mb-4 space-y-2 rounded-xl border border-[var(--card-border)] p-3">
                 <div class="flex items-center gap-2">
                     <FileImage class="w-4 h-4 text-[#006d8f]" />
                     <p class="text-sm font-semibold text-gray-800">Boleta de compra (opcional)</p>
@@ -501,7 +501,7 @@ onBeforeUnmount(clearBoletaPreview);
                 </div>
             </div>
 
-            <div class="rounded-lg border border-gray-200 p-4 space-y-4">
+            <div class="mx-5 mb-4 space-y-4 rounded-xl border border-[var(--card-border)] p-4">
                 <div class="flex items-center gap-2">
                     <ShoppingCart class="w-4 h-4 text-[#006d8f]" />
                     <p class="text-sm font-semibold text-gray-800">Detalle de ítems</p>
@@ -514,12 +514,12 @@ onBeforeUnmount(clearBoletaPreview);
                             v-model="itemQuery"
                             type="text"
                             placeholder="Buscar ítem..."
-                            class="block w-full border border-gray-300 rounded-md p-2.5"
+                            class="compact-control"
                             @input="searchItems(itemQuery)"
                             @focus="showItemDropdown = true"
                             @blur="closeItemsDropdownDelayed"
                         />
-                        <ul v-if="showItemDropdown && itemResults.length > 0" class="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-md shadow max-h-56 overflow-auto">
+                        <ul v-if="showItemDropdown && itemResults.length > 0" class="dropdown-panel absolute z-20 mt-1 max-h-56 w-full overflow-auto">
                             <li
                                 v-for="item in itemResults"
                                 :key="item.id"
@@ -534,16 +534,16 @@ onBeforeUnmount(clearBoletaPreview);
                     </div>
                     <div>
                         <label class="block text-xs uppercase tracking-wide text-gray-500 mb-1">Cantidad</label>
-                        <input v-model.number="itemCantidad" type="number" min="1" class="block w-full border border-gray-300 rounded-md p-2.5" />
+                        <input v-model.number="itemCantidad" type="number" min="1" class="compact-control" />
                     </div>
                     <div>
                         <label class="block text-xs uppercase tracking-wide text-gray-500 mb-1">Precio unitario ingreso</label>
-                        <input v-model.number="itemPrecio" type="number" min="0" class="block w-full border border-gray-300 rounded-md p-2.5" />
+                        <input v-model.number="itemPrecio" type="number" min="0" class="compact-control" />
                     </div>
                 </div>
 
                 <div class="flex justify-end">
-                    <button type="button" class="inline-flex items-center gap-2 rounded-md bg-[#006d8f] text-white px-4 py-2 text-sm hover:bg-[#005876]" @click="addDetalle">
+                    <button type="button" class="btn-primary h-10 px-4" @click="addDetalle">
                         <Plus class="w-4 h-4" />
                         Agregar ítem
                     </button>
@@ -580,11 +580,11 @@ onBeforeUnmount(clearBoletaPreview);
                 </div>
             </div>
 
-            <div class="flex justify-end">
+            <div class="form-actions flex justify-end border-t px-5 py-4">
                 <button
                     type="submit"
                     :disabled="submitting"
-                    class="inline-flex items-center gap-2 rounded-md bg-[#006d8f] text-white px-5 py-3 text-sm font-semibold hover:bg-[#005876] disabled:opacity-60"
+                    class="btn-primary h-10 px-5 disabled:opacity-60"
                 >
                     <Loader2 v-if="submitting" class="w-4 h-4 animate-spin" />
                     Registrar compra
@@ -592,7 +592,7 @@ onBeforeUnmount(clearBoletaPreview);
             </div>
         </form>
 
-        <section v-if="ultimaCompraBoleta" class="bg-white rounded-xl border border-gray-100 shadow p-4">
+        <section v-if="ultimaCompraBoleta" class="form-shell p-4">
             <div class="flex flex-wrap items-center justify-between gap-2">
                 <div>
                     <p class="text-sm font-semibold text-gray-800">Última compra registrada: #{{ ultimaCompraBoleta.idIngreso }}</p>

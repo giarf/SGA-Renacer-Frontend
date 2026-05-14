@@ -262,7 +262,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-    <div class="px-4 py-6 sm:px-0 space-y-6">
+    <div class="form-page space-y-4">
         <div
             v-if="message"
             :class="[
@@ -275,12 +275,12 @@ onBeforeUnmount(() => {
             {{ message.text }}
         </div>
 
-        <section class="surface-card p-6">
+        <section class="form-shell px-5 py-4">
             <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
                     <p class="eyebrow text-[var(--accent-color)]">Acceder</p>
-                    <h2 class="text-3xl font-bold text-gray-900 dark:text-white">Entidades</h2>
-                    <p class="text-sm text-gray-500 dark:text-gray-400 max-w-2xl">
+                    <h2 class="text-lg font-semibold text-[var(--text-primary)]">Entidades</h2>
+                    <p class="max-w-2xl text-xs text-[var(--text-muted)]">
                         Administra personas e instituciones desde un mismo panel, con búsquedas rápidas, formularios integrados y acciones contextuales.
                     </p>
                 </div>
@@ -353,8 +353,8 @@ onBeforeUnmount(() => {
         </section>
 
         <section v-if="activeSection === 'personas'" class="space-y-4">
-            <div v-if="createMode === 'persona'" class="surface-card p-6 border border-[var(--card-border)]">
-                <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-6">Registrar nueva persona</h3>
+            <div v-if="createMode === 'persona'" class="form-shell p-5">
+                <h3 class="mb-4 text-base font-semibold text-[var(--text-primary)]">Registrar nueva persona</h3>
                 <PersonaForm @cancel="closeCreatePanel" @created="handlePersonaCreada" />
             </div>
 
@@ -448,8 +448,8 @@ onBeforeUnmount(() => {
         </section>
 
         <section v-else class="space-y-4">
-            <div v-if="createMode === 'institucion'" class="surface-card p-6 border border-[var(--card-border)]">
-                <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-6">Registrar nueva institución</h3>
+            <div v-if="createMode === 'institucion'" class="form-shell p-5">
+                <h3 class="mb-4 text-base font-semibold text-[var(--text-primary)]">Registrar nueva institución</h3>
                 <InstitucionForm @cancel="closeCreatePanel" @created="handleInstitucionCreada" />
             </div>
 
