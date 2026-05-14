@@ -141,16 +141,17 @@ const addUserToGroup = async (groupPk: string, userId: number) => {
         console.log(`[Authentik] Usuario ${userId} agregado al grupo ${groupPk}`);
     } catch (err: any) {
         console.warn(`[Authentik] addUserToGroup error:`, err.message);
-        if (err.message?.includes('400') || err.message?.includes('already')) {
+        if (err.message?.includes('400') || err.message?.toLowerCase().includes('already') || err.message?.includes('pk')) {
             console.log(`[Authentik] Usuario ${userId} ya está en el grupo ${groupPk}, omitiendo`);
-            return;
+            return { alreadyMember: true };
         }
         throw err;
     }
+    return { alreadyMember: false };
 };
 
 const removeUserFromGroup = async (groupPk: string, userId: number) => {
-    console.log(`[Authentik] removeUserFromGroup: groupPk=${groupPk}, userId=${userId}`);
+    console.log(`[Authentik] removeUserToGroup: groupPk=${groupPk}, userId=${userId}`);
     try {
         await requestAuthentik(`/core/groups/${encodeURIComponent(groupPk)}/remove_user/`, {
             method: 'POST',
@@ -161,10 +162,11 @@ const removeUserFromGroup = async (groupPk: string, userId: number) => {
         console.warn(`[Authentik] removeUserFromGroup error:`, err.message);
         if (err.message?.includes('400') || err.message?.includes('not found')) {
             console.log(`[Authentik] Usuario ${userId} no está en el grupo ${groupPk}, omitiendo`);
-            return;
+            return { notMember: true };
         }
         throw err;
     }
+    return { notMember: false };
 };
 
 export const authentikAdminService = {
@@ -238,7 +240,14 @@ export const authentikAdminService = {
         console.log(`[Authentik] setAdmin: userId=${userId}, isAdmin=${isAdmin}`);
         const { admin } = await getGroups();
         console.log(`[Authentik] admin group pk:`, admin.pk);
-        if (isAdmin) await addUserToGroup(admin.pk, userId);
-        else await removeUserFromGroup(admin.pk, userId);
+        if (isAdmin) {
+            const result = await addUserToGroup(admin.pk, userId);
+            if (result?.alreadyMember) return { status: 'already_admin', message: 'El usuario ya es admin' };
+            return { status: 'added', message: 'Permiso admin agregado' };
+        } else {
+            const result = await removeUserFromGroup(admin.pk, userId);
+            if (result?.notMember) return { status: 'not_admin', message: 'El usuario no es admin' };
+            return { status: 'removed', message: 'Permiso admin removido' };
+        }
     }
 };

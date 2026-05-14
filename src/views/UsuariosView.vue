@@ -252,8 +252,12 @@ const toggleActive = async (user: ManagedAuthentikUser) => {
 const toggleAdmin = async (user: ManagedAuthentikUser) => {
     busyId.value = user.id;
     try {
-        await authentikAdminService.setAdmin(user.id, !user.isAdmin);
-        setMessage('success', user.isAdmin ? 'Permiso admin removido.' : 'Permiso admin agregado.');
+        const result = await authentikAdminService.setAdmin(user.id, !user.isAdmin);
+        if (result?.status === 'already_admin' || result?.status === 'not_admin') {
+            console.log(`[Usuarios] ${result.message}, recargando para verificar estado real`);
+        } else {
+            setMessage('success', result?.message || (user.isAdmin ? 'Permiso admin removido.' : 'Permiso admin agregado.'));
+        }
         await loadUsers();
     } catch (error: any) {
         setMessage('error', error.message || 'No se pudo cambiar el permiso admin.');
