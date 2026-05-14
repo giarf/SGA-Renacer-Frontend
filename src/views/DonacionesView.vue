@@ -8,9 +8,9 @@ const activeTab = ref<'pecuniaria' | 'bienes'>('pecuniaria');
 </script>
 
 <template>
-    <div class="px-4 py-2 sm:px-6 lg:px-8">
-        <div>
-            <div class="pb-4">
+    <div class="form-page space-y-4">
+        <div class="form-shell">
+            <div class="border-b border-[var(--card-border)] p-2">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
                 <button
                     class="w-full rounded-lg px-5 py-3 text-sm font-semibold transition text-left"
