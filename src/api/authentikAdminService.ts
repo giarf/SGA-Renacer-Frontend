@@ -120,17 +120,31 @@ const normalizeUser = (rawUser: any, adminGroup: AuthentikGroup): ManagedAuthent
 });
 
 const addUserToGroup = async (groupPk: string, userId: number) => {
-    await requestAuthentik(`/core/groups/${encodeURIComponent(groupPk)}/add_user/`, {
-        method: 'POST',
-        body: JSON.stringify({ pk: userId })
-    });
+    try {
+        await requestAuthentik(`/core/groups/${encodeURIComponent(groupPk)}/add_user/`, {
+            method: 'POST',
+            body: JSON.stringify({ pk: userId })
+        });
+    } catch (err: any) {
+        if (err.message?.includes('400') || err.message?.includes('already')) {
+            return;
+        }
+        throw err;
+    }
 };
 
 const removeUserFromGroup = async (groupPk: string, userId: number) => {
-    await requestAuthentik(`/core/groups/${encodeURIComponent(groupPk)}/remove_user/`, {
-        method: 'POST',
-        body: JSON.stringify({ pk: userId })
-    });
+    try {
+        await requestAuthentik(`/core/groups/${encodeURIComponent(groupPk)}/remove_user/`, {
+            method: 'POST',
+            body: JSON.stringify({ pk: userId })
+        });
+    } catch (err: any) {
+        if (err.message?.includes('400') || err.message?.includes('not found')) {
+            return;
+        }
+        throw err;
+    }
 };
 
 export const authentikAdminService = {
