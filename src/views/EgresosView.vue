@@ -490,7 +490,6 @@ onMounted(async () => {
                                         <li
                                             v-for="entidad in responsableResults"
                                             :key="entidad.id"
-                                            class="px-3 py-2 hover:bg-[#006d8f]/5 cursor-pointer"
                                             @mousedown.prevent="selectedResponsable = entidad; responsableQuery = ''; showResponsableDropdown = false"
                                         >
                                             <p class="text-sm font-medium text-gray-900">{{ entidad.nombreCompleto }}</p>
@@ -526,7 +525,6 @@ onMounted(async () => {
                                         <li
                                             v-for="entidad in destinoResults"
                                             :key="entidad.id"
-                                            class="px-3 py-2 hover:bg-[#006d8f]/5 cursor-pointer"
                                             @mousedown.prevent="selectedDestino = entidad; destinoQuery = ''; showDestinoDropdown = false"
                                         >
                                             <p class="text-sm font-medium text-gray-900">{{ entidad.nombreCompleto }}</p>
@@ -647,7 +645,6 @@ onMounted(async () => {
                                             <li
                                                 v-for="item in itemResults"
                                                 :key="item.id"
-                                                class="px-3 py-2 hover:bg-[#006d8f]/5 cursor-pointer"
                                                 @mousedown.prevent="selectItem(item)"
                                             >
                                                 <p class="text-sm font-medium text-gray-900">{{ item.nombre }}</p>

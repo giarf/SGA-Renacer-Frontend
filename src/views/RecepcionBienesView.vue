@@ -373,7 +373,6 @@ loadCurrentResponsible();
                                     v-for="entidad in donadorResults" 
                                     :key="entidad.id"
                                     @click="selectDonador(entidad)"
-                                    class="px-4 py-3 hover:bg-blue-50 cursor-pointer border-b last:border-0"
                                 >
                                     <p class="font-medium text-gray-900">{{ entidad.nombreCompleto }}</p>
                                     <p class="text-xs text-gray-500">{{ formatRutForDisplay(entidad.identificador) }}</p>
@@ -430,7 +429,6 @@ loadCurrentResponsible();
                                     v-for="entidad in receptorResults" 
                                     :key="entidad.id"
                                     @click="selectReceptor(entidad)"
-                                    class="px-4 py-3 hover:bg-green-50 cursor-pointer border-b last:border-0"
                                 >
                                     <p class="font-medium text-gray-900">{{ entidad.nombreCompleto }}</p>
                                     <p class="text-xs text-gray-500">{{ formatRutForDisplay(entidad.identificador) }}</p>
@@ -492,7 +490,6 @@ loadCurrentResponsible();
                                     v-for="entidad in gestorResults" 
                                     :key="entidad.id"
                                     @click="selectGestor(entidad)"
-                                    class="px-4 py-3 hover:bg-amber-50 cursor-pointer border-b last:border-0"
                                 >
                                     <p class="font-medium text-gray-900">{{ entidad.nombreCompleto }}</p>
                                     <p class="text-xs text-gray-500">{{ formatRutForDisplay(entidad.identificador) }}</p>
@@ -561,7 +558,6 @@ loadCurrentResponsible();
                                 v-for="item in itemResults" 
                                 :key="item.id"
                                 @click="selectItem(item)"
-                                class="px-4 py-3 hover:bg-purple-50 cursor-pointer border-b last:border-0"
                             >
                                 <p class="font-medium text-gray-900">{{ item.nombre }}</p>
                                 <p class="text-xs text-gray-500">

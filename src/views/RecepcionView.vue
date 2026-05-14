@@ -269,7 +269,6 @@ onMounted(() => {
                                     v-for="entidad in filteredEntidades"
                                     :key="entidad.id"
                                     @click="selectEntidad(entidad)"
-                                    class="cursor-pointer border-b border-[var(--card-border)] px-4 py-2.5 hover:bg-[var(--accent-color-muted)] last:border-0"
                                 >
                                     <p class="font-medium text-[var(--text-primary)]">{{ entidad.nombreCompleto }}</p>
                                     <p class="text-xs text-[var(--text-muted)]">{{ formatRutForDisplay(entidad.identificador) }}</p>
@@ -317,7 +316,6 @@ onMounted(() => {
                                 v-for="ent in responsableResults"
                                 :key="ent.id"
                                 @mousedown.prevent="selectedResponsable = ent; responsableQuery = ''; showResponsableDropdown = false"
-                                class="cursor-pointer px-4 py-2 hover:bg-[var(--accent-color-muted)]"
                             >
                                 <p class="font-medium text-[var(--text-primary)]">{{ ent.nombreCompleto }}</p>
                                 <p class="text-xs text-[var(--text-muted)]">{{ formatRutForDisplay(ent.identificador) }}</p>
@@ -354,7 +352,6 @@ onMounted(() => {
                                 v-for="ent in gestorResults"
                                 :key="ent.id"
                                 @mousedown.prevent="selectGestor(ent)"
-                                class="cursor-pointer px-4 py-2 hover:bg-[var(--accent-color-muted)]"
                             >
                                 <p class="font-medium text-gray-900">{{ ent.nombreCompleto }}</p>
                                 <p class="text-xs text-gray-500">{{ formatRutForDisplay(ent.identificador) }}</p>

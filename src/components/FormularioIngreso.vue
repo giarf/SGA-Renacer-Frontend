@@ -413,12 +413,12 @@ onMounted(() => {
                     >
                     
                     <!-- Dropdown Results -->
-                    <ul v-if="isDropdownOpen && filteredEntidades.length > 0" class="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm">
+                    <ul v-if="isDropdownOpen && filteredEntidades.length > 0" class="dropdown-panel absolute z-10 mt-1 max-h-60 w-full overflow-auto">
                         <li 
                             v-for="entidad in filteredEntidades" 
                             :key="entidad.id" 
                             @mousedown.prevent="seleccionarEntidad(entidad)"
-                            class="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-blue-50 text-gray-900"
+                            class="select-none text-gray-900"
                         >
                             <div class="flex flex-col">
                                 <span class="font-medium block truncate">{{ entidad.nombreCompleto }}</span>
@@ -426,7 +426,7 @@ onMounted(() => {
                             </div>
                         </li>
                     </ul>
-                    <div v-if="isDropdownOpen && filteredEntidades.length === 0 && searchQuery" class="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md py-4 px-4 text-sm text-gray-500 border border-gray-100 flex flex-col items-center">
+                    <div v-if="isDropdownOpen && filteredEntidades.length === 0 && searchQuery" class="dropdown-panel absolute z-10 mt-1 flex w-full flex-col items-center px-4 py-4 text-sm text-[var(--text-muted)]">
                         <p class="mb-2">No se encontraron resultados.</p>
                                     <button 
                                         @click="showCrearPersonaModal = true"
@@ -470,12 +470,11 @@ onMounted(() => {
                         No se encontró tu responsable interno. Debe existir una entidad con tu nombre o correo de Authentik.
                     </div>
                     <div v-if="responsableLoading" class="absolute right-3 top-2 text-xs text-gray-400">Buscando...</div>
-                    <ul v-if="showResponsableDropdown && responsableResults.length > 0" class="absolute z-10 mt-1 w-full bg-white shadow-xl rounded-md border border-gray-100 max-h-60 overflow-auto">
+                    <ul v-if="showResponsableDropdown && responsableResults.length > 0" class="dropdown-panel absolute z-10 mt-1 max-h-60 w-full overflow-auto">
                         <li
                             v-for="responsable in responsableResults"
                             :key="responsable.id"
                             @mousedown.prevent="selectedResponsable = responsable; responsableQuery = ''; showResponsableDropdown = false"
-                            class="px-4 py-2 hover:bg-blue-50 cursor-pointer"
                         >
                             <p class="font-medium text-gray-900">{{ responsable.nombreCompleto }}</p>
                             <p class="text-xs text-gray-500">{{ formatRutForDisplay(responsable.identificador) }}</p>
@@ -506,13 +505,12 @@ onMounted(() => {
                     <div v-if="gestorLoading" class="absolute right-3 top-2 text-xs text-gray-400">Buscando...</div>
                     <ul
                         v-if="showGestorDropdown && gestorResults.length > 0"
-                        class="absolute z-10 mt-1 w-full bg-white shadow-xl rounded-md border border-gray-100 max-h-60 overflow-auto"
+                        class="dropdown-panel absolute z-10 mt-1 max-h-60 w-full overflow-auto"
                     >
                         <li
                             v-for="gestor in gestorResults"
                             :key="gestor.id"
                             @mousedown.prevent="seleccionarGestor(gestor)"
-                            class="px-4 py-2 hover:bg-blue-50 cursor-pointer"
                         >
                             <p class="font-medium text-gray-900">{{ gestor.nombreCompleto }}</p>
                             <p class="text-xs text-gray-500">{{ formatRutForDisplay(gestor.identificador) }}</p>
@@ -520,7 +518,7 @@ onMounted(() => {
                     </ul>
                     <div
                         v-else-if="showGestorDropdown && gestorQuery.length >= 2 && !gestorLoading"
-                        class="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md py-3 px-4 text-xs text-gray-500 border border-gray-100"
+                        class="dropdown-panel absolute z-10 mt-1 w-full px-4 py-3 text-xs text-[var(--text-muted)]"
                     >
                         Sin coincidencias
                     </div>
@@ -629,12 +627,12 @@ onMounted(() => {
                             <div v-if="loadingCatalogo" class="absolute right-3 top-3 text-xs text-gray-500">Buscando...</div>
                             
                             <!-- Dropdown Results -->
-                            <ul v-if="isCatalogoDropdownOpen && filteredCatalogoItems.length > 0" class="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm">
+                            <ul v-if="isCatalogoDropdownOpen && filteredCatalogoItems.length > 0" class="dropdown-panel absolute z-10 mt-1 max-h-60 w-full overflow-auto">
                                 <li 
                                     v-for="item in filteredCatalogoItems" 
                                     :key="item.id" 
                                     @mousedown.prevent="seleccionarCatalogoItem(item)"
-                                    class="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-green-50 text-gray-900"
+                                    class="select-none text-gray-900"
                                 >
                                     <div class="flex flex-col">
                                         <span class="font-medium block truncate">{{ item.nombre }}</span>
@@ -642,7 +640,7 @@ onMounted(() => {
                                     </div>
                                 </li>
                             </ul>
-                            <div v-if="isCatalogoDropdownOpen && filteredCatalogoItems.length === 0 && catalogoSearchQuery.length >= 2 && !loadingCatalogo" class="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md py-4 px-4 text-sm text-gray-500 border border-gray-100 flex flex-col items-center">
+                            <div v-if="isCatalogoDropdownOpen && filteredCatalogoItems.length === 0 && catalogoSearchQuery.length >= 2 && !loadingCatalogo" class="dropdown-panel absolute z-10 mt-1 flex w-full flex-col items-center px-4 py-4 text-sm text-[var(--text-muted)]">
                                 <p class="mb-2">No se encontraron items en el catálogo.</p>
                                 <button 
                                     @click="showModalRegistroCatalogo = true"

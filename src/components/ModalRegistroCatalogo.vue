@@ -154,14 +154,13 @@ onMounted(() => {
                     <!-- Suggestions dropdown -->
                     <div 
                         v-if="showSuggestions && filteredCategorias.length > 0"
-                        class="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm"
+                        class="dropdown-panel absolute z-10 mt-1 max-h-60 w-full overflow-auto text-sm"
                     >
                         <button
                             v-for="categoria in filteredCategorias"
                             :key="categoria"
                             type="button"
                             @click="selectCategoria(categoria)"
-                            class="w-full text-left px-3 py-2 hover:bg-blue-50 cursor-pointer"
                         >
                             {{ categoria }}
                         </button>

@@ -441,11 +441,10 @@ onMounted(loadUsers);
                                 @blur="closePersonaDropdownDelayed"
                             />
                             <div v-if="searchingPersona" class="absolute right-3 top-2.5 text-xs text-[var(--text-muted)]">Buscando...</div>
-                            <ul v-if="showPersonaDropdown && personaResults.length > 0" class="absolute z-20 mt-1 max-h-52 w-full overflow-auto rounded-xl border border-[var(--card-border)] bg-[var(--bg-card)] shadow-xl">
+                            <ul v-if="showPersonaDropdown && personaResults.length > 0" class="dropdown-panel absolute z-20 mt-1 max-h-52 w-full overflow-auto">
                                 <li
                                     v-for="persona in personaResults"
                                     :key="persona.id"
-                                    class="cursor-pointer px-3 py-2 hover:bg-blue-50"
                                     @mousedown.prevent="selectPersona(persona)"
                                 >
                                     <p class="text-sm font-medium text-[var(--text-primary)]">{{ persona.nombreCompleto }}</p>

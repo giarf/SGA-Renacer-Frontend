@@ -406,6 +406,30 @@ button {
     box-shadow: var(--shadow-soft);
 }
 
+.dropdown-panel ul > li,
+.dropdown-panel > li,
+.dropdown-panel > button {
+    display: block;
+    width: 100%;
+    cursor: pointer;
+    border-bottom: 1px solid var(--card-border);
+    padding: 0.625rem 1rem;
+    text-align: left;
+    transition: background-color 0.15s ease;
+}
+
+.dropdown-panel ul > li:hover,
+.dropdown-panel > li:hover,
+.dropdown-panel > button:hover {
+    background: var(--accent-color-muted);
+}
+
+.dropdown-panel ul > li:last-child,
+.dropdown-panel > li:last-child,
+.dropdown-panel > button:last-child {
+    border-bottom: 0;
+}
+
 .message-banner {
     border-radius: 0.875rem;
     border: 1px solid var(--card-border);

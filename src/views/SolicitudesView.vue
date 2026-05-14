@@ -248,7 +248,6 @@ const submitSolicitud = async () => {
                                     v-for="entidad in solicitanteResults"
                                     :key="entidad.id"
                                     type="button"
-                                    class="w-full px-3 py-2 text-left hover:bg-[var(--accent-color-muted)]"
                                     @click="selectSolicitante(entidad)"
                                 >
                                     <p class="font-medium text-gray-900">{{ entidad.nombreCompleto }}</p>
@@ -321,7 +320,6 @@ const submitSolicitud = async () => {
                                     v-for="item in catalogResults"
                                     :key="item.id"
                                     type="button"
-                                    class="w-full px-3 py-2 text-left hover:bg-[var(--accent-color-muted)]"
                                     @click="selectCatalogResult(item)"
                                 >
                                     <p class="font-medium text-gray-900">{{ item.nombre }}</p>

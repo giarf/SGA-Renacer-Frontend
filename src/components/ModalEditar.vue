@@ -301,7 +301,7 @@ const save = async () => {
                             />
                             <div
                                 v-if="showGestorDropdown && gestorQuery.length >= 2"
-                                class="absolute z-20 mt-2 w-full bg-white dark:bg-[var(--bg-card)] shadow-xl rounded-2xl border border-[var(--card-border)] max-h-56 overflow-auto"
+                                class="dropdown-panel absolute z-20 mt-2 max-h-56 w-full overflow-auto"
                             >
                                 <div v-if="gestorLoading" class="p-3 text-center text-sm text-gray-500">Buscando...</div>
                                 <ul v-else-if="gestorResults.length > 0">
@@ -309,7 +309,6 @@ const save = async () => {
                                         v-for="entidad in gestorResults"
                                         :key="entidad.id"
                                         @click="selectGestor(entidad)"
-                                        class="px-4 py-2.5 hover:bg-[var(--accent-color-muted)] cursor-pointer border-b border-[var(--card-border)] last:border-0"
                                     >
                                         <p class="font-medium text-gray-900 dark:text-white">{{ entidad.nombreCompleto }}</p>
                                         <p class="text-xs text-gray-500">{{ formatRutForDisplay(entidad.identificador) }}</p>
@@ -408,7 +407,7 @@ const save = async () => {
                             />
                             <div
                                 v-if="showGestorDropdown && gestorQuery.length >= 2"
-                                class="absolute z-20 mt-2 w-full bg-white dark:bg-[var(--bg-card)] shadow-xl rounded-2xl border border-[var(--card-border)] max-h-56 overflow-auto"
+                                class="dropdown-panel absolute z-20 mt-2 max-h-56 w-full overflow-auto"
                             >
                                 <div v-if="gestorLoading" class="p-3 text-center text-sm text-gray-500">Buscando...</div>
                                 <ul v-else-if="gestorResults.length > 0">
@@ -416,7 +415,6 @@ const save = async () => {
                                         v-for="entidad in gestorResults"
                                         :key="entidad.id"
                                         @click="selectGestor(entidad)"
-                                        class="px-4 py-2.5 hover:bg-[var(--accent-color-muted)] cursor-pointer border-b border-[var(--card-border)] last:border-0"
                                     >
                                         <p class="font-medium text-gray-900 dark:text-white">{{ entidad.nombreCompleto }}</p>
                                         <p class="text-xs text-gray-500">{{ formatRutForDisplay(entidad.identificador) }}</p>

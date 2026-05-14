@@ -155,7 +155,6 @@ const submit = async () => {
                             v-for="entidad in gestorResults"
                             :key="entidad.id"
                             @click="selectGestor(entidad)"
-                            class="cursor-pointer border-b border-[var(--card-border)] px-4 py-2.5 hover:bg-[var(--accent-color-muted)] last:border-0"
                         >
                             <p class="font-medium text-gray-900 text-sm">{{ entidad.nombreCompleto }}</p>
                             <p class="text-xs text-gray-500">{{ formatRutForDisplay(entidad.identificador) }}</p>
