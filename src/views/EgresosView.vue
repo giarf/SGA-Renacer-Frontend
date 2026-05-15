@@ -5,6 +5,9 @@ import { apiService } from '../api/apiService';
 import type { CatalogoItem, Cuenta, EgresoPayload, EntidadResumen, MetodoTransferencia } from '../types';
 import { formatRutForDisplay } from '../utils/rutFormatter';
 import { canChangeResponsible, resolveCurrentResponsible } from '../auth/currentResponsible';
+import { clearFormDraft, loadFormDraft, saveFormDraft } from '../utils/formDraft';
+import { integerFromInput } from '../utils/integerInput';
+import InlineDateControl from '../components/InlineDateControl.vue';
 
 type EgresoMode = 'all' | 'ayuda' | 'consumo' | 'ajusteBienes' | 'ajustePecuniario';
 type FormKind = 'items' | 'pecuniario';
@@ -39,6 +42,7 @@ const cuentas = ref<Cuenta[]>([]);
 const catalogo = ref<CatalogoItem[]>([]);
 const loadingOptions = ref(false);
 const submitting = ref(false);
+const draftReady = ref(false);
 
 const message = ref<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -98,6 +102,7 @@ const lockedFormMode = computed<FormKind | ''>(() => {
 });
 
 const showKindTabs = computed(() => props.mode !== 'ajusteBienes' && props.mode !== 'ajustePecuniario');
+const draftKey = computed(() => `draft:operacion-diaria:egresos:${props.mode}`);
 
 const anotacionesLabel = computed(() =>
     normalizeTipo(form.value.tipoEgreso) === 'Ayuda Social' ? 'Motivo de entrega' : 'Anotaciones'
@@ -233,7 +238,31 @@ const closeItemDropdownDelayed = () => {
     setTimeout(() => (showItemDropdown.value = false), 200);
 };
 
-const resetForm = () => {
+type EgresoDraft = {
+    form: typeof form.value;
+    selectedResponsable: EntidadResumen | null;
+    selectedDestino: EntidadResumen | null;
+};
+
+const restoreDraft = () => {
+    const draft = loadFormDraft<EgresoDraft>(draftKey.value);
+    if (!draft) return;
+    form.value = { ...form.value, ...draft.form };
+    selectedResponsable.value = draft.selectedResponsable;
+    selectedDestino.value = draft.selectedDestino;
+};
+
+const persistDraft = () => {
+    if (!draftReady.value) return;
+    saveFormDraft(draftKey.value, {
+        form: form.value,
+        selectedResponsable: selectedResponsable.value,
+        selectedDestino: selectedDestino.value
+    } satisfies EgresoDraft);
+};
+
+const resetForm = (clearDraft = true) => {
+    if (clearDraft) clearFormDraft(draftKey.value);
     form.value = {
         fecha: today,
         tipoEgreso: lockedTipo.value || 'Ayuda Social',
@@ -374,8 +403,11 @@ const submitForm = async () => {
 watch(
     () => props.mode,
     () => {
+        draftReady.value = false;
         applyModeDefaults();
-        resetForm();
+        resetForm(false);
+        restoreDraft();
+        draftReady.value = true;
     }
 );
 
@@ -388,9 +420,13 @@ watch(
     }
 );
 
+watch([form, selectedResponsable, selectedDestino], persistDraft, { deep: true });
+
 onMounted(async () => {
     applyModeDefaults();
     await Promise.all([loadOptions(), loadCurrentResponsible()]);
+    restoreDraft();
+    draftReady.value = true;
 });
 </script>
 
@@ -435,18 +471,21 @@ onMounted(async () => {
 
             <div class="p-5">
                 <div>
-                    <div class="mb-3 flex items-start justify-between gap-3">
+                    <div class="mb-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div>
                             <h3 class="text-base font-semibold text-gray-900">{{ form.modo === 'pecuniario' ? 'Egreso pecuniario' : 'Egreso en especie' }}</h3>
                             <p class="text-sm text-gray-500">Completa todos los campos.</p>
                         </div>
-                        <button
-                            type="button"
-                            class="btn-secondary h-10 px-4 text-sm"
-                            @click="resetForm"
-                        >
-                            Limpiar
-                        </button>
+                        <div class="flex flex-wrap items-start gap-3 sm:justify-end">
+                            <InlineDateControl v-model="form.fecha" />
+                            <button
+                                type="button"
+                                class="btn-secondary h-10 px-4 text-sm"
+                                @click="resetForm()"
+                            >
+                                Limpiar
+                            </button>
+                        </div>
                     </div>
 
                     <form class="space-y-4" @submit.prevent="submitForm">
@@ -534,16 +573,6 @@ onMounted(async () => {
                                 </div>
                             </div>
 
-                            <div class="md:col-span-2">
-                                <label>Fecha <span class="text-red-500">*</span></label>
-                                <input
-                                    v-model="form.fecha"
-                                    type="date"
-                                    required
-                                    class="mt-1 compact-control"
-                                />
-                            </div>
-
                             <div v-if="showAjusteSentido" class="md:col-span-2">
                                 <label>Tipo de ajuste <span class="text-red-500">*</span></label>
                                 <select
@@ -576,6 +605,20 @@ onMounted(async () => {
                             </div>
 
                             <template v-if="!usesItems">
+                                <div class="md:col-span-2 grid grid-cols-1 gap-4 md:grid-cols-2">
+                                    <div>
+                                        <label>Monto total <span class="text-red-500">*</span></label>
+                                        <input
+                                            :value="form.montoManual"
+                                            type="text"
+                                            inputmode="numeric"
+                                            pattern="[0-9]*"
+                                            required
+                                            class="mt-1 compact-control"
+                                            @input="form.montoManual = integerFromInput($event)"
+                                        />
+                                    </div>
+                                </div>
                                 <div>
                                     <label>Cuenta origen <span class="text-red-500">*</span></label>
                                     <select
@@ -598,17 +641,6 @@ onMounted(async () => {
                                     >
                                         <option v-for="metodo in transferenciaOptions" :key="metodo" :value="metodo">{{ metodo }}</option>
                                     </select>
-                                </div>
-                                <div class="md:col-span-2">
-                                    <label>Monto total <span class="text-red-500">*</span></label>
-                                    <input
-                                        v-model.number="form.montoManual"
-                                        type="number"
-                                        min="1"
-                                        step="1"
-                                        required
-                                        class="mt-1 compact-control"
-                                    />
                                 </div>
                             </template>
                         </section>

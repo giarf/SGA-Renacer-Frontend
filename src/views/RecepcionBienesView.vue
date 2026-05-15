@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import type { EntidadResumen, CatalogoItem, DonacionBienesPayload } from '../types';
 import { apiService } from '../api/apiService';
 import { formatRutForDisplay } from '../utils/rutFormatter';
 import ModalRegistroCatalogo from '../components/ModalRegistroCatalogo.vue';
 import { Trash2, ClipboardList, Loader2, Plus } from 'lucide-vue-next';
 import { canChangeResponsible, resolveCurrentResponsible } from '../auth/currentResponsible';
+import { clearFormDraft, loadFormDraft, saveFormDraft } from '../utils/formDraft';
+import { integerFromInput } from '../utils/integerInput';
+import InlineDateControl from '../components/InlineDateControl.vue';
 
 // Debounce utility
 const today = new Date().toISOString().split('T')[0] ?? '';
@@ -73,6 +76,8 @@ const items = ref<LocalItem[]>([]);
 // State for submission
 const submitting = ref(false);
 const message = ref<{ type: 'success' | 'error', text: string } | null>(null);
+const draftReady = ref(false);
+const draftKey = 'draft:operacion-diaria:donacion-bienes';
 
 // Computed total
 const montoTotal = computed(() => {
@@ -192,12 +197,52 @@ const clearGestor = () => {
     showGestorDropdown.value = false;
 };
 
+type DonationItemsDraft = {
+    selectedDonador: EntidadResumen | null;
+    selectedReceptor: EntidadResumen | null;
+    proposito: string;
+    anotaciones: string;
+    fechaIngreso: string;
+    selectedGestor: EntidadResumen | null;
+    items: LocalItem[];
+};
+
+const restoreDraft = () => {
+    const draft = loadFormDraft<DonationItemsDraft>(draftKey);
+    if (!draft) return;
+    selectedDonador.value = draft.selectedDonador;
+    selectedReceptor.value = draft.selectedReceptor;
+    proposito.value = draft.proposito;
+    anotaciones.value = draft.anotaciones;
+    fechaIngreso.value = draft.fechaIngreso;
+    selectedGestor.value = draft.selectedGestor;
+    items.value = draft.items ?? [];
+};
+
+const persistDraft = () => {
+    if (!draftReady.value) return;
+    saveFormDraft(draftKey, {
+        selectedDonador: selectedDonador.value,
+        selectedReceptor: selectedReceptor.value,
+        proposito: proposito.value,
+        anotaciones: anotaciones.value,
+        fechaIngreso: fechaIngreso.value,
+        selectedGestor: selectedGestor.value,
+        items: items.value
+    } satisfies DonationItemsDraft);
+};
+
 const handleCatalogoCreado = () => {
     // Retry search if there was a query, otherwise just close
     if (itemQuery.value && itemQuery.value.length >= 2) {
         searchItems(itemQuery.value);
     }
     showModalRegistroCatalogo.value = false;
+};
+
+const openCatalogoModal = () => {
+    showItemDropdown.value = false;
+    showModalRegistroCatalogo.value = true;
 };
 
 // Add item to local list
@@ -282,6 +327,7 @@ const submitDonacion = async () => {
         };
         
         // Reset form
+        clearFormDraft(draftKey);
         selectedDonador.value = null;
         if (canChangeResponsible.value) selectedReceptor.value = null;
         proposito.value = '';
@@ -301,15 +347,23 @@ const submitDonacion = async () => {
     }
 };
 
-loadCurrentResponsible();
+watch([selectedDonador, selectedReceptor, proposito, anotaciones, fechaIngreso, selectedGestor, items], persistDraft, { deep: true });
+
+loadCurrentResponsible().finally(() => {
+    restoreDraft();
+    draftReady.value = true;
+});
 </script>
 
 <template>
     <div class="form-page space-y-4">
-        <div class="form-shell px-5 py-4">
-            <p class="eyebrow text-[var(--accent-color)]">Recepción</p>
-            <h2 class="text-lg font-semibold text-[var(--text-primary)]">Donaciones no pecuniarias</h2>
-            <p class="max-w-3xl text-xs text-[var(--text-muted)]">Identifica actores, detalla el propósito y registra cada ítem valorizado.</p>
+        <div class="form-shell flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+                <p class="eyebrow text-[var(--accent-color)]">Recepción</p>
+                <h2 class="text-lg font-semibold text-[var(--text-primary)]">Donaciones no pecuniarias</h2>
+                <p class="max-w-3xl text-xs text-[var(--text-muted)]">Identifica actores, detalla el propósito y registra cada ítem valorizado.</p>
+            </div>
+            <InlineDateControl v-model="fechaIngreso" label="Fecha recepción" />
         </div>
 
         <div 
@@ -322,20 +376,7 @@ loadCurrentResponsible();
         <!-- Section 1: Actores (Donor, Receiver, Purpose) -->
         <div class="form-shell p-5">
             <h3 class="mb-3 text-base font-semibold text-[var(--text-primary)]">1. Identificar actores</h3>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        Fecha de recepción <span class="text-red-500">*</span>
-                    </label>
-                    <input
-                        type="date"
-                        v-model="fechaIngreso"
-                        class="compact-control"
-                        required
-                    />
-                </div>
-            </div>
-            
+
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <!-- Donor Searcher -->
                 <div class="relative">
@@ -568,7 +609,7 @@ loadCurrentResponsible();
                         <div v-else class="p-4 flex flex-col items-center">
                             <p class="text-gray-500 text-sm mb-2">No se encontró el ítem.</p>
                             <button 
-                                @click="showModalRegistroCatalogo = true"
+                                    @click="openCatalogoModal"
                                 type="button"
                                 class="btn btn-outline text-sm"
                             >
@@ -595,20 +636,16 @@ loadCurrentResponsible();
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">
-                        Precio por {{ selectedItem.unidadMedidaEstandar || 'unidad' }} ($) <span class="text-red-500">*</span>
+                        Precio por {{ selectedItem.unidadMedidaEstandar || 'unidad' }} <span class="text-red-500">*</span>
                     </label>
-                    <div class="relative">
-                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <span class="text-gray-500 sm:text-sm">$</span>
-                        </div>
-                        <input 
-                            type="number" 
-                            v-model.number="itemPrecio"
-                            min="0"
-                            step="100"
-                            class="compact-control pl-7"
-                        />
-                    </div>
+                    <input 
+                        :value="itemPrecio"
+                        type="text"
+                        inputmode="numeric"
+                        pattern="[0-9]*"
+                        class="compact-control"
+                        @input="itemPrecio = integerFromInput($event)"
+                    />
                 </div>
                 <div class="flex items-end">
                             <button 

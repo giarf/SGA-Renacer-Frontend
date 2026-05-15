@@ -168,11 +168,11 @@ onMounted(() => {
 <template>
     <div class="px-4 sm:px-6 lg:px-8 py-5 space-y-5">
         <header class="space-y-3">
-            <p class="text-sm uppercase tracking-wider text-blue-600 font-semibold">Finanzas comunitarias</p>
+            <p class="eyebrow text-[var(--accent-color)]">Finanzas comunitarias</p>
             <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
-                    <h2 class="text-3xl font-bold text-gray-900">Cuentas y fondos internos</h2>
-                    <p class="text-gray-600">Administra las cuentas operativas, monitorea saldos y revisa movimientos recientes.</p>
+                    <h2 class="text-3xl font-bold text-[var(--text-primary)]">Cuentas y fondos internos</h2>
+                    <p class="text-[var(--text-muted)]">Administra las cuentas operativas, monitorea saldos y revisa movimientos recientes.</p>
                 </div>
                 <div class="flex gap-3">
                     <button
@@ -197,49 +197,49 @@ onMounted(() => {
         </div>
 
         <section class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-                <p class="text-sm text-gray-500">Saldo total disponible</p>
-                <p class="text-3xl font-bold text-gray-900 mt-1">{{ currency.format(totalSaldo) }}</p>
-                <p class="text-xs text-gray-400 mt-3">Actualizado en tiempo real desde el backend de Renacer</p>
+            <div class="surface-card p-4">
+                <p class="text-sm text-[var(--text-muted)]">Saldo total disponible</p>
+                <p class="text-3xl font-bold text-[var(--text-primary)] mt-1">{{ currency.format(totalSaldo) }}</p>
+                <p class="text-xs text-[var(--text-muted)] mt-3">Actualizado en tiempo real desde el backend de Renacer</p>
             </div>
-            <div class="bg-gradient-to-r from-blue-600 to-blue-500 rounded-xl shadow-sm p-4 text-white">
-                <p class="text-sm uppercase tracking-wide opacity-80">Cuentas activas</p>
-                <p class="text-3xl font-bold mt-1">{{ cuentasCount }}</p>
-                <p class="text-sm opacity-80 mt-2">Incluye cuentas corrientes, caja chica y fondos especiales.</p>
+            <div class="surface-card p-4">
+                <p class="text-sm uppercase tracking-wide text-[var(--text-muted)]">Cuentas activas</p>
+                <p class="text-3xl font-bold text-[var(--text-primary)] mt-1">{{ cuentasCount }}</p>
+                <p class="text-sm text-[var(--text-muted)] mt-2">Incluye cuentas corrientes, caja chica y fondos especiales.</p>
             </div>
         </section>
 
         <div class="grid grid-cols-1 xl:grid-cols-3 gap-5">
-            <section class="xl:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100">
-                <div class="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
-                    <h3 class="text-base font-semibold text-gray-900">Cuentas configuradas</h3>
-                    <span v-if="loading" class="text-sm text-gray-500">Cargando...</span>
+            <section class="xl:col-span-2 surface-card p-0 overflow-hidden">
+                <div class="px-5 py-3 border-b border-[var(--card-border)] flex items-center justify-between">
+                    <h3 class="text-base font-semibold text-[var(--text-primary)]">Cuentas configuradas</h3>
+                    <span v-if="loading" class="text-sm text-[var(--text-muted)]">Cargando...</span>
                 </div>
                 <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-100">
-                        <thead class="bg-gray-50">
+                    <table class="min-w-full divide-y divide-[var(--card-border)] table-soft">
+                        <thead class="bg-[var(--surface-muted)]/60 text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
                             <tr>
-                                <th class="px-5 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Nombre</th>
-                                <th class="px-5 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Saldo actual</th>
+                                <th class="px-4 py-3 text-left">Nombre</th>
+                                <th class="px-4 py-3 text-right">Saldo actual</th>
                             </tr>
                         </thead>
-                        <tbody class="bg-white divide-y divide-gray-100">
+                        <tbody class="divide-y divide-[var(--card-border)] bg-white dark:bg-[var(--bg-card)]">
                             <tr
                                 v-for="cuenta in cuentas"
                                 :key="cuenta.id"
                                 @click="selectCuenta(cuenta)"
-                                class="cursor-pointer hover:bg-blue-50 transition"
-                                :class="selectedCuenta?.id === cuenta.id ? 'bg-blue-50' : ''"
+                                class="cursor-pointer transition hover:bg-black/5 dark:hover:bg-white/5"
+                                :class="selectedCuenta?.id === cuenta.id ? 'highlighted-row ring-1 ring-[var(--accent-color)]' : ''"
                             >
-                                <td class="px-5 py-2.5 whitespace-nowrap">
-                                    <div class="text-sm font-semibold text-gray-900">{{ cuenta.nombre }}</div>
+                                <td class="px-4 py-3 whitespace-nowrap">
+                                    <div class="text-sm font-semibold text-gray-900 dark:text-gray-100">{{ cuenta.nombre }}</div>
                                 </td>
-                                <td class="px-5 py-2.5 whitespace-nowrap text-right font-bold text-gray-900">
+                                <td class="px-4 py-3 whitespace-nowrap text-right text-sm font-bold text-gray-900 dark:text-gray-100">
                                     {{ currency.format(cuenta.saldoActual || 0) }}
                                 </td>
                             </tr>
                             <tr v-if="!loading && cuentas.length === 0">
-                                <td colspan="2" class="px-5 py-6 text-center text-sm text-gray-500">
+                                <td colspan="2" class="px-4 py-8 text-center text-sm text-gray-500">
                                     No hay cuentas registradas aún. Crea la primera para comenzar a trackear saldos.
                                 </td>
                             </tr>
@@ -249,27 +249,27 @@ onMounted(() => {
             </section>
 
             <aside class="space-y-4">
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Detalle de cuenta</h3>
+                <div class="surface-card p-4">
+                    <h3 class="text-lg font-semibold text-[var(--text-primary)] mb-4">Detalle de cuenta</h3>
                     <div v-if="selectedCuenta" class="space-y-3">
                         <div>
-                            <p class="text-sm text-gray-500">Nombre</p>
-                            <p class="text-lg font-semibold text-gray-900">{{ selectedCuenta.nombre }}</p>
+                            <p class="text-sm text-[var(--text-muted)]">Nombre</p>
+                            <p class="text-lg font-semibold text-[var(--text-primary)]">{{ selectedCuenta.nombre }}</p>
                         </div>
                         <div>
-                            <p class="text-sm text-gray-500">Saldo disponible</p>
-                            <p class="text-2xl font-bold text-blue-600">{{ currency.format(selectedCuenta.saldoActual || 0) }}</p>
+                            <p class="text-sm text-[var(--text-muted)]">Saldo disponible</p>
+                            <p class="text-2xl font-bold text-[var(--text-primary)]">{{ currency.format(selectedCuenta.saldoActual || 0) }}</p>
                         </div>
                     </div>
-                    <div v-else class="text-sm text-gray-500">
+                    <div v-else class="text-sm text-[var(--text-muted)]">
                         Selecciona una cuenta para ver sus detalles y movimientos.
                     </div>
                 </div>
 
-                <div class="bg-white rounded-xl shadow border border-gray-100 p-6">
+                <div class="surface-card p-5">
                     <div class="flex items-center justify-between mb-4">
-                        <h3 class="text-lg font-semibold text-gray-900">Movimientos recientes</h3>
-                        <span v-if="movimientosLoading" class="text-xs text-gray-500">Actualizando...</span>
+                        <h3 class="text-lg font-semibold text-[var(--text-primary)]">Movimientos recientes</h3>
+                        <span v-if="movimientosLoading" class="text-xs text-[var(--text-muted)]">Actualizando...</span>
                     </div>
                     <div v-if="selectedCuenta && movimientos">
                         <div class="grid grid-cols-1 gap-4">
@@ -278,12 +278,12 @@ onMounted(() => {
                                 <ul class="space-y-2">
                                     <li v-for="mov in topMovimientos.ingresos" :key="`ing-${mov.id}`" class="flex justify-between items-start gap-3 text-sm">
                                         <div>
-                                            <p class="text-gray-700">{{ movimientoDescripcion(mov) }}</p>
-                                            <p class="text-xs text-gray-500">{{ movimientoFecha(mov) }} · {{ mov.tipoTransaccion || 'Ingreso' }}</p>
+                                            <p class="text-[var(--text-primary)]">{{ movimientoDescripcion(mov) }}</p>
+                                            <p class="text-xs text-[var(--text-muted)]">{{ movimientoFecha(mov) }} · {{ mov.tipoTransaccion || 'Ingreso' }}</p>
                                         </div>
                                         <span class="font-semibold text-green-600 whitespace-nowrap">{{ currency.format(movimientoMonto(mov)) }}</span>
                                     </li>
-                                    <li v-if="topMovimientos.ingresos.length === 0" class="text-gray-400 text-sm">Sin registros</li>
+                                    <li v-if="topMovimientos.ingresos.length === 0" class="text-[var(--text-muted)] text-sm">Sin registros</li>
                                 </ul>
                             </div>
                             <div>
@@ -291,32 +291,32 @@ onMounted(() => {
                                 <ul class="space-y-2">
                                     <li v-for="mov in topMovimientos.egresos" :key="`egr-${mov.id}`" class="flex justify-between items-start gap-3 text-sm">
                                         <div>
-                                            <p class="text-gray-700">{{ movimientoDescripcion(mov) }}</p>
-                                            <p class="text-xs text-gray-500">{{ movimientoFecha(mov) }} · {{ mov.tipoTransaccion || 'Egreso' }}</p>
+                                            <p class="text-[var(--text-primary)]">{{ movimientoDescripcion(mov) }}</p>
+                                            <p class="text-xs text-[var(--text-muted)]">{{ movimientoFecha(mov) }} · {{ mov.tipoTransaccion || 'Egreso' }}</p>
                                         </div>
                                         <span class="font-semibold text-red-600 whitespace-nowrap">-{{ currency.format(movimientoMonto(mov)) }}</span>
                                     </li>
-                                    <li v-if="topMovimientos.egresos.length === 0" class="text-gray-400 text-sm">Sin registros</li>
+                                    <li v-if="topMovimientos.egresos.length === 0" class="text-[var(--text-muted)] text-sm">Sin registros</li>
                                 </ul>
                             </div>
                         </div>
                     </div>
-                    <div v-else class="text-sm text-gray-500">
+                    <div v-else class="text-sm text-[var(--text-muted)]">
                         Selecciona una cuenta para visualizar los ingresos y egresos más recientes.
                     </div>
                 </div>
 
-                <div class="bg-white rounded-xl shadow border border-gray-100 p-6">
+                <div class="surface-card p-5">
                     <div class="flex items-center justify-between mb-4">
                         <div>
-                            <p class="text-xs uppercase tracking-widest text-blue-500 font-semibold">Gestión de fondos</p>
-                            <h3 class="text-lg font-semibold text-gray-900">
+                            <p class="text-xs uppercase tracking-widest text-[var(--accent-color)] font-semibold">Gestión de fondos</p>
+                            <h3 class="text-lg font-semibold text-[var(--text-primary)]">
                                 {{ editingId ? 'Editar cuenta existente' : 'Crear nuevo fondo' }}
                             </h3>
                         </div>
                         <button
                             type="button"
-                            class="text-sm text-blue-600 hover:text-blue-800"
+                            class="text-sm text-[var(--accent-color)] hover:text-[var(--accent-color-hover)]"
                             @click="resetForm"
                         >
                             {{ editingId ? 'Cancelar edición' : 'Limpiar' }}
@@ -324,17 +324,16 @@ onMounted(() => {
                     </div>
                     <form class="space-y-4" @submit.prevent="saveCuenta">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+                            <label class="block mb-1">Nombre</label>
                             <input
                                 v-model="form.nombre"
                                 type="text"
                                 required
-                                class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                 placeholder="Caja chica, Banco Estado, etc."
                             />
                         </div>
                         <div class="flex justify-end">
-                            <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                            <button type="submit" class="btn btn-primary">
                                 {{ editingId ? 'Guardar cambios' : 'Crear cuenta' }}
                             </button>
                         </div>

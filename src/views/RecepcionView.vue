@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import type { EntidadResumen, DonacionPayload, Cuenta } from '../types';
 import { apiService } from '../api/apiService';
 import { formatRutForDisplay } from '../utils/rutFormatter';
 import { canChangeResponsible, resolveCurrentResponsible } from '../auth/currentResponsible';
+import { clearFormDraft, loadFormDraft, saveFormDraft } from '../utils/formDraft';
+import { integerFromInput } from '../utils/integerInput';
+import InlineDateControl from '../components/InlineDateControl.vue';
 
 // State
 const entidades = ref<EntidadResumen[]>([]);
@@ -35,6 +38,8 @@ const donationForm = ref({
     proposito: '',
     anotaciones: ''
 });
+const draftReady = ref(false);
+const draftKey = 'draft:operacion-diaria:donacion-pecuniaria';
 const submitting = ref(false);
 const message = ref<{ type: 'success' | 'error', text: string } | null>(null);
 const currencyFormatter = new Intl.NumberFormat('es-CL', {
@@ -165,6 +170,35 @@ const clearGestor = () => {
     showGestorDropdown.value = false;
 };
 
+type DonationDraft = {
+    donationForm: typeof donationForm.value;
+    selectedEntidad: EntidadResumen | null;
+    selectedFondoId: number | null;
+    selectedGestor: EntidadResumen | null;
+    selectedResponsable: EntidadResumen | null;
+};
+
+const restoreDraft = () => {
+    const draft = loadFormDraft<DonationDraft>(draftKey);
+    if (!draft) return;
+    donationForm.value = { ...donationForm.value, ...draft.donationForm };
+    selectedEntidad.value = draft.selectedEntidad;
+    selectedFondoId.value = draft.selectedFondoId;
+    selectedGestor.value = draft.selectedGestor;
+    selectedResponsable.value = draft.selectedResponsable;
+};
+
+const persistDraft = () => {
+    if (!draftReady.value) return;
+    saveFormDraft(draftKey, {
+        donationForm: donationForm.value,
+        selectedEntidad: selectedEntidad.value,
+        selectedFondoId: selectedFondoId.value,
+        selectedGestor: selectedGestor.value,
+        selectedResponsable: selectedResponsable.value
+    } satisfies DonationDraft);
+};
+
 const submitDonacion = async () => {
     if (!selectedEntidad.value) {
         message.value = { type: 'error', text: 'Debes seleccionar un donante.' };
@@ -212,6 +246,7 @@ const submitDonacion = async () => {
         await apiService.registrarDonacion(payload);
         message.value = { type: 'success', text: 'Donación registrada exitosamente.' };
         // Reset
+        clearFormDraft(draftKey);
         donationForm.value = { fecha: today, monto: 0, proposito: '', anotaciones: '' };
         selectedEntidad.value = null;
         selectedGestor.value = null;
@@ -223,10 +258,12 @@ const submitDonacion = async () => {
     }
 };
 
-onMounted(() => {
-    loadEntidades();
-    loadFondos();
-    loadCurrentResponsible();
+watch([donationForm, selectedEntidad, selectedFondoId, selectedGestor, selectedResponsable], persistDraft, { deep: true });
+
+onMounted(async () => {
+    await Promise.all([loadEntidades(), loadFondos(), loadCurrentResponsible()]);
+    restoreDraft();
+    draftReady.value = true;
 });
 </script>
 
@@ -236,9 +273,12 @@ onMounted(() => {
             {{ message.text }}
         </div>
         <div class="form-shell">
-            <div class="form-shell-header border-b px-5 py-4">
-                <h3 class="text-lg font-semibold text-[var(--text-primary)]">Donación pecuniaria</h3>
-                <p class="text-xs text-[var(--text-muted)]">Completa donante, responsable, fondo y monto.</p>
+            <div class="form-shell-header flex flex-col gap-3 border-b px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                    <h3 class="text-lg font-semibold text-[var(--text-primary)]">Donación pecuniaria</h3>
+                    <p class="text-xs text-[var(--text-muted)]">Completa donante, responsable, fondo y monto.</p>
+                </div>
+                <InlineDateControl v-model="donationForm.fecha" />
             </div>
 
             <form @submit.prevent="submitDonacion" class="grid grid-cols-1 gap-4 p-5 md:grid-cols-2">
@@ -368,30 +408,17 @@ onMounted(() => {
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700">
-                        Fecha del ingreso <span class="text-red-500">*</span>
+                        Monto <span class="text-red-500">*</span>
                     </label>
                     <input
-                        v-model="donationForm.fecha"
-                        type="date"
+                        :value="donationForm.monto"
+                        type="text"
+                        inputmode="numeric"
+                        pattern="[0-9]*"
                         required
                         class="mt-1 compact-control"
+                        @input="donationForm.monto = integerFromInput($event)"
                     >
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">
-                        Monto ($) <span class="text-red-500">*</span>
-                    </label>
-                    <div class="mt-1 relative rounded-md shadow-sm">
-                        <div class="absolute inset-y-0 left-0 pl-1 flex items-center pointer-events-none">
-                            <span class="text-[var(--text-muted)] sm:text-sm">$</span>
-                        </div>
-                        <input
-                            v-model.number="donationForm.monto"
-                            type="number"
-                            required
-                            class="compact-control pl-9 pr-12"
-                        >
-                    </div>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700">Propósito específico</label>

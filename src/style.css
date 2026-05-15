@@ -377,7 +377,7 @@ button {
     border: 1px solid var(--card-border);
     border-radius: 1rem;
     box-shadow: var(--shadow-soft);
-    overflow: hidden;
+    overflow: visible;
 }
 
 .form-shell-header,
@@ -404,6 +404,7 @@ button {
     border: 1px solid var(--card-border);
     border-radius: 0.875rem;
     box-shadow: var(--shadow-soft);
+    z-index: 1000;
 }
 
 .dropdown-panel ul > li,

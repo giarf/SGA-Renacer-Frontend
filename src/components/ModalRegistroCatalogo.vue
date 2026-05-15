@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue';
 import type { RegistrarCatalogoPayload } from '../types';
 import { apiService } from '../api/apiService';
 import { X, Info, CheckCircle2 } from 'lucide-vue-next';
+import { integerFromInput } from '../utils/integerInput';
 
 const emit = defineEmits<{
     (e: 'close'): void
@@ -92,7 +93,7 @@ onMounted(() => {
 </script>
 
 <template>
-    <div class="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50 p-4">
+    <div class="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-[1100] p-4">
         <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <!-- Header -->
             <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center sticky top-0 bg-white">
@@ -188,22 +189,18 @@ onMounted(() => {
                 <!-- Precio de Referencia -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">
-                        Precio de Referencia ($) <span class="text-red-500">*</span>
+                        Precio de Referencia <span class="text-red-500">*</span>
                     </label>
-                    <div class="relative">
-                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <span class="text-gray-500 sm:text-sm">$</span>
-                        </div>
-                        <input 
-                            v-model.number="formData.precioReferencia"
-                            type="number"
-                            min="0"
-                            step="1"
-                            required
-                            placeholder="0"
-                            class="block w-full pl-7 shadow-sm focus:ring-institutional-blue focus:border-institutional-blue sm:text-sm border-gray-300 rounded-md p-2 border"
-                        />
-                    </div>
+                    <input 
+                        :value="formData.precioReferencia"
+                        type="text"
+                        inputmode="numeric"
+                        pattern="[0-9]*"
+                        required
+                        placeholder="0"
+                        class="block w-full shadow-sm focus:ring-institutional-blue focus:border-institutional-blue sm:text-sm border-gray-300 rounded-md p-2 border"
+                        @input="formData.precioReferencia = integerFromInput($event)"
+                    />
                     <p class="mt-1 text-xs text-gray-500">Precio de referencia para valorización inicial del item.</p>
                 </div>
 

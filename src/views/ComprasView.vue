@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { Camera, ExternalLink, FileImage, Loader2, Plus, ShoppingCart, Trash2, X } from 'lucide-vue-next';
 import { apiService } from '../api/apiService';
 import { formatRutForDisplay } from '../utils/rutFormatter';
 import type { CatalogoItem, CompraBoletaMetadata, CompraIngresoPayload, Cuenta, EntidadResumen } from '../types';
 import { canChangeResponsible, resolveCurrentResponsible } from '../auth/currentResponsible';
+import { clearFormDraft, loadFormDraft, saveFormDraft } from '../utils/formDraft';
+import { integerFromInput } from '../utils/integerInput';
+import InlineDateControl from '../components/InlineDateControl.vue';
 
 const today = new Date().toISOString().split('T')[0] ?? '';
 
@@ -51,6 +54,8 @@ type CompraDetalleLocal = {
 const detalles = ref<CompraDetalleLocal[]>([]);
 const submitting = ref(false);
 const message = ref<{ type: 'success' | 'error'; text: string } | null>(null);
+const draftReady = ref(false);
+const draftKey = 'draft:operacion-diaria:compras';
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? 'https://api.familiarenacer.cl/api').replace(/\/$/, '');
 const apiOrigin = apiBaseUrl.replace(/\/api$/, '');
 
@@ -232,7 +237,46 @@ const removeDetalle = (index: number) => {
     detalles.value.splice(index, 1);
 };
 
+type CompraDraft = {
+    selectedCuentaId: number | null;
+    selectedProveedor: EntidadResumen | null;
+    selectedResponsable: EntidadResumen | null;
+    fecha: string;
+    numeroFacturaBoleta: string;
+    montoNeto: number;
+    montoIva: number;
+    detalles: CompraDetalleLocal[];
+};
+
+const restoreDraft = () => {
+    const draft = loadFormDraft<CompraDraft>(draftKey);
+    if (!draft) return;
+    selectedCuentaId.value = draft.selectedCuentaId;
+    selectedProveedor.value = draft.selectedProveedor;
+    selectedResponsable.value = draft.selectedResponsable;
+    fecha.value = draft.fecha;
+    numeroFacturaBoleta.value = draft.numeroFacturaBoleta;
+    montoNeto.value = draft.montoNeto;
+    montoIva.value = draft.montoIva;
+    detalles.value = draft.detalles ?? [];
+};
+
+const persistDraft = () => {
+    if (!draftReady.value) return;
+    saveFormDraft(draftKey, {
+        selectedCuentaId: selectedCuentaId.value,
+        selectedProveedor: selectedProveedor.value,
+        selectedResponsable: selectedResponsable.value,
+        fecha: fecha.value,
+        numeroFacturaBoleta: numeroFacturaBoleta.value,
+        montoNeto: montoNeto.value,
+        montoIva: montoIva.value,
+        detalles: detalles.value
+    } satisfies CompraDraft);
+};
+
 const resetForm = () => {
+    clearFormDraft(draftKey);
     selectedProveedor.value = null;
     proveedorQuery.value = '';
     proveedorResults.value = [];
@@ -330,21 +374,27 @@ const submitCompra = async () => {
     }
 };
 
-onMounted(() => {
-    loadCuentas();
-    loadCurrentResponsible();
+watch([selectedCuentaId, selectedProveedor, selectedResponsable, fecha, numeroFacturaBoleta, montoNeto, montoIva, detalles], persistDraft, { deep: true });
+
+onMounted(async () => {
+    await Promise.all([loadCuentas(), loadCurrentResponsible()]);
+    restoreDraft();
+    draftReady.value = true;
 });
 onBeforeUnmount(clearBoletaPreview);
 </script>
 
 <template>
     <div class="form-page space-y-4">
-        <header class="form-shell px-5 py-4">
-            <p class="eyebrow text-[var(--accent-color)]">Gestionar</p>
-            <h2 class="text-lg font-semibold text-[var(--text-primary)]">Compras</h2>
-            <p class="max-w-3xl text-xs text-[var(--text-muted)]">
-                Registra compras de inventario, asociando cuenta de origen, documento tributario y detalle valorizado de ítems.
-            </p>
+        <header class="form-shell flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+                <p class="eyebrow text-[var(--accent-color)]">Gestionar</p>
+                <h2 class="text-lg font-semibold text-[var(--text-primary)]">Compras</h2>
+                <p class="max-w-3xl text-xs text-[var(--text-muted)]">
+                    Registra compras de inventario, asociando cuenta de origen, documento tributario y detalle valorizado de ítems.
+                </p>
+            </div>
+            <InlineDateControl v-model="fecha" />
         </header>
 
         <div v-if="message" :class="['message-banner', message.type === 'success' ? 'message-success' : 'message-error']">
@@ -430,12 +480,8 @@ onBeforeUnmount(clearBoletaPreview);
 
             <div class="grid grid-cols-1 gap-4 border-t border-[var(--card-border)] px-5 py-4 md:grid-cols-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Fecha <span class="text-red-500">*</span></label>
-                    <input v-model="fecha" type="date" class="compact-control" required />
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Factura/Boleta</label>
-                    <input v-model="numeroFacturaBoleta" type="text" placeholder="F-0001" class="compact-control" />
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Monto neto</label>
+                    <input :value="montoNeto" type="text" inputmode="numeric" pattern="[0-9]*" class="compact-control" @input="montoNeto = integerFromInput($event)" />
                 </div>
                 <div class="md:col-span-2">
                     <label class="block text-sm font-medium text-gray-700 mb-1">
@@ -457,16 +503,16 @@ onBeforeUnmount(clearBoletaPreview);
 
             <div class="grid grid-cols-1 gap-4 px-5 pb-4 md:grid-cols-3">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Monto neto</label>
-                    <input v-model.number="montoNeto" type="number" min="0" class="compact-control" />
-                </div>
-                <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Monto IVA</label>
-                    <input v-model.number="montoIva" type="number" min="0" class="compact-control" />
+                    <input :value="montoIva" type="text" inputmode="numeric" pattern="[0-9]*" class="compact-control" @input="montoIva = integerFromInput($event)" />
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Monto total ingreso</label>
                     <input :value="currency.format(montoTotal)" type="text" class="compact-control bg-[var(--surface-muted)] text-[var(--text-muted)]" readonly />
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Factura/Boleta</label>
+                    <input v-model="numeroFacturaBoleta" type="text" placeholder="F-0001" class="compact-control" />
                 </div>
             </div>
 
@@ -535,7 +581,7 @@ onBeforeUnmount(clearBoletaPreview);
                     </div>
                     <div>
                         <label class="block text-xs uppercase tracking-wide text-gray-500 mb-1">Precio unitario ingreso</label>
-                        <input v-model.number="itemPrecio" type="number" min="0" class="compact-control" />
+                        <input :value="itemPrecio" type="text" inputmode="numeric" pattern="[0-9]*" class="compact-control" @input="itemPrecio = integerFromInput($event)" />
                     </div>
                 </div>
 

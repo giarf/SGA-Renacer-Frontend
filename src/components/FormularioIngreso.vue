@@ -6,6 +6,8 @@ import { formatRutForDisplay } from '../utils/rutFormatter';
 import ModalCrearPersona from './ModalCrearPersona.vue';
 import ModalRegistroCatalogo from './ModalRegistroCatalogo.vue';
 import { canChangeResponsible, resolveCurrentResponsible } from '../auth/currentResponsible';
+import { integerFromInput } from '../utils/integerInput';
+import InlineDateControl from './InlineDateControl.vue';
 
 const emit = defineEmits<{ (e: 'registro-completado'): void }>();
 
@@ -256,6 +258,11 @@ const handleCatalogoCreado = () => {
     showModalRegistroCatalogo.value = false;
 };
 
+const openCatalogoModal = () => {
+    isCatalogoDropdownOpen.value = false;
+    showModalRegistroCatalogo.value = true;
+};
+
 const submitForm = async () => {
     if (!selectedEntidad.value) return;
 
@@ -361,9 +368,12 @@ onMounted(() => {
 
 <template>
   <div class="bg-white shadow rounded-lg mb-8 overflow-hidden">
-    <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
-      <h3 class="text-lg font-medium text-gray-900">Nueva Donación</h3>
-      <p class="mt-1 text-sm text-gray-500">Busque la entidad donante y registre los detalles.</p>
+    <div class="flex flex-col gap-3 border-b border-gray-200 bg-gray-50 px-6 py-4 sm:flex-row sm:items-start sm:justify-between">
+      <div>
+        <h3 class="text-lg font-medium text-gray-900">Nueva Donación</h3>
+        <p class="mt-1 text-sm text-gray-500">Busque la entidad donante y registre los detalles.</p>
+      </div>
+      <InlineDateControl v-model="nuevoRegistro.donacion.fecha" />
     </div>
 
     <div class="p-6">
@@ -530,7 +540,7 @@ onMounted(() => {
                 <h4 class="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">Detalle de la Donación</h4>
                 
                 <div class="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
-                    <div class="sm:col-span-3">
+                    <div class="sm:col-span-6">
                         <label for="tipoDonacion" class="block text-sm font-medium text-gray-700">Tipo Donación</label>
                         <select id="tipoDonacion" v-model="nuevoRegistro.donacion.tipo" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-institutional-blue focus:border-institutional-blue sm:text-sm rounded-md border">
                             <option value="DINERO">Dinero</option>
@@ -538,19 +548,18 @@ onMounted(() => {
                         </select>
                     </div>
 
-                    <div class="sm:col-span-3">
-                        <label for="fecha" class="block text-sm font-medium text-gray-700">Fecha</label>
-                         <input type="date" id="fecha" v-model="nuevoRegistro.donacion.fecha" required class="mt-1 focus:ring-institutional-blue focus:border-institutional-blue block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2 border">
-                    </div>
-
-                    <div class="sm:col-span-6" v-if="nuevoRegistro.donacion.tipo === 'DINERO'">
-                        <label for="monto" class="block text-sm font-medium text-gray-700">Monto ($) <span class="text-red-500">*</span></label>
-                         <div class="mt-1 relative rounded-md shadow-sm">
-                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                              <span class="text-gray-500 sm:text-sm">$</span>
-                            </div>
-                            <input type="number" id="monto" v-model.number="nuevoRegistro.donacion.monto" class="focus:ring-institutional-blue focus:border-institutional-blue block w-full pl-7 pr-12 sm:text-sm border-gray-300 rounded-md p-2 border" placeholder="0">
-                         </div>
+                    <div class="sm:col-span-3" v-if="nuevoRegistro.donacion.tipo === 'DINERO'">
+                        <label for="monto" class="block text-sm font-medium text-gray-700">Monto <span class="text-red-500">*</span></label>
+                        <input
+                            id="monto"
+                            :value="nuevoRegistro.donacion.monto"
+                            type="text"
+                            inputmode="numeric"
+                            pattern="[0-9]*"
+                            class="mt-1 focus:ring-institutional-blue focus:border-institutional-blue block w-full sm:text-sm border-gray-300 rounded-md p-2 border"
+                            placeholder="0"
+                            @input="nuevoRegistro.donacion.monto = integerFromInput($event)"
+                        >
                     </div>
 
                     <div class="sm:col-span-6">
@@ -643,7 +652,7 @@ onMounted(() => {
                             <div v-if="isCatalogoDropdownOpen && filteredCatalogoItems.length === 0 && catalogoSearchQuery.length >= 2 && !loadingCatalogo" class="dropdown-panel absolute z-10 mt-1 flex w-full flex-col items-center px-4 py-4 text-sm text-[var(--text-muted)]">
                                 <p class="mb-2">No se encontraron items en el catálogo.</p>
                                 <button 
-                                    @click="showModalRegistroCatalogo = true"
+                                    @click="openCatalogoModal"
                                     type="button"
                                     class="text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
                                 >
@@ -661,18 +670,16 @@ onMounted(() => {
                         <label for="precioUnitario" class="block text-sm font-medium text-gray-700">
                             Precio por {{ selectedCatalogoItem.unidadMedidaEstandar || 'unidad' }}
                         </label>
-                        <div class="mt-1 relative rounded-md shadow-sm">
-                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                              <span class="text-gray-500 sm:text-sm">$</span>
-                            </div>
-                            <input 
-                                type="number" 
-                                id="precioUnitario" 
-                                v-model.number="nuevoRegistro.donacion.monto" 
-                                class="focus:ring-institutional-blue focus:border-institutional-blue block w-full pl-7 pr-12 sm:text-sm border-gray-300 rounded-md p-2 border" 
-                                placeholder="0"
-                            >
-                        </div>
+                        <input 
+                            id="precioUnitario" 
+                            :value="nuevoRegistro.donacion.monto"
+                            type="text"
+                            inputmode="numeric"
+                            pattern="[0-9]*"
+                            class="mt-1 focus:ring-institutional-blue focus:border-institutional-blue block w-full sm:text-sm border-gray-300 rounded-md p-2 border" 
+                            placeholder="0"
+                            @input="nuevoRegistro.donacion.monto = integerFromInput($event)"
+                        >
                     </div>
 
                     <div v-if="nuevoRegistro.donacion.tipo === 'ESPECIE' && selectedCatalogoItem" class="sm:col-span-3">

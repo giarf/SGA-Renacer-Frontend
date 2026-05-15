@@ -3,7 +3,6 @@ import { ref, onMounted, watch } from 'vue';
 import type { RolPersona } from '../types';
 import { apiService } from '../api/apiService';
 import { formatRutForDisplay } from '../utils/rutFormatter';
-import { Mail, Phone } from 'lucide-vue-next';
 
 const tabs = [
     { id: 'beneficiarios', label: 'Beneficiarios', accent: 'emerald', description: 'Personas que reciben apoyos directos.' },
@@ -50,29 +49,29 @@ onMounted(() => {
 <template>
     <div class="px-4 sm:px-6 lg:px-8 py-5 space-y-5">
         <header class="space-y-2">
-            <p class="text-sm uppercase tracking-widest text-purple-600 font-semibold">Directorio humano</p>
-            <h2 class="text-3xl font-bold text-gray-900">Roles y redes de apoyo</h2>
-            <p class="text-gray-600">Consulta rápidamente a las personas clave en cada rol dentro de la organización.</p>
+            <p class="eyebrow text-[var(--accent-color)]">Directorio humano</p>
+            <h2 class="text-3xl font-bold text-[var(--text-primary)]">Roles y redes de apoyo</h2>
+            <p class="text-[var(--text-muted)]">Consulta rápidamente a las personas clave en cada rol dentro de la organización.</p>
         </header>
 
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100">
-            <div class="flex flex-wrap">
+        <div class="surface-card p-1">
+            <div class="flex flex-wrap gap-1">
                 <button
                     v-for="tab in tabs"
                     :key="tab.id"
-                    class="flex-1 min-w-[160px] px-4 py-3 text-sm font-semibold transition"
-                    :class="activeTab === tab.id ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-50'"
+                    class="flex-1 min-w-[160px] rounded-2xl px-4 py-2.5 text-sm font-semibold transition"
+                    :class="activeTab === tab.id ? 'bg-[var(--surface-muted)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-muted)] hover:bg-[var(--surface-muted)]'"
                     @click="setActiveTab(tab.id)"
                 >
                     {{ tab.label }}
                 </button>
             </div>
-            <div class="px-5 py-3 border-t border-gray-100 text-sm text-gray-600">
+            <div class="px-4 py-3 border-t border-[var(--card-border)] text-sm text-[var(--text-muted)]">
                 {{ tabs.find(tab => tab.id === activeTab)?.description }}
             </div>
         </div>
 
-        <div v-if="loading" class="text-center py-12 text-gray-500">
+        <div v-if="loading" class="text-center py-12 text-[var(--text-muted)]">
             Cargando información...
         </div>
 
@@ -81,31 +80,43 @@ onMounted(() => {
                 {{ error }}
             </div>
 
-            <div v-else-if="registros.length === 0" class="bg-white rounded-xl shadow border border-gray-100 p-6 text-center text-gray-500">
+            <div v-else-if="registros.length === 0" class="surface-card p-6 text-center text-[var(--text-muted)]">
                 No se encontraron registros para este rol.
             </div>
 
-            <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                <article
-                    v-for="persona in registros"
-                    :key="persona.id"
-                    class="border border-gray-100 rounded-xl bg-white shadow-sm hover:shadow transition p-4"
-                >
-                    <p class="text-xs uppercase tracking-widest text-gray-400">ID {{ persona.id }}</p>
-                    <h3 class="text-xl font-bold text-gray-900">{{ persona.nombres }} {{ persona.apellidos }}</h3>
-                    <p class="text-sm text-gray-500">{{ formatRutForDisplay(persona.rut) }}</p>
-                    <div class="mt-3 space-y-2 text-sm">
-                        <p class="text-gray-600 flex items-center gap-2" v-if="persona.correo">
-                            <Mail class="w-4 h-4 text-gray-500" /> {{ persona.correo }}
-                        </p>
-                        <p class="text-gray-600 flex items-center gap-2" v-if="persona.telefono">
-                            <Phone class="w-4 h-4 text-gray-500" /> {{ persona.telefono }}
-                        </p>
-                        <span class="inline-flex mt-2 px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">
-                            {{ persona.rol || tabs.find(tab => tab.id === activeTab)?.label }}
-                        </span>
-                    </div>
-                </article>
+            <div v-else class="surface-card p-0 overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-[var(--card-border)] table-soft">
+                        <thead class="bg-[var(--surface-muted)]/60 text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                            <tr>
+                                <th class="px-4 py-3 text-left">Persona</th>
+                                <th class="px-4 py-3 text-left">Contacto</th>
+                                <th class="px-4 py-3 text-left">Rol</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-[var(--card-border)] bg-white dark:bg-[var(--bg-card)]">
+                            <tr
+                                v-for="persona in registros"
+                                :key="persona.id"
+                                class="transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                            >
+                                <td class="px-4 py-3 text-sm">
+                                    <p class="font-semibold text-gray-900 dark:text-gray-100">{{ persona.nombres }} {{ persona.apellidos }}</p>
+                                    <p class="text-xs text-gray-500">{{ formatRutForDisplay(persona.rut) }}</p>
+                                </td>
+                                <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
+                                    <p>{{ persona.correo || 'Sin correo' }}</p>
+                                    <p class="text-xs text-gray-500">{{ persona.telefono || 'Sin teléfono' }}</p>
+                                </td>
+                                <td class="px-4 py-3 text-sm">
+                                    <span class="inline-flex rounded-full border border-[var(--card-border)] px-3 py-1 text-xs font-semibold text-[var(--text-muted)]">
+                                        {{ persona.rol || tabs.find(tab => tab.id === activeTab)?.label }}
+                                    </span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
