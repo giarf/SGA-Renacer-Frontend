@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { Camera, ExternalLink, FileImage, Loader2, Plus, ShoppingCart, Trash2, X } from 'lucide-vue-next';
+import { ExternalLink, FileImage, Loader2, Plus, ShoppingCart, Trash2, X } from 'lucide-vue-next';
 import { apiService } from '../api/apiService';
 import { formatRutForDisplay } from '../utils/rutFormatter';
 import type { CatalogoItem, CompraBoletaMetadata, CompraIngresoPayload, Cuenta, EntidadResumen } from '../types';
@@ -42,6 +42,7 @@ const montoNeto = ref(0);
 const montoIva = ref(0);
 const boletaFile = ref<File | null>(null);
 const boletaPreviewUrl = ref<string | null>(null);
+const boletaInputRef = ref<HTMLInputElement | null>(null);
 const ultimaCompraBoleta = ref<CompraBoletaMetadata | null>(null);
 
 type CompraDetalleLocal = {
@@ -192,6 +193,10 @@ const setBoletaFile = (file: File | null) => {
     if (file && file.type.startsWith('image/')) {
         boletaPreviewUrl.value = URL.createObjectURL(file);
     }
+};
+
+const openBoletaPicker = () => {
+    boletaInputRef.value?.click();
 };
 
 const onBoletaInputChange = (event: Event) => {
@@ -522,13 +527,48 @@ onBeforeUnmount(clearBoletaPreview);
                     <p class="text-sm font-semibold text-gray-800">Boleta de compra (opcional)</p>
                 </div>
                 <p class="text-xs text-gray-500">
-                    Puedes adjuntar imagen o PDF. En móvil, toca para abrir cámara o galería.
+                    Puedes adjuntar imagen o PDF. En móvil, el sistema permite elegir cámara, galería o archivos según el dispositivo.
                 </p>
-                <label class="inline-flex items-center gap-2 rounded-md border border-[#006d8f]/30 text-[#006d8f] px-3 py-2 text-sm cursor-pointer hover:bg-[#006d8f]/5">
-                    <Camera class="w-4 h-4" />
-                    Adjuntar boleta
-                    <input type="file" accept="image/*,.pdf" capture="environment" class="hidden" @change="onBoletaInputChange" />
-                </label>
+
+                <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
+                    <button
+                        type="button"
+                        class="group relative h-32 w-32 overflow-hidden rounded-[2rem] bg-[var(--surface-muted)] ring-1 ring-[var(--card-border)] shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)]/50"
+                        @click="openBoletaPicker"
+                    >
+                        <img
+                            v-if="boletaPreviewUrl"
+                            :src="boletaPreviewUrl"
+                            alt="Vista previa boleta"
+                            class="h-full w-full object-cover transition duration-200 group-hover:brightness-75"
+                        >
+                        <div v-else class="flex h-full w-full flex-col items-center justify-center gap-2 text-gray-400 transition duration-200 group-hover:brightness-75">
+                            <FileImage class="h-9 w-9" />
+                            <span class="px-3 text-center text-xs font-semibold">Boleta o PDF</span>
+                        </div>
+                        <div class="pointer-events-none absolute inset-x-3 bottom-3 translate-y-2 rounded-full bg-black/70 px-3 py-2 text-xs font-semibold text-white opacity-0 shadow-lg transition group-hover:translate-y-0 group-hover:opacity-100">
+                            Adjuntar boleta
+                        </div>
+                    </button>
+                    <div class="flex-1 space-y-2">
+                        <input
+                            ref="boletaInputRef"
+                            type="file"
+                            accept="image/*,.pdf,application/pdf"
+                            class="sr-only"
+                            @change="onBoletaInputChange"
+                        >
+                        <button
+                            type="button"
+                            class="inline-flex items-center gap-2 rounded-md border border-[#006d8f]/30 px-3 py-2 text-sm font-semibold text-[#006d8f] hover:bg-[#006d8f]/5"
+                            @click="openBoletaPicker"
+                        >
+                            <FileImage class="w-4 h-4" />
+                            Adjuntar boleta
+                        </button>
+                        <p class="text-xs text-gray-500">Sin forzar cámara: puedes tomar foto, elegir de fototeca o subir PDF si el dispositivo lo ofrece.</p>
+                    </div>
+                </div>
 
                 <div v-if="boletaFile" class="rounded-md border border-gray-200 bg-gray-50 px-3 py-2">
                     <div class="flex items-center justify-between gap-2">
