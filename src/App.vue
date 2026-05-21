@@ -27,7 +27,9 @@ import {
     Wallet
 } from 'lucide-vue-next';
 import { authService, hasAnyGroup } from './auth/authService';
+import { resolveCurrentResponsible } from './auth/currentResponsible';
 import { ADMIN_GROUPS, DAILY_OPERATION_GROUPS } from './auth/permissions';
+import type { EntidadResumen } from './types';
 
 type NavigationChild = {
     key: string;
@@ -231,6 +233,7 @@ const mobileSidebarOpen = ref(false);
 const compactOpenItem = ref<string | null>(null);
 const userMenuOpen = ref(false);
 const userMenuRef = ref<HTMLElement | null>(null);
+const currentUserPerson = ref<EntidadResumen | null>(null);
 const toggleSidebar = () => {
     isSidebarCollapsed.value = !isSidebarCollapsed.value;
     compactOpenItem.value = null;
@@ -249,6 +252,15 @@ const toggleCompactItem = (itemKey: string) => {
 };
 
 const userInitial = computed(() => authService.displayName.trim().charAt(0).toUpperCase() || 'U');
+const userPhotoUrl = computed(() => currentUserPerson.value?.fotoUrl || '');
+
+const loadCurrentUserPerson = async () => {
+    try {
+        currentUserPerson.value = await resolveCurrentResponsible();
+    } catch {
+        currentUserPerson.value = null;
+    }
+};
 
 const toggleUserMenu = () => {
     userMenuOpen.value = !userMenuOpen.value;
@@ -284,6 +296,7 @@ onMounted(() => {
     mediaQuery.addEventListener('change', applyTheme);
     document.addEventListener('pointerdown', closeUserMenuOnOutsideClick);
     applyTheme();
+    loadCurrentUserPerson();
 });
 
 onBeforeUnmount(() => {
@@ -643,12 +656,18 @@ const logout = () => {
                         <div ref="userMenuRef" class="relative">
                             <button
                                 type="button"
-                                class="grid h-10 w-10 place-items-center rounded-full border border-[var(--card-border)] bg-[var(--surface-muted)] text-sm font-bold text-[var(--text-primary)] shadow-sm transition hover:bg-[var(--surface-strong)]"
+                                class="grid h-10 w-10 place-items-center overflow-hidden rounded-full border border-[var(--card-border)] bg-[var(--surface-muted)] text-sm font-bold text-[var(--text-primary)] shadow-sm transition hover:bg-[var(--surface-strong)]"
                                 :aria-expanded="userMenuOpen"
                                 aria-label="Abrir menú de usuario"
                                 @click="toggleUserMenu"
                             >
-                                {{ userInitial }}
+                                <img
+                                    v-if="userPhotoUrl"
+                                    :src="userPhotoUrl"
+                                    :alt="`Foto de ${currentUserPerson?.nombreCompleto || authService.displayName}`"
+                                    class="h-full w-full object-cover"
+                                >
+                                <span v-else>{{ userInitial }}</span>
                             </button>
                             <transition name="fade">
                                 <div
@@ -658,6 +677,9 @@ const logout = () => {
                                     <div class="border-b border-[var(--card-border)] px-4 py-3">
                                         <p class="text-xs uppercase tracking-[0.25em] text-[var(--text-muted)]">Authentik</p>
                                         <p class="mt-1 truncate text-sm font-semibold">{{ authService.displayName }}</p>
+                                        <p v-if="currentUserPerson" class="mt-1 truncate text-xs text-[var(--text-muted)]">
+                                            Persona interna: {{ currentUserPerson.nombreCompleto }}
+                                        </p>
                                     </div>
                                     <button
                                         type="button"
