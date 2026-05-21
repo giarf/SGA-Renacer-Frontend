@@ -477,18 +477,18 @@ onBeforeUnmount(() => {
                     <table class="min-w-full divide-y divide-[var(--card-border)] table-soft">
                         <thead class="bg-[var(--surface-muted)]/60 text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
                             <tr>
-                                <th class="px-6 py-3 text-left">
+                                <th class="w-16 px-4 py-3 text-center">
                                     <input
                                         type="checkbox"
-                                        class="h-5 w-5 rounded border-2 border-[var(--accent-color)] accent-[var(--accent-color)] shadow-sm"
+                                        class="selection-checkbox"
                                         :checked="allVisiblePersonasSelected"
                                         @change="toggleAllVisiblePersonas(($event.target as HTMLInputElement).checked)"
                                     >
                                     <span class="sr-only">Seleccionar todas las personas visibles</span>
                                 </th>
-                                <th class="px-6 py-3 text-left">Persona</th>
+                                <th class="min-w-[360px] px-6 py-3 text-left">Persona</th>
                                 <th class="px-6 py-3 text-left">Contacto</th>
-                                <th class="px-6 py-3 text-left">Ubicación</th>
+                                <th class="w-44 px-4 py-3 text-left">Ubicación</th>
                                 <th class="px-6 py-3 text-left">Etiquetas</th>
                                 <th class="px-6 py-3 text-left">Gestor asignado</th>
                                 <th class="px-6 py-3 text-right">Acciones</th>
@@ -511,15 +511,15 @@ onBeforeUnmount(() => {
                                     { 'highlighted-row ring-1 ring-[var(--accent-color)]': highlightedPersonaId === persona.id }
                                 ]"
                             >
-                                <td class="px-6 py-4 align-middle">
+                                <td class="w-16 px-4 py-4 text-center align-middle">
                                     <input
                                         type="checkbox"
-                                        class="h-5 w-5 rounded border-2 border-[var(--accent-color)] accent-[var(--accent-color)] shadow-sm"
+                                        class="selection-checkbox"
                                         :checked="isPersonaSelected(persona.id)"
                                         @change="setPersonaSelected(persona.id, ($event.target as HTMLInputElement).checked)"
                                     >
                                 </td>
-                                <td class="px-6 py-4 text-sm">
+                                <td class="min-w-[360px] px-6 py-4 text-sm">
                                     <div class="flex items-center gap-3">
                                         <img
                                             v-if="persona.fotoUrl"
@@ -532,7 +532,7 @@ onBeforeUnmount(() => {
                                             {{ (persona.nombreCompleto || '?').slice(0, 1).toUpperCase() }}
                                         </div>
                                         <div>
-                                            <p class="font-semibold text-gray-900 dark:text-gray-100">{{ persona.nombreCompleto || 'Sin nombre' }}</p>
+                                            <p class="whitespace-nowrap font-semibold text-gray-900 dark:text-gray-100">{{ persona.nombreCompleto || 'Sin nombre' }}</p>
                                             <p class="text-xs text-gray-500">{{ formatRutForDisplay(persona.identificador || '') }}</p>
                                         </div>
                                     </div>
@@ -541,9 +541,9 @@ onBeforeUnmount(() => {
                                     <p>{{ persona.correo || 'Sin correo' }}</p>
                                     <p class="text-xs text-gray-500">{{ persona.telefono || 'Sin teléfono' }}</p>
                                 </td>
-                                <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
+                                <td class="w-44 max-w-44 px-4 py-4 text-sm text-gray-600 dark:text-gray-300">
                                     <p>{{ persona.comuna || 'Sin comuna' }}</p>
-                                    <p class="text-xs text-gray-500 truncate">{{ persona.direccion || 'Sin dirección registrada' }}</p>
+                                    <p class="truncate text-xs text-gray-500" :title="persona.direccion || 'Sin dirección registrada'">{{ persona.direccion || 'Sin dirección registrada' }}</p>
                                 </td>
                                 <td class="px-6 py-4 text-sm">
                                     <div v-if="persona.etiquetas?.length" class="flex flex-wrap gap-1.5">
@@ -688,3 +688,36 @@ onBeforeUnmount(() => {
         />
     </div>
 </template>
+
+<style scoped>
+.selection-checkbox {
+    width: 1.35rem;
+    height: 1.35rem;
+    cursor: pointer;
+    appearance: none;
+    border: 2px solid var(--accent-color);
+    border-radius: 0.35rem;
+    background: var(--bg-base);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-color) 14%, transparent);
+    display: inline-grid;
+    place-content: center;
+}
+
+.selection-checkbox::before {
+    content: '';
+    width: 0.7rem;
+    height: 0.7rem;
+    transform: scale(0);
+    transition: transform 120ms ease-in-out;
+    clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0, 43% 62%);
+    background: white;
+}
+
+.selection-checkbox:checked {
+    background: var(--accent-color);
+}
+
+.selection-checkbox:checked::before {
+    transform: scale(1);
+}
+</style>
