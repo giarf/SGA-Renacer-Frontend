@@ -140,7 +140,7 @@ onMounted(() => {
                     v-model="searchQuery"
                     type="text"
                     placeholder="Buscar por nombre o categoría..."
-                    class="compact-control w-full pl-9 h-10"
+                    class="compact-control w-full !pl-10 h-10"
                 />
             </div>
         </div>
