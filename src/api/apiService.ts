@@ -426,7 +426,7 @@ export const apiService = {
 
 
 
-    async registrarPersonaNueva(datos: RegistrarPersonaPayload, foto?: File): Promise<void> {
+    async registrarPersonaNueva(datos: RegistrarPersonaPayload, foto?: File): Promise<{ id: number; mensaje?: string }> {
         const body = pruneEmpty({ ...datos });
         if (foto) {
             const formData = new FormData();
@@ -434,14 +434,13 @@ export const apiService = {
                 formData.append(key, String(value));
             });
             formData.append('foto', foto);
-            await requestJson(`${API_BASE_URL}/personas`, {
+            return await requestJson<{ id: number; mensaje?: string }>(`${API_BASE_URL}/personas`, {
                 method: 'POST',
                 body: formData
             });
-            return;
         }
 
-        await requestJson(`${API_BASE_URL}/personas`, {
+        return await requestJson<{ id: number; mensaje?: string }>(`${API_BASE_URL}/personas`, {
             method: 'POST',
             // Use text/plain to avoid CORS preflight (OPTIONS 405)
             headers: { 'Content-Type': 'text/plain' },
@@ -641,16 +640,16 @@ export const apiService = {
         return await requestJson<{ mensaje?: string }>(`${API_BASE_URL}/entidades/${entidadId}/etiquetas/${etiquetaId}`, { method: 'DELETE' });
     },
 
-    async asignarEtiquetaMasiva(etiquetaId: number, entidadIds: number[]): Promise<{ mensaje?: string }> {
-        return await requestJson<{ mensaje?: string }>(`${API_BASE_URL}/etiquetas/${etiquetaId}/entidades`, {
+    async asignarEtiquetaMasiva(etiquetaId: number, entidadIds: number[]): Promise<{ mensaje?: string; asignadas?: number }> {
+        return await requestJson<{ mensaje?: string; asignadas?: number }>(`${API_BASE_URL}/etiquetas/${etiquetaId}/entidades`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ entidadIds })
         });
     },
 
-    async quitarEtiquetaMasiva(etiquetaId: number, entidadIds: number[]): Promise<{ mensaje?: string }> {
-        return await requestJson<{ mensaje?: string }>(`${API_BASE_URL}/etiquetas/${etiquetaId}/entidades`, {
+    async quitarEtiquetaMasiva(etiquetaId: number, entidadIds: number[]): Promise<{ mensaje?: string; quitadas?: number }> {
+        return await requestJson<{ mensaje?: string; quitadas?: number }>(`${API_BASE_URL}/etiquetas/${etiquetaId}/entidades`, {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ entidadIds })

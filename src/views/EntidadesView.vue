@@ -27,6 +27,7 @@ const gestorFallback = reactive<Record<number, EntidadResumen>>({});
 const etiquetas = ref<Etiqueta[]>([]);
 const selectedPersonaIds = ref<Set<number>>(new Set());
 const selectedEtiquetaId = ref<number | ''>('');
+const selectedEtiquetaFilter = ref<number | ''>('');
 const nuevaEtiquetaNombre = ref('');
 const bulkApplying = ref(false);
 let highlightTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -46,12 +47,14 @@ const allVisiblePersonasSelected = computed(() => filteredPersonas.value.length 
 
 const filteredPersonas = computed(() => {
     const q = personaSearch.value.trim().toLowerCase();
-    if (!q) return personas.value;
+    const etiquetaId = selectedEtiquetaFilter.value;
     return personas.value.filter(persona => {
         const rut = persona.identificador?.toLowerCase() ?? '';
         const nombre = persona.nombreCompleto?.toLowerCase() ?? '';
         const comuna = persona.comuna?.toLowerCase() ?? '';
-        return nombre.includes(q) || rut.includes(q) || comuna.includes(q);
+        const matchesText = !q || nombre.includes(q) || rut.includes(q) || comuna.includes(q);
+        const matchesEtiqueta = !etiquetaId || persona.etiquetas?.some(etiqueta => etiqueta.id === Number(etiquetaId));
+        return matchesText && matchesEtiqueta;
     });
 });
 
@@ -99,6 +102,13 @@ const showToast = (type: 'success' | 'error', text: string) => {
     }, 3500);
 };
 
+const whatsappUrl = (telefono?: string) => {
+    const raw = telefono?.replace(/[\s\-()+]/g, '') ?? '';
+    if (!raw) return '';
+    const normalized = raw.startsWith('9') && raw.length === 9 ? `56${raw}` : raw;
+    return normalized.startsWith('56') ? `https://wa.me/${normalized}` : '';
+};
+
 const openCreatePanel = (mode: 'persona' | 'institucion') => {
     createMode.value = mode;
     activeSection.value = mode === 'persona' ? 'personas' : 'instituciones';
@@ -113,11 +123,29 @@ const startEdit = (entidad: EntidadResumen) => {
     isEditModalOpen.value = true;
 };
 
-const handleSaveEdit = async (payload: ActualizarEntidadPayload, foto?: File) => {
+const syncPersonaEtiquetas = async (personaId: number, etiquetaIds: number[]) => {
+    const currentIds = selectedEntidad.value?.id === personaId
+        ? selectedEntidad.value.etiquetas?.map(etiqueta => etiqueta.id) ?? []
+        : [];
+    const current = new Set(currentIds);
+    const next = new Set(etiquetaIds);
+    const toAdd = etiquetaIds.filter(id => !current.has(id));
+    const toRemove = currentIds.filter(id => !next.has(id));
+
+    await Promise.all([
+        ...toAdd.map(id => apiService.asignarEtiquetaEntidad(personaId, id)),
+        ...toRemove.map(id => apiService.quitarEtiquetaEntidad(personaId, id))
+    ]);
+};
+
+const handleSaveEdit = async (payload: ActualizarEntidadPayload, foto?: File, etiquetaIds?: number[]) => {
     try {
         await apiService.actualizarEntidad(payload.id, payload);
         if (payload.tipoEntidad === 'Persona' && foto) {
             await apiService.actualizarFotoPersona(payload.id, foto);
+        }
+        if (payload.tipoEntidad === 'Persona' && etiquetaIds) {
+            await syncPersonaEtiquetas(payload.id, etiquetaIds);
         }
         await loadData();
         if (selectedEntidad.value && selectedEntidad.value.id === payload.id) {
@@ -303,9 +331,11 @@ const asignarEtiquetaSeleccionadas = async () => {
     if (!ids.length) return showToast('error', 'Selecciona al menos una persona.');
     bulkApplying.value = true;
     try {
-        await apiService.asignarEtiquetaMasiva(Number(selectedEtiquetaId.value), ids);
+        const result = await apiService.asignarEtiquetaMasiva(Number(selectedEtiquetaId.value), ids);
+        await loadData();
         clearPersonaSelection();
-        showToast('success', `Etiqueta asignada a ${ids.length} persona(s).`);
+        const asignadas = result.asignadas ?? ids.length;
+        showToast('success', asignadas > 0 ? `Etiqueta asignada a ${asignadas} persona(s).` : 'La etiqueta ya estaba asignada a las personas seleccionadas.');
     } catch (e: any) {
         showToast('error', e.message || 'No se pudo asignar la etiqueta.');
     } finally {
@@ -348,7 +378,7 @@ onBeforeUnmount(() => {
             {{ message.text }}
         </div>
 
-        <section class="form-shell px-5 py-4">
+        <section class="rounded-2xl border border-[var(--card-border)] bg-[var(--bg-card)] px-5 py-4 shadow-sm">
             <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
                     <p class="eyebrow text-[var(--accent-color)]">Acceder</p>
@@ -369,7 +399,7 @@ onBeforeUnmount(() => {
                         <button
                             class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition"
                             :class="createMode === 'persona'
-                                ? 'bg-white dark:bg-[var(--bg-card)] text-[var(--accent-color)] shadow-sm'
+                                ? 'bg-[var(--bg-card)] text-[var(--accent-color)] shadow-sm'
                                 : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'"
                             @click="openCreatePanel('persona')"
                         >
@@ -378,7 +408,7 @@ onBeforeUnmount(() => {
                         <button
                             class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition"
                             :class="createMode === 'institucion'
-                                ? 'bg-white dark:bg-[var(--bg-card)] text-[var(--accent-color)] shadow-sm'
+                                ? 'bg-[var(--bg-card)] text-[var(--accent-color)] shadow-sm'
                                 : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'"
                             @click="openCreatePanel('institucion')"
                         >
@@ -393,7 +423,7 @@ onBeforeUnmount(() => {
                     <button
                         class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition"
                         :class="activeSection === 'personas'
-                            ? 'bg-white dark:bg-[var(--bg-card)] text-[var(--accent-color)] shadow-sm'
+                            ? 'bg-[var(--bg-card)] text-[var(--accent-color)] shadow-sm'
                             : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'"
                         @click="activeSection = 'personas'"
                     >
@@ -406,7 +436,7 @@ onBeforeUnmount(() => {
                     <button
                         class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition"
                         :class="activeSection === 'instituciones'
-                            ? 'bg-white dark:bg-[var(--bg-card)] text-[var(--accent-color)] shadow-sm'
+                            ? 'bg-[var(--bg-card)] text-[var(--accent-color)] shadow-sm'
                             : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'"
                         @click="activeSection = 'instituciones'"
                     >
@@ -431,19 +461,25 @@ onBeforeUnmount(() => {
                 <PersonaForm @cancel="closeCreatePanel" @created="handlePersonaCreada" />
             </div>
 
-            <div v-else class="surface-card p-0 overflow-hidden">
-                <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 px-6 py-5 border-b border-[var(--card-border)]">
+            <div v-else class="rounded-2xl border border-[var(--card-border)] bg-[var(--bg-card)] p-0 shadow-sm overflow-hidden">
+                <div class="flex flex-col gap-3 border-b border-[var(--card-border)] px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                         <p class="text-xs uppercase tracking-[0.35em] text-[var(--accent-color)]">Personas</p>
                         <p class="text-sm text-gray-500 dark:text-gray-400">Listado actualizado con vínculo a su gestor</p>
                     </div>
-                    <div class="w-full md:w-80 relative">
+                    <div class="grid w-full gap-2 sm:grid-cols-2 lg:w-auto lg:min-w-[520px]">
                         <input
                             v-model="personaSearch"
                             type="search"
                             placeholder="Buscar por nombre, RUT o comuna..."
-                            class="w-full rounded-full border border-[var(--card-border)] bg-[var(--bg-base)]/60 px-4 py-2 text-sm focus:border-[var(--accent-color)] focus:ring-0"
+                            class="h-10 rounded-xl border border-[var(--card-border)] bg-[var(--bg-base)]/60 px-4 text-sm focus:border-[var(--accent-color)] focus:ring-0"
                         >
+                        <select v-model="selectedEtiquetaFilter" class="compact-control h-10 rounded-xl">
+                            <option value="">Todas las etiquetas</option>
+                            <option v-for="etiqueta in etiquetas" :key="etiqueta.id" :value="etiqueta.id">
+                                {{ etiqueta.nombre }}
+                            </option>
+                        </select>
                     </div>
                 </div>
 
@@ -494,7 +530,7 @@ onBeforeUnmount(() => {
                                 <th class="px-6 py-3 text-right">Acciones</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-[var(--card-border)] bg-white dark:bg-[var(--bg-card)]">
+                        <tbody class="divide-y divide-[var(--card-border)] bg-[var(--bg-card)]">
                             <tr v-if="loading">
                                 <td colspan="7" class="px-6 py-8 text-center text-gray-500">Cargando personas...</td>
                             </tr>
@@ -539,7 +575,16 @@ onBeforeUnmount(() => {
                                 </td>
                                 <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
                                     <p>{{ persona.correo || 'Sin correo' }}</p>
-                                    <p class="text-xs text-gray-500">{{ persona.telefono || 'Sin teléfono' }}</p>
+                                    <a
+                                        v-if="whatsappUrl(persona.telefono)"
+                                        class="text-xs font-medium text-[var(--accent-color)] hover:underline"
+                                        :href="whatsappUrl(persona.telefono)"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                    >
+                                        {{ persona.telefono }}
+                                    </a>
+                                    <p v-else class="text-xs text-gray-500">{{ persona.telefono || 'Sin teléfono' }}</p>
                                 </td>
                                 <td class="w-44 max-w-44 px-4 py-4 text-sm text-gray-600 dark:text-gray-300">
                                     <p>{{ persona.comuna || 'Sin comuna' }}</p>
@@ -623,7 +668,7 @@ onBeforeUnmount(() => {
                                 <th class="px-6 py-3 text-right">Acciones</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-[var(--card-border)] bg-white dark:bg-[var(--bg-card)]">
+                        <tbody class="divide-y divide-[var(--card-border)] bg-[var(--bg-card)]">
                             <tr v-if="loading">
                                 <td colspan="4" class="px-6 py-8 text-center text-gray-500">Cargando instituciones...</td>
                             </tr>

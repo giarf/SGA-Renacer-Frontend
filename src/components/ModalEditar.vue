@@ -3,6 +3,7 @@ import { ref, watch, reactive } from 'vue';
 import type { EntidadResumen, ActualizarPersonaPayload, ActualizarInstitucionPayload, ActualizarEntidadPayload } from '../types';
 import PhoneInput from './PhoneInput.vue';
 import ProfilePhotoInput from './ProfilePhotoInput.vue';
+import EtiquetaChipsSelector from './EtiquetaChipsSelector.vue';
 import { apiService } from '../api/apiService';
 import { formatRutForDisplay, formatRutForBackend } from '../utils/rutFormatter';
 import { X, Pencil } from 'lucide-vue-next';
@@ -12,11 +13,15 @@ const props = defineProps<{
     entidad: EntidadResumen | null;
 }>();
 
-const emit = defineEmits<{ (e: 'close'): void; (e: 'save', entidad: ActualizarEntidadPayload, foto?: File): void }>();
+const emit = defineEmits<{
+    (e: 'close'): void;
+    (e: 'save', entidad: ActualizarEntidadPayload, foto?: File, etiquetaIds?: number[]): void;
+}>();
 
 const submitting = ref(false);
 const error = ref<string | null>(null);
 const personaFotoFile = ref<File | null>(null);
+const selectedEtiquetaIds = ref<number[]>([]);
 
 const personaForm = reactive({
     id: 0,
@@ -154,6 +159,7 @@ const hydratePersona = async (entidad: EntidadResumen) => {
     personaForm.sector = entidad.sector || '';
     personaForm.fechaNacimiento = entidad.fechaNacimiento || '';
     personaFotoFile.value = null;
+    selectedEtiquetaIds.value = entidad.etiquetas?.map(etiqueta => etiqueta.id) ?? [];
     await hydrateGestor(entidad.gestorId, entidad.gestorNombre, entidad.gestorRut);
 };
 
@@ -173,6 +179,7 @@ const hydrateInstitucion = async (entidad: EntidadResumen) => {
     institucionForm.redSocial = entidad.redSocial || '';
     institucionForm.anotaciones = entidad.anotaciones || '';
     institucionForm.sector = entidad.sector || '';
+    selectedEtiquetaIds.value = [];
     await hydrateGestor(entidad.gestorId, entidad.gestorNombre, entidad.gestorRut);
 };
 
@@ -243,7 +250,12 @@ const save = async () => {
             props.entidad.tipoEntidad === 'Persona'
                 ? buildPersonaPayload()
                 : buildInstitucionPayload();
-        emit('save', payload, props.entidad.tipoEntidad === 'Persona' ? personaFotoFile.value ?? undefined : undefined);
+        emit(
+            'save',
+            payload,
+            props.entidad.tipoEntidad === 'Persona' ? personaFotoFile.value ?? undefined : undefined,
+            props.entidad.tipoEntidad === 'Persona' ? selectedEtiquetaIds.value : undefined
+        );
     } catch (e: any) {
         error.value = e.message || 'Error al guardar';
     } finally {
@@ -390,6 +402,10 @@ const save = async () => {
                             <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Red Social</label>
                             <input v-model="personaForm.redSocial" placeholder="@usuario" />
                         </div>
+                    </div>
+
+                    <div>
+                        <EtiquetaChipsSelector v-model="selectedEtiquetaIds" />
                     </div>
 
                     <div>

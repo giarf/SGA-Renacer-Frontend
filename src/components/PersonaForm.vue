@@ -4,6 +4,7 @@ import { apiService } from '../api/apiService';
 import { formatRutForBackend, formatRutForDisplay } from '../utils/rutFormatter';
 import PhoneInput from './PhoneInput.vue';
 import ProfilePhotoInput from './ProfilePhotoInput.vue';
+import EtiquetaChipsSelector from './EtiquetaChipsSelector.vue';
 import type { RegistrarPersonaPayload, EntidadResumen } from '../types';
 
 const emit = defineEmits<{
@@ -14,6 +15,7 @@ const emit = defineEmits<{
 const loading = ref(false);
 const error = ref<string | null>(null);
 const fotoFile = ref<File | null>(null);
+const selectedEtiquetaIds = ref<number[]>([]);
 
 const gestorQuery = ref('');
 const gestorResults = ref<EntidadResumen[]>([]);
@@ -106,6 +108,7 @@ const resetForm = () => {
     });
     clearGestor();
     fotoFile.value = null;
+    selectedEtiquetaIds.value = [];
 };
 
 const submit = async () => {
@@ -120,7 +123,10 @@ const submit = async () => {
             payloadToSend.rut = formatRutForBackend(payloadToSend.rut);
         }
 
-        await apiService.registrarPersonaNueva(payloadToSend, fotoFile.value ?? undefined);
+        const created = await apiService.registrarPersonaNueva(payloadToSend, fotoFile.value ?? undefined);
+        if (created.id && selectedEtiquetaIds.value.length > 0) {
+            await Promise.all(selectedEtiquetaIds.value.map(etiquetaId => apiService.asignarEtiquetaEntidad(created.id, etiquetaId)));
+        }
         emit('created', payloadToSend.rut || '');
         resetForm();
     } catch (e: any) {
@@ -281,6 +287,10 @@ const submit = async () => {
                     class="compact-control"
                 />
             </div>
+        </div>
+
+        <div>
+            <EtiquetaChipsSelector v-model="selectedEtiquetaIds" />
         </div>
 
         <div>
