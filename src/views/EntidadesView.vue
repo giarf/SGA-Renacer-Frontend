@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick, reactive, watch, onBeforeUnmount } from 'vue';
-import type { EntidadResumen, ActualizarEntidadPayload, ActualizarPersonaPayload, ActualizarInstitucionPayload } from '../types';
+import type { EntidadResumen, ActualizarEntidadPayload, ActualizarPersonaPayload, ActualizarInstitucionPayload, Etiqueta } from '../types';
 import { apiService } from '../api/apiService';
 import PersonaForm from '../components/PersonaForm.vue';
 import InstitucionForm from '../components/InstitucionForm.vue';
 import ModalEditar from '../components/ModalEditar.vue';
 import ModalConfirmacionEliminar from '../components/ModalConfirmacionEliminar.vue';
 import { formatRutForDisplay } from '../utils/rutFormatter';
-import { Trash2, Plus, Pencil, Users, Building2 } from 'lucide-vue-next';
+import { Trash2, Plus, Pencil, Users, Building2, Tags, X } from 'lucide-vue-next';
 
 const personas = ref<EntidadResumen[]>([]);
 const instituciones = ref<EntidadResumen[]>([]);
@@ -24,6 +24,11 @@ const isDeleting = ref(false);
 const deleteTarget = ref<{ id: number; tipo: 'Persona' | 'Institucion'; nombre: string } | null>(null);
 const highlightedPersonaId = ref<number | null>(null);
 const gestorFallback = reactive<Record<number, EntidadResumen>>({});
+const etiquetas = ref<Etiqueta[]>([]);
+const selectedPersonaIds = ref<Set<number>>(new Set());
+const selectedEtiquetaId = ref<number | ''>('');
+const nuevaEtiquetaNombre = ref('');
+const bulkApplying = ref(false);
 let highlightTimeout: ReturnType<typeof setTimeout> | null = null;
 
 const personaDictionary = computed(() => {
@@ -36,6 +41,8 @@ const personaDictionary = computed(() => {
 
 const personasCount = computed(() => personas.value.length);
 const institucionesCount = computed(() => instituciones.value.length);
+const selectedPersonasCount = computed(() => selectedPersonaIds.value.size);
+const allVisiblePersonasSelected = computed(() => filteredPersonas.value.length > 0 && filteredPersonas.value.every(persona => selectedPersonaIds.value.has(persona.id)));
 
 const filteredPersonas = computed(() => {
     const q = personaSearch.value.trim().toLowerCase();
@@ -72,6 +79,14 @@ const loadData = async () => {
         message.value = { type: 'error', text: e.message || 'No se pudieron cargar las entidades.' };
     } finally {
         loading.value = false;
+    }
+};
+
+const loadEtiquetas = async () => {
+    try {
+        etiquetas.value = await apiService.getEtiquetas();
+    } catch (e: any) {
+        showToast('error', e.message || 'No se pudieron cargar las etiquetas.');
     }
 };
 
@@ -246,6 +261,58 @@ const focusPersona = async (gestorId: number) => {
     }, 4000);
 };
 
+const isPersonaSelected = (id: number) => selectedPersonaIds.value.has(id);
+
+const setPersonaSelected = (id: number, checked: boolean) => {
+    const next = new Set(selectedPersonaIds.value);
+    if (checked) next.add(id);
+    else next.delete(id);
+    selectedPersonaIds.value = next;
+};
+
+const toggleAllVisiblePersonas = (checked: boolean) => {
+    const next = new Set(selectedPersonaIds.value);
+    filteredPersonas.value.forEach(persona => {
+        if (checked) next.add(persona.id);
+        else next.delete(persona.id);
+    });
+    selectedPersonaIds.value = next;
+};
+
+const clearPersonaSelection = () => {
+    selectedPersonaIds.value = new Set();
+};
+
+const crearEtiquetaRapida = async () => {
+    const nombre = nuevaEtiquetaNombre.value.trim();
+    if (!nombre) return showToast('error', 'Escribe el nombre de la etiqueta.');
+    try {
+        const created = await apiService.crearEtiqueta({ nombre });
+        nuevaEtiquetaNombre.value = '';
+        await loadEtiquetas();
+        selectedEtiquetaId.value = created.id;
+        showToast('success', 'Etiqueta creada.');
+    } catch (e: any) {
+        showToast('error', e.message || 'No se pudo crear la etiqueta.');
+    }
+};
+
+const asignarEtiquetaSeleccionadas = async () => {
+    if (!selectedEtiquetaId.value) return showToast('error', 'Selecciona una etiqueta.');
+    const ids = Array.from(selectedPersonaIds.value);
+    if (!ids.length) return showToast('error', 'Selecciona al menos una persona.');
+    bulkApplying.value = true;
+    try {
+        await apiService.asignarEtiquetaMasiva(Number(selectedEtiquetaId.value), ids);
+        clearPersonaSelection();
+        showToast('success', `Etiqueta asignada a ${ids.length} persona(s).`);
+    } catch (e: any) {
+        showToast('error', e.message || 'No se pudo asignar la etiqueta.');
+    } finally {
+        bulkApplying.value = false;
+    }
+};
+
 watch(activeSection, section => {
     if (createMode.value === 'persona' && section !== 'personas') {
         createMode.value = null;
@@ -255,7 +322,10 @@ watch(activeSection, section => {
     }
 });
 
-onMounted(loadData);
+onMounted(() => {
+    loadData();
+    loadEtiquetas();
+});
 
 onBeforeUnmount(() => {
     if (highlightTimeout) {
@@ -377,10 +447,43 @@ onBeforeUnmount(() => {
                     </div>
                 </div>
 
+                <div v-if="selectedPersonasCount > 0" class="flex flex-col gap-3 border-b border-[var(--card-border)] bg-[var(--accent-color-muted)] px-6 py-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div class="flex items-center gap-2 text-sm font-semibold text-[var(--text-primary)]">
+                        <Tags class="h-4 w-4 text-[var(--accent-color)]" />
+                        {{ selectedPersonasCount }} persona(s) seleccionada(s)
+                    </div>
+                    <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+                        <select v-model="selectedEtiquetaId" class="compact-control sm:w-56">
+                            <option value="">Seleccionar etiqueta</option>
+                            <option v-for="etiqueta in etiquetas" :key="etiqueta.id" :value="etiqueta.id">
+                                {{ etiqueta.nombre }}
+                            </option>
+                        </select>
+                        <button class="btn btn-primary" type="button" :disabled="bulkApplying" @click="asignarEtiquetaSeleccionadas">
+                            Asignar etiqueta
+                        </button>
+                        <button class="btn btn-outline" type="button" @click="clearPersonaSelection">
+                            <X class="h-4 w-4" /> Limpiar
+                        </button>
+                    </div>
+                    <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+                        <input v-model="nuevaEtiquetaNombre" class="compact-control sm:w-56" placeholder="Nueva etiqueta rápida">
+                        <button class="btn btn-outline" type="button" @click="crearEtiquetaRapida">Crear</button>
+                    </div>
+                </div>
+
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-[var(--card-border)] table-soft">
                         <thead class="bg-[var(--surface-muted)]/60 text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
                             <tr>
+                                <th class="px-6 py-3 text-left">
+                                    <input
+                                        type="checkbox"
+                                        class="h-4 w-4 rounded border-[var(--card-border)] text-[var(--accent-color)]"
+                                        :checked="allVisiblePersonasSelected"
+                                        @change="toggleAllVisiblePersonas(($event.target as HTMLInputElement).checked)"
+                                    >
+                                </th>
                                 <th class="px-6 py-3 text-left">Persona</th>
                                 <th class="px-6 py-3 text-left">Contacto</th>
                                 <th class="px-6 py-3 text-left">Ubicación</th>
@@ -390,10 +493,10 @@ onBeforeUnmount(() => {
                         </thead>
                         <tbody class="divide-y divide-[var(--card-border)] bg-white dark:bg-[var(--bg-card)]">
                             <tr v-if="loading">
-                                <td colspan="5" class="px-6 py-8 text-center text-gray-500">Cargando personas...</td>
+                                <td colspan="6" class="px-6 py-8 text-center text-gray-500">Cargando personas...</td>
                             </tr>
                             <tr v-else-if="filteredPersonas.length === 0">
-                                <td colspan="5" class="px-6 py-8 text-center text-gray-500">No hay coincidencias para este filtro.</td>
+                                <td colspan="6" class="px-6 py-8 text-center text-gray-500">No hay coincidencias para este filtro.</td>
                             </tr>
                             <tr
                                 v-else
@@ -405,6 +508,14 @@ onBeforeUnmount(() => {
                                     { 'highlighted-row ring-1 ring-[var(--accent-color)]': highlightedPersonaId === persona.id }
                                 ]"
                             >
+                                <td class="px-6 py-4 align-middle">
+                                    <input
+                                        type="checkbox"
+                                        class="h-4 w-4 rounded border-[var(--card-border)] text-[var(--accent-color)]"
+                                        :checked="isPersonaSelected(persona.id)"
+                                        @change="setPersonaSelected(persona.id, ($event.target as HTMLInputElement).checked)"
+                                    >
+                                </td>
                                 <td class="px-6 py-4 text-sm">
                                     <div class="flex items-center gap-3">
                                         <img

@@ -17,6 +17,7 @@ export interface EntidadResumen {
     ocupacion?: string;
     fechaNacimiento?: string;
     fotoUrl?: string;
+    etiquetas?: Etiqueta[];
     redSocial?: string;
     gestorId?: number;
     gestorNombre?: string;
@@ -350,6 +351,7 @@ export interface Familia {
     puntosVulnerabilidad: number;
     jefeHogarId: number;
     jefeHogarNombre?: string;
+    justificacionVulnerabilidad?: string;
 }
 
 export interface CrearFamiliaPayload {
@@ -357,14 +359,29 @@ export interface CrearFamiliaPayload {
     nombreFamilia: string;
     puntosVulnerabilidad: number;
     jefeHogarId: number;
+    justificacionVulnerabilidad?: string;
 }
 
 export interface BeneficiarioFamilia {
     id: number;
     personaId: number;
     nombres: string;
-    apellidos: string;
-    rut: string;
+    apellidos?: string;
+    rut?: string;
+    correo?: string;
+    telefono?: string;
+    fotoUrl?: string;
+    rolFamiliar?: string;
+    observaciones?: string;
+}
+
+export interface Etiqueta {
+    id: number;
+    nombre: string;
+    slug: string;
+    descripcion?: string;
+    color?: string;
+    activa: boolean;
 }
 
 // Egresos

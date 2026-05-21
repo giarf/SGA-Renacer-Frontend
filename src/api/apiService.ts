@@ -15,6 +15,7 @@ import type {
     Familia,
     CrearFamiliaPayload,
     BeneficiarioFamilia,
+    Etiqueta,
     EgresoFiltros,
     EgresoPayload,
     EgresoRecurso,
@@ -98,7 +99,8 @@ const mapPersona = (persona: any): EntidadResumen => {
         gestorRut: persona?.gestorRut ?? undefined,
         anotaciones: persona?.anotaciones ?? undefined,
         sector: persona?.sector ?? undefined,
-        fotoUrl: buildAssetUrl(persona?.fotoUrl ?? persona?.foto_url)
+        fotoUrl: buildAssetUrl(persona?.fotoUrl ?? persona?.foto_url),
+        etiquetas: Array.isArray(persona?.etiquetas) ? persona.etiquetas : undefined
     };
 };
 
@@ -123,9 +125,32 @@ const mapInstitucion = (inst: any): EntidadResumen => {
         anotaciones: inst?.anotaciones ?? undefined,
         sector: inst?.sector ?? undefined,
         subtipoInstitucion: inst?.subtipoInstitucion ?? undefined,
-        rubro: inst?.rubro ?? undefined
+        rubro: inst?.rubro ?? undefined,
+        etiquetas: Array.isArray(inst?.etiquetas) ? inst.etiquetas : undefined
     };
 };
+
+const mapFamilia = (raw: any): Familia => ({
+    id: toNumber(raw?.id, 0),
+    nombreFamilia: raw?.nombreFamilia ?? raw?.nombre_familia ?? '',
+    puntosVulnerabilidad: toNumber(raw?.puntosVulnerabilidad ?? raw?.puntos_vulnerabilidad, 0),
+    jefeHogarId: toNumber(raw?.jefeHogarId ?? raw?.jefe_hogar_id, 0),
+    jefeHogarNombre: raw?.jefeHogarNombre ?? raw?.jefe_hogar_nombre ?? undefined,
+    justificacionVulnerabilidad: raw?.justificacionVulnerabilidad ?? raw?.justificacion_vulnerabilidad ?? undefined
+});
+
+const mapBeneficiarioFamilia = (raw: any): BeneficiarioFamilia => ({
+    id: toNumber(raw?.id ?? raw?.personaId ?? raw?.persona_id, 0),
+    personaId: toNumber(raw?.personaId ?? raw?.persona_id ?? raw?.id, 0),
+    nombres: raw?.nombres ?? '',
+    apellidos: raw?.apellidos ?? undefined,
+    rut: raw?.rut ?? undefined,
+    correo: raw?.correo ?? raw?.email ?? undefined,
+    telefono: raw?.telefono ?? undefined,
+    fotoUrl: buildAssetUrl(raw?.fotoUrl ?? raw?.foto_url),
+    rolFamiliar: raw?.rolFamiliar ?? raw?.rol_familiar ?? undefined,
+    observaciones: raw?.observaciones ?? undefined
+});
 
 const mapEntidadGenerica = (data: any): EntidadResumen => {
     const rawTipo = data?.tipoEntidad ?? data?.tipo;
@@ -476,7 +501,8 @@ export const apiService = {
     },
 
     async getFamilias(): Promise<Familia[]> {
-        return await requestJson<Familia[]>(`${API_BASE_URL}/familias`);
+        const data = await requestJson<any[]>(`${API_BASE_URL}/familias`);
+        return data.map(mapFamilia);
     },
 
     async crearFamilia(payload: CrearFamiliaPayload): Promise<{ id: number; mensaje?: string }> {
@@ -487,15 +513,78 @@ export const apiService = {
         });
     },
 
-    async getBeneficiariosFamilia(familiaId: number): Promise<BeneficiarioFamilia[]> {
-        return await requestJson<BeneficiarioFamilia[]>(`${API_BASE_URL}/familias/${familiaId}/beneficiarios`);
+    async actualizarFamilia(id: number, payload: CrearFamiliaPayload): Promise<{ mensaje?: string }> {
+        return await requestJson<{ mensaje?: string }>(`${API_BASE_URL}/familias/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...payload, id })
+        });
     },
 
-    async agregarBeneficiarioFamilia(familiaId: number, personaId: number): Promise<{ mensaje?: string }> {
+    async getBeneficiariosFamilia(familiaId: number): Promise<BeneficiarioFamilia[]> {
+        const data = await requestJson<any[]>(`${API_BASE_URL}/familias/${familiaId}/beneficiarios`);
+        return data.map(mapBeneficiarioFamilia);
+    },
+
+    async agregarBeneficiarioFamilia(familiaId: number, personaId: number, rolFamiliar?: string, observaciones?: string): Promise<{ mensaje?: string }> {
         return await requestJson<{ mensaje?: string }>(`${API_BASE_URL}/familias/${familiaId}/beneficiarios`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ personaId })
+            body: JSON.stringify({ personaId, rolFamiliar, observaciones })
+        });
+    },
+
+    async actualizarBeneficiarioFamilia(familiaId: number, personaId: number, rolFamiliar?: string, observaciones?: string): Promise<{ mensaje?: string }> {
+        return await requestJson<{ mensaje?: string }>(`${API_BASE_URL}/familias/${familiaId}/beneficiarios/${personaId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ personaId, rolFamiliar, observaciones })
+        });
+    },
+
+    async quitarBeneficiarioFamilia(familiaId: number, personaId: number): Promise<{ mensaje?: string }> {
+        return await requestJson<{ mensaje?: string }>(`${API_BASE_URL}/familias/${familiaId}/beneficiarios/${personaId}`, {
+            method: 'DELETE'
+        });
+    },
+
+    async getEtiquetas(): Promise<Etiqueta[]> {
+        return await requestJson<Etiqueta[]>(`${API_BASE_URL}/etiquetas`);
+    },
+
+    async crearEtiqueta(payload: { nombre: string; descripcion?: string; color?: string }): Promise<{ id: number; mensaje?: string }> {
+        return await requestJson<{ id: number; mensaje?: string }>(`${API_BASE_URL}/etiquetas`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+    },
+
+    async getEtiquetasEntidad(entidadId: number): Promise<Etiqueta[]> {
+        return await requestJson<Etiqueta[]>(`${API_BASE_URL}/entidades/${entidadId}/etiquetas`);
+    },
+
+    async asignarEtiquetaEntidad(entidadId: number, etiquetaId: number): Promise<{ mensaje?: string }> {
+        return await requestJson<{ mensaje?: string }>(`${API_BASE_URL}/entidades/${entidadId}/etiquetas/${etiquetaId}`, { method: 'POST' });
+    },
+
+    async quitarEtiquetaEntidad(entidadId: number, etiquetaId: number): Promise<{ mensaje?: string }> {
+        return await requestJson<{ mensaje?: string }>(`${API_BASE_URL}/entidades/${entidadId}/etiquetas/${etiquetaId}`, { method: 'DELETE' });
+    },
+
+    async asignarEtiquetaMasiva(etiquetaId: number, entidadIds: number[]): Promise<{ mensaje?: string }> {
+        return await requestJson<{ mensaje?: string }>(`${API_BASE_URL}/etiquetas/${etiquetaId}/entidades`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ entidadIds })
+        });
+    },
+
+    async quitarEtiquetaMasiva(etiquetaId: number, entidadIds: number[]): Promise<{ mensaje?: string }> {
+        return await requestJson<{ mensaje?: string }>(`${API_BASE_URL}/etiquetas/${etiquetaId}/entidades`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ entidadIds })
         });
     },
 
