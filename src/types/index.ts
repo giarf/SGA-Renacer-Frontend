@@ -409,6 +409,7 @@ export interface EgresoCore {
     anotaciones?: string;
     destinoEntidadId: number;
     propositoEspecifico?: string;
+    estado?: string;
 }
 
 export interface EgresoRecurso {
@@ -421,6 +422,7 @@ export interface EgresoRecurso {
     anotaciones?: string;
     destinoEntidadId: number;
     propositoEspecifico?: string;
+    estado?: string;
     egresoPecuniario?: EgresoPecuniario | null;
     detalleEgresoRecurso: EgresoDetalleRecurso[];
 }

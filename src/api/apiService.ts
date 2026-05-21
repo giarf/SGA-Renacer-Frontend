@@ -192,6 +192,7 @@ const mapEgreso = (raw: any): EgresoRecurso => {
         anotaciones: root?.anotaciones ?? raw?.anotaciones ?? undefined,
         destinoEntidadId: toNumber(root?.destinoEntidadId ?? root?.destino_entidad_id ?? raw?.destinoEntidadId ?? raw?.destino_entidad_id, 0),
         propositoEspecifico: root?.propositoEspecifico ?? root?.proposito_especifico ?? raw?.propositoEspecifico ?? raw?.proposito_especifico ?? undefined,
+        estado: root?.estado ?? raw?.estado ?? undefined,
         egresoPecuniario: pecuniarioRaw
             ? {
                 cuentaOrigenId: toNumber(pecuniarioRaw?.cuentaOrigenId ?? pecuniarioRaw?.cuenta_origen_id, 0),
@@ -620,6 +621,18 @@ export const apiService = {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
+        });
+    },
+
+    async anularIngreso(id: number): Promise<{ mensaje?: string }> {
+        return await requestJson<{ mensaje?: string }>(`${API_BASE_URL}/ingresos/${id}/anular`, {
+            method: 'POST'
+        });
+    },
+
+    async anularEgreso(id: number): Promise<{ mensaje?: string }> {
+        return await requestJson<{ mensaje?: string }>(`${API_BASE_URL}/egresos/${id}/anular`, {
+            method: 'POST'
         });
     },
 

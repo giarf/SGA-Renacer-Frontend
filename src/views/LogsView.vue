@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
-import { Clock3, RefreshCw, Printer, FileSpreadsheet, Funnel } from 'lucide-vue-next';
+import { Ban, Clock3, RefreshCw, Printer, FileSpreadsheet, Funnel } from 'lucide-vue-next';
 import { apiService } from '../api/apiService';
+import { hasAnyGroup } from '../auth/authService';
+import { ADMIN_GROUPS } from '../auth/permissions';
 import type { CatalogoItem, CompraBoletaMetadata, CompraResumen, Cuenta, EgresoRecurso, IngresoResumen } from '../types';
 
 type LogRegistro = {
@@ -24,6 +26,7 @@ const compras = ref<CompraResumen[]>([]);
 const loading = ref(false);
 const error = ref<string | null>(null);
 const boletaLoadingId = ref<number | null>(null);
+const anulandoKey = ref<string | null>(null);
 const boletaStatus = ref<{ type: 'success' | 'error'; text: string } | null>(null);
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? 'https://api.familiarenacer.cl/api').replace(/\/$/, '');
 const apiOrigin = apiBaseUrl.replace(/\/api$/, '');
@@ -33,6 +36,7 @@ const filtroEstado = ref<'todos' | string>('todos');
 const filtroPrograma = ref('');
 const filtroDesde = ref('');
 const filtroHasta = ref('');
+const isAdmin = computed(() => hasAnyGroup(ADMIN_GROUPS));
 
 const currency = new Intl.NumberFormat('es-CL', {
     style: 'currency',
@@ -84,11 +88,16 @@ const mapEgresoToLog = (item: EgresoRecurso): LogRegistro => ({
     tipo: item.tipoEgreso || 'Ajuste',
     fecha: item.fecha,
     montoTotal: item.montoTotal || 0,
+    estado: item.estado,
     descripcion: item.propositoEspecifico || item.anotaciones || `Egreso #${item.id}`
 });
 
+const isAnulado = (estado?: string) => (estado || '').toLowerCase() === 'anulado';
+
+const montoVigente = (item: { montoTotal?: number; estado?: string }) => isAnulado(item.estado) ? 0 : Number(item.montoTotal || 0);
+
 const totalIngresosGlobal = computed(() =>
-    ingresos.value.reduce((sum, item) => sum + Number(item.montoTotal || 0), 0)
+    ingresos.value.reduce((sum, item) => sum + montoVigente(item), 0)
 );
 
 const isEgresoPecuniario = (egreso: EgresoRecurso) => {
@@ -106,11 +115,11 @@ const isEgresoPecuniario = (egreso: EgresoRecurso) => {
 };
 
 const totalEgresosPecuniarios = computed(() =>
-    egresos.value.filter(isEgresoPecuniario).reduce((sum, item) => sum + Number(item.montoTotal || 0), 0)
+    egresos.value.filter(isEgresoPecuniario).reduce((sum, item) => sum + montoVigente(item), 0)
 );
 
 const totalEgresosNoPecuniarios = computed(() =>
-    egresos.value.filter(item => !isEgresoPecuniario(item)).reduce((sum, item) => sum + Number(item.montoTotal || 0), 0)
+    egresos.value.filter(item => !isEgresoPecuniario(item)).reduce((sum, item) => sum + montoVigente(item), 0)
 );
 
 const totalFondosGlobal = computed(() =>
@@ -203,8 +212,34 @@ const historialFiltrado = computed(() => {
 });
 
 const totalFiltrado = computed(() =>
-    historialFiltrado.value.reduce((sum, item) => sum + (item.montoTotal || 0), 0)
+    historialFiltrado.value.reduce((sum, item) => sum + montoVigente(item), 0)
 );
+
+const estadoClass = (estado?: string) => {
+    const normalized = (estado || '').toLowerCase();
+    if (normalized === 'cerrado') return 'bg-green-100 text-green-700';
+    if (normalized === 'anulado') return 'bg-orange-100 text-orange-700';
+    return 'bg-amber-100 text-amber-700';
+};
+
+const puedeAnular = (item: LogRegistro) => isAdmin.value && !isAnulado(item.estado);
+
+const anularRegistro = async (item: LogRegistro) => {
+    if (!puedeAnular(item)) return;
+    const confirmado = window.confirm(`¿Anular ${item.movimiento} #${item.id}?`);
+    if (!confirmado) return;
+    anulandoKey.value = item.key;
+    error.value = null;
+    try {
+        if (item.movimiento === 'ingreso') await apiService.anularIngreso(item.id);
+        else await apiService.anularEgreso(item.id);
+        await fetchHistorial();
+    } catch (e: any) {
+        error.value = e.message || 'No se pudo anular el registro.';
+    } finally {
+        anulandoKey.value = null;
+    }
+};
 
 const comprasOrdenadas = computed(() =>
     [...compras.value].sort((a, b) => {
@@ -436,10 +471,11 @@ onMounted(fetchHistorial);
                             <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 dark:text-slate-300 uppercase tracking-wider">Descripción</th>
                             <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 dark:text-slate-300 uppercase tracking-wider">Estado</th>
                             <th class="px-4 py-2 text-right text-xs font-semibold text-gray-500 dark:text-slate-300 uppercase tracking-wider">Monto</th>
+                            <th class="px-4 py-2 text-right text-xs font-semibold text-gray-500 dark:text-slate-300 uppercase tracking-wider no-print">Acción</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white dark:bg-slate-900 divide-y divide-gray-100 dark:divide-slate-700">
-                        <tr v-for="item in historialFiltrado" :key="item.key">
+                        <tr v-for="item in historialFiltrado" :key="item.key" :class="isAnulado(item.estado) ? 'bg-orange-50/60 dark:bg-orange-950/10' : ''">
                             <td class="px-4 py-3 text-sm text-gray-800 dark:text-slate-100 whitespace-nowrap">
                                 <div class="inline-flex items-center gap-2">
                                     <Clock3 class="w-3.5 h-3.5 text-[#006d8f]" />
@@ -455,7 +491,7 @@ onMounted(fetchHistorial);
                             <td class="px-4 py-3 text-sm whitespace-nowrap">
                                 <span
                                     class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium"
-                                    :class="(item.estado || '').toLowerCase() === 'cerrado' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'"
+                                    :class="estadoClass(item.estado)"
                                 >
                                     {{ item.estado || 'Sin estado' }}
                                 </span>
@@ -465,6 +501,20 @@ onMounted(fetchHistorial);
                                 :class="item.movimiento === 'egreso' ? 'text-red-700 dark:text-red-400' : 'text-gray-900 dark:text-slate-100'"
                             >
                                 {{ item.movimiento === 'egreso' ? `-${currency.format(item.montoTotal || 0)}` : currency.format(item.montoTotal || 0) }}
+                            </td>
+                            <td class="px-4 py-3 text-right whitespace-nowrap no-print">
+                                <button
+                                    v-if="puedeAnular(item)"
+                                    type="button"
+                                    class="inline-flex items-center gap-1.5 rounded-md border border-orange-200 px-2.5 py-1.5 text-xs font-medium text-orange-700 hover:bg-orange-50 disabled:opacity-60"
+                                    :disabled="anulandoKey === item.key"
+                                    @click="anularRegistro(item)"
+                                >
+                                    <RefreshCw v-if="anulandoKey === item.key" class="w-3.5 h-3.5 animate-spin" />
+                                    <Ban v-else class="w-3.5 h-3.5" />
+                                    {{ anulandoKey === item.key ? 'Anulando...' : 'Anular' }}
+                                </button>
+                                <span v-else class="text-xs text-gray-400 dark:text-slate-500">{{ isAnulado(item.estado) ? 'Anulado' : 'Sin acción' }}</span>
                             </td>
                         </tr>
                     </tbody>
