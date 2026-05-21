@@ -33,7 +33,18 @@ const syncFromValues = () => {
         ? comunas.value.find(comuna => comuna.nombre.toLowerCase() === props.comuna?.toLowerCase())
         : null;
 
-    selectedRegionId.value = regionMatch?.id ?? comunaMatch?.regionId ?? '';
+    const regionId = regionMatch?.id ?? comunaMatch?.regionId;
+    if (regionId) {
+        selectedRegionId.value = regionId;
+    } else if (!props.region && !props.comuna) {
+        selectedRegionId.value = 5;
+        const valparaiso = regiones.value.find(r => r.id === 5);
+        if (valparaiso) emit('update:region', valparaiso.nombre);
+        const quillota = comunas.value.find(c => c.id === 50305);
+        if (quillota) emit('update:comuna', quillota.nombre);
+    } else {
+        selectedRegionId.value = '';
+    }
 };
 
 const loadUbicaciones = async () => {

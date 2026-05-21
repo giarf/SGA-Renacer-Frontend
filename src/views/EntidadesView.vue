@@ -147,6 +147,9 @@ const currentWhatsappMessage = computed(() =>
     currentWhatsappRecipient.value ? renderWhatsappMessage(currentWhatsappRecipient.value.persona) : ''
 );
 
+const whatsappInitial = (persona: EntidadResumen) =>
+    (persona.nombres || persona.nombreCompleto || '?').charAt(0).toUpperCase();
+
 const currentWhatsappUrl = computed(() => {
     if (!currentWhatsappRecipient.value) return '';
     return `https://wa.me/${currentWhatsappRecipient.value.numero}?text=${encodeURIComponent(currentWhatsappMessage.value)}`;
@@ -848,12 +851,20 @@ onBeforeUnmount(() => {
 
                     <div v-if="currentWhatsappRecipient" class="rounded-2xl border border-[var(--card-border)] bg-[var(--surface-muted)]/30 p-4">
                         <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                            <div>
-                                <p class="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
-                                    {{ currentWhatsappIndex + 1 }} de {{ whatsappRecipients.length }}
-                                </p>
-                                <p class="text-base font-semibold text-[var(--text-primary)]">{{ currentWhatsappRecipient.persona.nombreCompleto }}</p>
-                                <p class="text-sm text-[var(--text-muted)]">+{{ currentWhatsappRecipient.numero }}</p>
+                            <div class="flex items-center gap-3">
+                                <div class="h-10 w-10 flex-shrink-0 overflow-hidden rounded-full bg-[var(--accent-color)]/10">
+                                    <img v-if="currentWhatsappRecipient.persona.fotoUrl" :src="currentWhatsappRecipient.persona.fotoUrl" class="h-full w-full object-cover" />
+                                    <span v-else class="flex h-full w-full items-center justify-center text-sm font-bold text-[var(--accent-color)]">
+                                        {{ whatsappInitial(currentWhatsappRecipient.persona) }}
+                                    </span>
+                                </div>
+                                <div>
+                                    <p class="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+                                        {{ currentWhatsappIndex + 1 }} de {{ whatsappRecipients.length }}
+                                    </p>
+                                    <p class="text-base font-semibold text-[var(--text-primary)]">{{ currentWhatsappRecipient.persona.nombreCompleto }}</p>
+                                    <p class="text-sm text-[var(--text-muted)]">+{{ currentWhatsappRecipient.numero }}</p>
+                                </div>
                             </div>
                             <span
                                 class="inline-flex w-fit rounded-full px-2.5 py-1 text-xs font-semibold"
