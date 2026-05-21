@@ -2,13 +2,13 @@ import { WebStorageStateStore, type UserManagerSettings } from 'oidc-client-ts';
 
 const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '');
 
-const origin = window.location.origin;
+const publicAppUrl = trimTrailingSlash(import.meta.env.VITE_PUBLIC_APP_URL || 'https://sga.familiarenacer.cl');
 
 export const authConfig = {
     authority: import.meta.env.VITE_AUTHENTIK_ISSUER || 'https://auth.slaksis.com/application/o/sga-renacer/',
     clientId: import.meta.env.VITE_AUTHENTIK_CLIENT_ID || '',
-    redirectUri: import.meta.env.VITE_AUTHENTIK_REDIRECT_URI || `${origin}/callback`,
-    postLogoutRedirectUri: import.meta.env.VITE_AUTHENTIK_POST_LOGOUT_REDIRECT_URI || origin,
+    redirectUri: import.meta.env.VITE_AUTHENTIK_REDIRECT_URI || `${publicAppUrl}/callback`,
+    postLogoutRedirectUri: import.meta.env.VITE_AUTHENTIK_POST_LOGOUT_REDIRECT_URI || publicAppUrl,
     scope: import.meta.env.VITE_AUTHENTIK_SCOPE || 'openid profile email'
 };
 

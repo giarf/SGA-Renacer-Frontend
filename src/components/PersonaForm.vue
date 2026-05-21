@@ -5,6 +5,7 @@ import { formatRutForBackend, formatRutForDisplay } from '../utils/rutFormatter'
 import PhoneInput from './PhoneInput.vue';
 import ProfilePhotoInput from './ProfilePhotoInput.vue';
 import EtiquetaChipsSelector from './EtiquetaChipsSelector.vue';
+import RegionComunaSelect from './RegionComunaSelect.vue';
 import type { RegistrarPersonaPayload, EntidadResumen } from '../types';
 
 const emit = defineEmits<{
@@ -62,6 +63,7 @@ const form = reactive<RegistrarPersonaPayload>({
     correo: '',
     direccion: '',
     comuna: '',
+    region: '',
     redSocial: '',
     gestorId: undefined,
     anotaciones: '',
@@ -96,6 +98,7 @@ const resetForm = () => {
         correo: '',
         direccion: '',
         comuna: '',
+        region: '',
         redSocial: '',
         gestorId: undefined,
         anotaciones: '',
@@ -248,21 +251,14 @@ const submit = async () => {
                 />
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Dirección</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Calle y número</label>
                 <input 
                     v-model="form.direccion" 
-                    placeholder="Calle Random"
+                    placeholder="Calle Random 123"
                     class="compact-control"
                 />
             </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Comuna</label>
-                <input 
-                    v-model="form.comuna" 
-                    placeholder="Quillota"
-                    class="compact-control"
-                />
-            </div>
+            <RegionComunaSelect v-model:region="form.region" v-model:comuna="form.comuna" class="md:col-span-2" />
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Sector</label>
                 <input 

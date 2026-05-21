@@ -13,6 +13,7 @@ export interface EntidadResumen {
     telefono?: string;
     direccion?: string;  // Address
     comuna?: string;     // Municipality
+    region?: string;     // Region
     genero?: string;     // Gender (only for Personas)
     ocupacion?: string;
     fechaNacimiento?: string;
@@ -56,6 +57,7 @@ export interface RegistroPersonaPayload {
     correo: string;
     direccion: string;
     comuna: string;
+    region?: string;
     nombres: string; // Note plural 'nombres' from curl
     apellidos: string; // Note plural 'apellidos' from curl
     genero: string;
@@ -67,6 +69,7 @@ export interface RegistrarInstitucionPayload {
     correo?: string;
     direccion?: string;
     comuna?: string;
+    region?: string;
     redSocial?: string;
     gestorId?: number;
     anotaciones?: string;
@@ -85,6 +88,7 @@ export interface ActualizarPersonaPayload {
     telefono: string;
     direccion: string;
     comuna: string;
+    region?: string;
     tipoEntidad: 'Persona' | 'Institucion';
     // Persona-specific fields
     nombres?: string;
@@ -130,6 +134,7 @@ export interface PersonaEditPayload {
     correo: string;
     direccion: string;
     comuna: string;
+    region?: string;
     nombres: string;
     apellidos: string;
     genero: string;
@@ -143,6 +148,7 @@ export interface RegistrarPersonaPayload {
     correo?: string;
     direccion?: string;
     comuna?: string;
+    region?: string;
     nombres: string;
     apellidos: string;
     genero?: string;
@@ -446,6 +452,17 @@ export interface Etiqueta {
     descripcion?: string;
     color?: string;
     activa: boolean;
+}
+
+export interface Region {
+    id: number;
+    nombre: string;
+}
+
+export interface Comuna {
+    id: number;
+    regionId: number;
+    nombre: string;
 }
 
 // Egresos

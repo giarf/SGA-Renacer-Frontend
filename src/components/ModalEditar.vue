@@ -4,6 +4,7 @@ import type { EntidadResumen, ActualizarPersonaPayload, ActualizarInstitucionPay
 import PhoneInput from './PhoneInput.vue';
 import ProfilePhotoInput from './ProfilePhotoInput.vue';
 import EtiquetaChipsSelector from './EtiquetaChipsSelector.vue';
+import RegionComunaSelect from './RegionComunaSelect.vue';
 import { apiService } from '../api/apiService';
 import { formatRutForDisplay, formatRutForBackend } from '../utils/rutFormatter';
 import { X, Pencil } from 'lucide-vue-next';
@@ -31,6 +32,7 @@ const personaForm = reactive({
     correo: '',
     direccion: '',
     comuna: '',
+    region: '',
     nombres: '',
     apellidos: '',
     genero: '',
@@ -150,6 +152,7 @@ const hydratePersona = async (entidad: EntidadResumen) => {
     personaForm.correo = entidad.correo || entidad.email || '';
     personaForm.direccion = entidad.direccion || '';
     personaForm.comuna = entidad.comuna || '';
+    personaForm.region = entidad.region || '';
     personaForm.nombres = entidad.nombres || '';
     personaForm.apellidos = entidad.apellidos || '';
     personaForm.genero = entidad.genero || '';
@@ -208,6 +211,7 @@ const buildPersonaPayload = (): ActualizarPersonaPayload => {
         correo: personaForm.correo,
         direccion: personaForm.direccion,
         comuna: personaForm.comuna,
+        region: personaForm.region || undefined,
         nombres: personaForm.nombres,
         apellidos: personaForm.apellidos,
         genero: personaForm.genero,
@@ -383,13 +387,10 @@ const save = async () => {
                             <input v-model="personaForm.correo" type="email" placeholder="correo@example.com" />
                         </div>
                         <div>
-                            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Dirección</label>
-                            <input v-model="personaForm.direccion" placeholder="Calle Random" />
+                            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Calle y número</label>
+                            <input v-model="personaForm.direccion" placeholder="Calle Random 123" />
                         </div>
-                        <div>
-                            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Comuna</label>
-                            <input v-model="personaForm.comuna" placeholder="Quillota" />
-                        </div>
+                        <RegionComunaSelect v-model:region="personaForm.region" v-model:comuna="personaForm.comuna" class="md:col-span-2" />
                         <div>
                             <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Sector</label>
                             <input v-model="personaForm.sector" placeholder="Sector" />

@@ -26,7 +26,9 @@ import type {
     IngresoResumen,
     CompraIngresoPayload,
     CompraBoletaMetadata,
-    CompraResumen
+    CompraResumen,
+    Region,
+    Comuna
 } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'https://api.familiarenacer.cl/api';
@@ -92,6 +94,7 @@ const mapPersona = (persona: any): EntidadResumen => {
         telefono: persona?.telefono ?? undefined,
         direccion: persona?.direccion ?? undefined,
         comuna: persona?.comuna ?? undefined,
+        region: persona?.region ?? undefined,
         genero: persona?.genero ?? undefined,
         ocupacion: persona?.ocupacion ?? undefined,
         fechaNacimiento: persona?.fechaNacimiento ?? undefined,
@@ -122,6 +125,7 @@ const mapInstitucion = (inst: any): EntidadResumen => {
         telefono: inst?.telefono ?? undefined,
         direccion: inst?.direccion ?? undefined,
         comuna: inst?.comuna ?? undefined,
+        region: inst?.region ?? undefined,
         redSocial: inst?.redSocial ?? undefined,
         gestorId: inst?.gestorId ?? undefined,
         anotaciones: inst?.anotaciones ?? undefined,
@@ -618,6 +622,16 @@ export const apiService = {
 
     async getEtiquetas(): Promise<Etiqueta[]> {
         return await requestJson<Etiqueta[]>(`${API_BASE_URL}/etiquetas`);
+    },
+
+    async getRegiones(): Promise<Region[]> {
+        return await requestJson<Region[]>(`${API_BASE_URL}/ubicaciones/regiones`);
+    },
+
+    async getComunas(regionId?: number): Promise<Comuna[]> {
+        const url = new URL(`${API_BASE_URL}/ubicaciones/comunas`);
+        if (regionId) url.searchParams.set('regionId', String(regionId));
+        return await requestJson<Comuna[]>(url.toString());
     },
 
     async crearEtiqueta(payload: { nombre: string; descripcion?: string; color?: string }): Promise<{ id: number; mensaje?: string }> {
