@@ -27,6 +27,7 @@ import type {
 } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'https://api.familiarenacer.cl/api';
+const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
 
 const buildErrorMessage = (data: any, fallback: string) => {
     if (!data) return fallback;
@@ -65,6 +66,12 @@ const buildNombreCompleto = (nombres?: string | null, apellidos?: string | null,
     return full || fallback;
 };
 
+const buildAssetUrl = (value?: string | null) => {
+    if (!value) return undefined;
+    if (/^https?:\/\//i.test(value)) return value;
+    return `${API_ORIGIN}${value.startsWith('/') ? value : `/${value}`}`;
+};
+
 const mapPersona = (persona: any): EntidadResumen => {
     const rut = normalizeRut(persona?.rut ?? persona?.identificador, 'PERSONA', persona?.id);
     const nombreCompleto = persona?.nombreCompleto ?? buildNombreCompleto(persona?.nombres, persona?.apellidos, rut);
@@ -90,7 +97,8 @@ const mapPersona = (persona: any): EntidadResumen => {
         gestorNombre: persona?.gestorNombre ?? undefined,
         gestorRut: persona?.gestorRut ?? undefined,
         anotaciones: persona?.anotaciones ?? undefined,
-        sector: persona?.sector ?? undefined
+        sector: persona?.sector ?? undefined,
+        fotoUrl: buildAssetUrl(persona?.fotoUrl ?? persona?.foto_url)
     };
 };
 
@@ -337,14 +345,37 @@ export const apiService = {
 
 
 
-    async registrarPersonaNueva(datos: RegistrarPersonaPayload): Promise<void> {
+    async registrarPersonaNueva(datos: RegistrarPersonaPayload, foto?: File): Promise<void> {
         const body = pruneEmpty({ ...datos });
+        if (foto) {
+            const formData = new FormData();
+            Object.entries(body).forEach(([key, value]) => {
+                formData.append(key, String(value));
+            });
+            formData.append('foto', foto);
+            await requestJson(`${API_BASE_URL}/personas`, {
+                method: 'POST',
+                body: formData
+            });
+            return;
+        }
+
         await requestJson(`${API_BASE_URL}/personas`, {
             method: 'POST',
             // Use text/plain to avoid CORS preflight (OPTIONS 405)
             headers: { 'Content-Type': 'text/plain' },
             body: JSON.stringify(body)
         });
+    },
+
+    async actualizarFotoPersona(id: number, foto: File): Promise<{ fotoUrl?: string }> {
+        const formData = new FormData();
+        formData.append('foto', foto);
+        const data = await requestJson<any>(`${API_BASE_URL}/personas/${id}/foto`, {
+            method: 'POST',
+            body: formData
+        });
+        return { fotoUrl: buildAssetUrl(data?.fotoUrl ?? data?.foto_url) };
     },
 
     async registrarInstitucionNueva(datos: RegistrarInstitucionPayload): Promise<void> {

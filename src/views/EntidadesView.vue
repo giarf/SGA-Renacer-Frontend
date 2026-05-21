@@ -98,9 +98,12 @@ const startEdit = (entidad: EntidadResumen) => {
     isEditModalOpen.value = true;
 };
 
-const handleSaveEdit = async (payload: ActualizarEntidadPayload) => {
+const handleSaveEdit = async (payload: ActualizarEntidadPayload, foto?: File) => {
     try {
         await apiService.actualizarEntidad(payload.id, payload);
+        if (payload.tipoEntidad === 'Persona' && foto) {
+            await apiService.actualizarFotoPersona(payload.id, foto);
+        }
         await loadData();
         if (selectedEntidad.value && selectedEntidad.value.id === payload.id) {
             const base: EntidadResumen = {
@@ -403,8 +406,22 @@ onBeforeUnmount(() => {
                                 ]"
                             >
                                 <td class="px-6 py-4 text-sm">
-                                    <p class="font-semibold text-gray-900 dark:text-gray-100">{{ persona.nombreCompleto || 'Sin nombre' }}</p>
-                                    <p class="text-xs text-gray-500">{{ formatRutForDisplay(persona.identificador || '') }}</p>
+                                    <div class="flex items-center gap-3">
+                                        <img
+                                            v-if="persona.fotoUrl"
+                                            :src="persona.fotoUrl"
+                                            :alt="`Foto de ${persona.nombreCompleto || 'persona'}`"
+                                            class="h-11 w-11 rounded-full object-cover ring-1 ring-[var(--card-border)]"
+                                            loading="lazy"
+                                        >
+                                        <div v-else class="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--surface-muted)] text-xs font-semibold text-gray-400 ring-1 ring-[var(--card-border)]">
+                                            {{ (persona.nombreCompleto || '?').slice(0, 1).toUpperCase() }}
+                                        </div>
+                                        <div>
+                                            <p class="font-semibold text-gray-900 dark:text-gray-100">{{ persona.nombreCompleto || 'Sin nombre' }}</p>
+                                            <p class="text-xs text-gray-500">{{ formatRutForDisplay(persona.identificador || '') }}</p>
+                                        </div>
+                                    </div>
                                 </td>
                                 <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
                                     <p>{{ persona.correo || 'Sin correo' }}</p>

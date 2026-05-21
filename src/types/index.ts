@@ -16,6 +16,7 @@ export interface EntidadResumen {
     genero?: string;     // Gender (only for Personas)
     ocupacion?: string;
     fechaNacimiento?: string;
+    fotoUrl?: string;
     redSocial?: string;
     gestorId?: number;
     gestorNombre?: string;

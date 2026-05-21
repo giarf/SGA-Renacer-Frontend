@@ -2,6 +2,7 @@
 import { ref, watch, reactive } from 'vue';
 import type { EntidadResumen, ActualizarPersonaPayload, ActualizarInstitucionPayload, ActualizarEntidadPayload } from '../types';
 import PhoneInput from './PhoneInput.vue';
+import ProfilePhotoInput from './ProfilePhotoInput.vue';
 import { apiService } from '../api/apiService';
 import { formatRutForDisplay, formatRutForBackend } from '../utils/rutFormatter';
 import { X, Pencil } from 'lucide-vue-next';
@@ -11,10 +12,11 @@ const props = defineProps<{
     entidad: EntidadResumen | null;
 }>();
 
-const emit = defineEmits<{ (e: 'close'): void; (e: 'save', entidad: ActualizarEntidadPayload): void }>();
+const emit = defineEmits<{ (e: 'close'): void; (e: 'save', entidad: ActualizarEntidadPayload, foto?: File): void }>();
 
 const submitting = ref(false);
 const error = ref<string | null>(null);
+const personaFotoFile = ref<File | null>(null);
 
 const personaForm = reactive({
     id: 0,
@@ -151,6 +153,7 @@ const hydratePersona = async (entidad: EntidadResumen) => {
     personaForm.anotaciones = entidad.anotaciones || '';
     personaForm.sector = entidad.sector || '';
     personaForm.fechaNacimiento = entidad.fechaNacimiento || '';
+    personaFotoFile.value = null;
     await hydrateGestor(entidad.gestorId, entidad.gestorNombre, entidad.gestorRut);
 };
 
@@ -240,7 +243,7 @@ const save = async () => {
             props.entidad.tipoEntidad === 'Persona'
                 ? buildPersonaPayload()
                 : buildInstitucionPayload();
-        emit('save', payload);
+        emit('save', payload, props.entidad.tipoEntidad === 'Persona' ? personaFotoFile.value ?? undefined : undefined);
     } catch (e: any) {
         error.value = e.message || 'Error al guardar';
     } finally {
@@ -278,45 +281,54 @@ const save = async () => {
 
             <form @submit.prevent="save" class="px-6 pb-8 pt-4 space-y-6">
                 <template v-if="entidad?.tipoEntidad === 'Persona'">
-                    <div class="relative">
-                        <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Gestor</label>
-                        <div
-                            v-if="selectedGestor"
-                            class="flex items-center justify-between bg-[var(--accent-color-muted)]/50 p-4 rounded-2xl border border-[var(--accent-color-muted)]"
-                        >
-                            <div>
-                                <span class="block font-bold text-[var(--accent-color)]">{{ selectedGestor.nombreCompleto }}</span>
-                                <span class="text-xs text-gray-600 dark:text-gray-300">{{ formatRutForDisplay(selectedGestor.identificador) }}</span>
-                            </div>
-                            <button type="button" @click="clearGestor" class="text-sm text-[var(--accent-color)] hover:underline">Cambiar</button>
-                        </div>
-                        <div v-else>
-                            <input
-                                type="text"
-                                v-model="gestorQuery"
-                                @input="searchGestor(gestorQuery)"
-                                @focus="showGestorDropdown = true"
-                                placeholder="Buscar gestor por nombre o RUT..."
-                                class="w-full px-4 py-2 rounded-2xl border border-[var(--card-border)] bg-[var(--bg-base)]/60"
-                            />
+                    <div class="grid gap-5 lg:grid-cols-[1fr_auto] lg:items-start">
+                        <div class="relative">
+                            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Gestor</label>
                             <div
-                                v-if="showGestorDropdown && gestorQuery.length >= 2"
-                                class="dropdown-panel absolute z-20 mt-2 max-h-56 w-full overflow-auto"
+                                v-if="selectedGestor"
+                                class="flex items-center justify-between bg-[var(--accent-color-muted)]/50 p-4 rounded-2xl border border-[var(--accent-color-muted)]"
                             >
-                                <div v-if="gestorLoading" class="p-3 text-center text-sm text-gray-500">Buscando...</div>
-                                <ul v-else-if="gestorResults.length > 0">
-                                    <li
-                                        v-for="entidad in gestorResults"
-                                        :key="entidad.id"
-                                        @click="selectGestor(entidad)"
-                                    >
-                                        <p class="font-medium text-gray-900 dark:text-white">{{ entidad.nombreCompleto }}</p>
-                                        <p class="text-xs text-gray-500">{{ formatRutForDisplay(entidad.identificador) }}</p>
-                                    </li>
-                                </ul>
-                                <div v-else class="p-3 text-center text-sm text-gray-500">Sin coincidencias</div>
+                                <div>
+                                    <span class="block font-bold text-[var(--accent-color)]">{{ selectedGestor.nombreCompleto }}</span>
+                                    <span class="text-xs text-gray-600 dark:text-gray-300">{{ formatRutForDisplay(selectedGestor.identificador) }}</span>
+                                </div>
+                                <button type="button" @click="clearGestor" class="text-sm text-[var(--accent-color)] hover:underline">Cambiar</button>
+                            </div>
+                            <div v-else>
+                                <input
+                                    type="text"
+                                    v-model="gestorQuery"
+                                    @input="searchGestor(gestorQuery)"
+                                    @focus="showGestorDropdown = true"
+                                    placeholder="Buscar gestor por nombre o RUT..."
+                                    class="w-full px-4 py-2 rounded-2xl border border-[var(--card-border)] bg-[var(--bg-base)]/60"
+                                />
+                                <div
+                                    v-if="showGestorDropdown && gestorQuery.length >= 2"
+                                    class="dropdown-panel absolute z-20 mt-2 max-h-56 w-full overflow-auto"
+                                >
+                                    <div v-if="gestorLoading" class="p-3 text-center text-sm text-gray-500">Buscando...</div>
+                                    <ul v-else-if="gestorResults.length > 0">
+                                        <li
+                                            v-for="entidad in gestorResults"
+                                            :key="entidad.id"
+                                            @click="selectGestor(entidad)"
+                                        >
+                                            <p class="font-medium text-gray-900 dark:text-white">{{ entidad.nombreCompleto }}</p>
+                                            <p class="text-xs text-gray-500">{{ formatRutForDisplay(entidad.identificador) }}</p>
+                                        </li>
+                                    </ul>
+                                    <div v-else class="p-3 text-center text-sm text-gray-500">Sin coincidencias</div>
+                                </div>
                             </div>
                         </div>
+                        <ProfilePhotoInput
+                            v-model="personaFotoFile"
+                            label="Foto actual"
+                            :current-url="entidad?.fotoUrl"
+                            :fallback="personaForm.nombres || personaForm.apellidos || 'P'"
+                            @error="error = $event"
+                        />
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
