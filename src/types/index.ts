@@ -192,6 +192,70 @@ export interface IngresoResumen {
     descripcion?: string;
 }
 
+export interface IngresoRecursoCore {
+    id?: number;
+    origenEntidadId?: number;
+    responsableInternoId?: number;
+    solicitudId?: number;
+    fecha?: string;
+    tipoTransaccion?: string;
+    montoTotal?: number;
+    estado?: string;
+    anotaciones?: string;
+    creadoPorId?: number;
+}
+
+export interface IngresoDonacionDetalle {
+    ingresoId?: number;
+    propositoEspecifico?: string;
+    gestorId?: number;
+}
+
+export interface IngresoCompraDetalle {
+    ingresoId?: number;
+    cuentaOrigenId?: number;
+    numeroFacturaBoleta?: string;
+    montoNeto?: number;
+    montoIva?: number;
+}
+
+export interface IngresoSubvencionDetalle {
+    ingresoId?: number;
+    nombreProyecto?: string;
+    fechaRendicionLimite?: string;
+}
+
+export interface IngresoPecuniarioDetalle {
+    ingresoId?: number;
+    cuentaDestinoId?: number;
+    metodoTransferencia?: string;
+}
+
+export interface DetalleIngresoRecurso {
+    id?: number;
+    ingresoId?: number;
+    itemCatalogoId?: number;
+    cantidad?: number;
+    precioUnitarioIngreso?: number;
+}
+
+export interface IngresoDetalleResponse {
+    ingreso: IngresoRecursoCore;
+    donacion?: IngresoDonacionDetalle | null;
+    compra?: IngresoCompraDetalle | null;
+    subvencion?: IngresoSubvencionDetalle | null;
+    pecuniario?: IngresoPecuniarioDetalle | null;
+    detalles: DetalleIngresoRecurso[];
+}
+
+export interface ActualizarIngresoPayload {
+    ingreso: IngresoRecursoCore;
+    donacion?: IngresoDonacionDetalle | null;
+    compra?: IngresoCompraDetalle | null;
+    subvencion?: IngresoSubvencionDetalle | null;
+    detalles?: DetalleIngresoRecurso[];
+}
+
 // Form types for donation registration
 export interface DetalleDonacion {
     tipo: 'DINERO' | 'ESPECIE';

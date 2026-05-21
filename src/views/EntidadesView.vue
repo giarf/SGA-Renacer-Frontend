@@ -447,10 +447,11 @@ onBeforeUnmount(() => {
                     </div>
                 </div>
 
-                <div v-if="selectedPersonasCount > 0" class="flex flex-col gap-3 border-b border-[var(--card-border)] bg-[var(--accent-color-muted)] px-6 py-4 lg:flex-row lg:items-center lg:justify-between">
+                <div class="flex flex-col gap-3 border-b border-[var(--card-border)] bg-[var(--accent-color-muted)] px-6 py-4 lg:flex-row lg:items-center lg:justify-between">
                     <div class="flex items-center gap-2 text-sm font-semibold text-[var(--text-primary)]">
                         <Tags class="h-4 w-4 text-[var(--accent-color)]" />
-                        {{ selectedPersonasCount }} persona(s) seleccionada(s)
+                        <span v-if="selectedPersonasCount > 0">{{ selectedPersonasCount }} persona(s) seleccionada(s)</span>
+                        <span v-else>Selecciona personas con los checks para asignar etiquetas</span>
                     </div>
                     <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
                         <select v-model="selectedEtiquetaId" class="compact-control sm:w-56">
@@ -459,7 +460,7 @@ onBeforeUnmount(() => {
                                 {{ etiqueta.nombre }}
                             </option>
                         </select>
-                        <button class="btn btn-primary" type="button" :disabled="bulkApplying" @click="asignarEtiquetaSeleccionadas">
+                        <button class="btn btn-primary" type="button" :disabled="bulkApplying || selectedPersonasCount === 0" @click="asignarEtiquetaSeleccionadas">
                             Asignar etiqueta
                         </button>
                         <button class="btn btn-outline" type="button" @click="clearPersonaSelection">
@@ -479,24 +480,26 @@ onBeforeUnmount(() => {
                                 <th class="px-6 py-3 text-left">
                                     <input
                                         type="checkbox"
-                                        class="h-4 w-4 rounded border-[var(--card-border)] text-[var(--accent-color)]"
+                                        class="h-5 w-5 rounded border-2 border-[var(--accent-color)] accent-[var(--accent-color)] shadow-sm"
                                         :checked="allVisiblePersonasSelected"
                                         @change="toggleAllVisiblePersonas(($event.target as HTMLInputElement).checked)"
                                     >
+                                    <span class="sr-only">Seleccionar todas las personas visibles</span>
                                 </th>
                                 <th class="px-6 py-3 text-left">Persona</th>
                                 <th class="px-6 py-3 text-left">Contacto</th>
                                 <th class="px-6 py-3 text-left">Ubicación</th>
+                                <th class="px-6 py-3 text-left">Etiquetas</th>
                                 <th class="px-6 py-3 text-left">Gestor asignado</th>
                                 <th class="px-6 py-3 text-right">Acciones</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-[var(--card-border)] bg-white dark:bg-[var(--bg-card)]">
                             <tr v-if="loading">
-                                <td colspan="6" class="px-6 py-8 text-center text-gray-500">Cargando personas...</td>
+                                <td colspan="7" class="px-6 py-8 text-center text-gray-500">Cargando personas...</td>
                             </tr>
                             <tr v-else-if="filteredPersonas.length === 0">
-                                <td colspan="6" class="px-6 py-8 text-center text-gray-500">No hay coincidencias para este filtro.</td>
+                                <td colspan="7" class="px-6 py-8 text-center text-gray-500">No hay coincidencias para este filtro.</td>
                             </tr>
                             <tr
                                 v-else
@@ -511,7 +514,7 @@ onBeforeUnmount(() => {
                                 <td class="px-6 py-4 align-middle">
                                     <input
                                         type="checkbox"
-                                        class="h-4 w-4 rounded border-[var(--card-border)] text-[var(--accent-color)]"
+                                        class="h-5 w-5 rounded border-2 border-[var(--accent-color)] accent-[var(--accent-color)] shadow-sm"
                                         :checked="isPersonaSelected(persona.id)"
                                         @change="setPersonaSelected(persona.id, ($event.target as HTMLInputElement).checked)"
                                     >
@@ -541,6 +544,19 @@ onBeforeUnmount(() => {
                                 <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
                                     <p>{{ persona.comuna || 'Sin comuna' }}</p>
                                     <p class="text-xs text-gray-500 truncate">{{ persona.direccion || 'Sin dirección registrada' }}</p>
+                                </td>
+                                <td class="px-6 py-4 text-sm">
+                                    <div v-if="persona.etiquetas?.length" class="flex flex-wrap gap-1.5">
+                                        <span
+                                            v-for="etiqueta in persona.etiquetas"
+                                            :key="etiqueta.id"
+                                            class="inline-flex rounded-full px-2 py-0.5 text-xs font-semibold"
+                                            :style="{ backgroundColor: etiqueta.color || '#e0f2fe', color: etiqueta.color ? '#111827' : '#0369a1' }"
+                                        >
+                                            {{ etiqueta.nombre }}
+                                        </span>
+                                    </div>
+                                    <span v-else class="text-xs text-gray-400">Sin etiquetas</span>
                                 </td>
                                 <td class="px-6 py-4 text-sm">
                                     <button

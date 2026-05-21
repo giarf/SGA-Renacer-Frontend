@@ -13,12 +13,14 @@ import type {
     CuentaPayload,
     CuentaMovimientosResponse,
     Familia,
+    ActualizarIngresoPayload,
     CrearFamiliaPayload,
     BeneficiarioFamilia,
     Etiqueta,
     EgresoFiltros,
     EgresoPayload,
     EgresoRecurso,
+    IngresoDetalleResponse,
     SolicitudPayload,
     RolPersona,
     IngresoResumen,
@@ -247,6 +249,59 @@ const mapCompraBoletaMetadata = (raw: any, fallbackIngresoId = 0): CompraBoletaM
     boletaDownloadEndpoint: raw?.boletaDownloadEndpoint ?? raw?.boleta_download_endpoint ?? undefined
 });
 
+const mapDetalleIngreso = (raw: any) => ({
+    id: toNumber(raw?.id, 0),
+    ingresoId: toNumber(raw?.ingresoId ?? raw?.ingreso_id, 0),
+    itemCatalogoId: toNumber(raw?.itemCatalogoId ?? raw?.item_catalogo_id, 0),
+    cantidad: toNumber(raw?.cantidad, 0),
+    precioUnitarioIngreso: toNumber(raw?.precioUnitarioIngreso ?? raw?.precio_unitario_ingreso, 0)
+});
+
+const mapIngresoDetalle = (raw: any): IngresoDetalleResponse => {
+    const ingreso = raw?.ingreso ?? {};
+    const donacion = raw?.donacion ?? null;
+    const compra = raw?.compra ?? null;
+    const subvencion = raw?.subvencion ?? null;
+    const pecuniario = raw?.pecuniario ?? null;
+    return {
+        ingreso: {
+            id: toNumber(ingreso?.id, 0),
+            origenEntidadId: toNumber(ingreso?.origenEntidadId ?? ingreso?.origen_entidad_id, 0),
+            responsableInternoId: toNumber(ingreso?.responsableInternoId ?? ingreso?.responsable_interno_id, 0),
+            solicitudId: ingreso?.solicitudId ?? ingreso?.solicitud_id ?? undefined,
+            fecha: ingreso?.fecha ?? undefined,
+            tipoTransaccion: ingreso?.tipoTransaccion ?? ingreso?.tipo_transaccion ?? undefined,
+            montoTotal: toNumber(ingreso?.montoTotal ?? ingreso?.monto_total, 0),
+            estado: ingreso?.estado ?? undefined,
+            anotaciones: ingreso?.anotaciones ?? undefined,
+            creadoPorId: ingreso?.creadoPorId ?? ingreso?.creado_por_id ?? undefined
+        },
+        donacion: donacion ? {
+            ingresoId: toNumber(donacion?.ingresoId ?? donacion?.ingreso_id, 0),
+            propositoEspecifico: donacion?.propositoEspecifico ?? donacion?.proposito_especifico ?? undefined,
+            gestorId: donacion?.gestorId ?? donacion?.gestor_id ?? undefined
+        } : null,
+        compra: compra ? {
+            ingresoId: toNumber(compra?.ingresoId ?? compra?.ingreso_id, 0),
+            cuentaOrigenId: toNumber(compra?.cuentaOrigenId ?? compra?.cuenta_origen_id, 0),
+            numeroFacturaBoleta: compra?.numeroFacturaBoleta ?? compra?.numero_factura_boleta ?? undefined,
+            montoNeto: toNumber(compra?.montoNeto ?? compra?.monto_neto, 0),
+            montoIva: toNumber(compra?.montoIva ?? compra?.monto_iva, 0)
+        } : null,
+        subvencion: subvencion ? {
+            ingresoId: toNumber(subvencion?.ingresoId ?? subvencion?.ingreso_id, 0),
+            nombreProyecto: subvencion?.nombreProyecto ?? subvencion?.nombre_proyecto ?? undefined,
+            fechaRendicionLimite: subvencion?.fechaRendicionLimite ?? subvencion?.fecha_rendicion_limite ?? undefined
+        } : null,
+        pecuniario: pecuniario ? {
+            ingresoId: toNumber(pecuniario?.ingresoId ?? pecuniario?.ingreso_id, 0),
+            cuentaDestinoId: toNumber(pecuniario?.cuentaDestinoId ?? pecuniario?.cuenta_destino_id, 0),
+            metodoTransferencia: pecuniario?.metodoTransferencia ?? pecuniario?.metodo_transferencia ?? undefined
+        } : null,
+        detalles: Array.isArray(raw?.detalles) ? raw.detalles.map(mapDetalleIngreso) : []
+    };
+};
+
 const pruneEmpty = <T extends Record<string, any>>(obj: T): T => {
     const entries = Object.entries(obj).filter(([, value]) => value !== '' && value !== undefined && value !== null);
     return Object.fromEntries(entries) as T;
@@ -439,6 +494,19 @@ export const apiService = {
 
     async getIngresos(): Promise<IngresoResumen[]> {
         return await requestJson<IngresoResumen[]>(`${API_BASE_URL}/ingresos`);
+    },
+
+    async getIngresoById(id: number): Promise<IngresoDetalleResponse> {
+        const data = await requestJson<any>(`${API_BASE_URL}/ingresos/${id}`);
+        return mapIngresoDetalle(data);
+    },
+
+    async actualizarIngreso(id: number, payload: ActualizarIngresoPayload): Promise<{ mensaje?: string }> {
+        return await requestJson<{ mensaje?: string }>(`${API_BASE_URL}/ingresos/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
     },
 
     async getCategorias(): Promise<string[]> {
