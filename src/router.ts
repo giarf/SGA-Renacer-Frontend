@@ -10,7 +10,6 @@ import DonacionesView from './views/DonacionesView.vue';
 import EntidadesView from './views/EntidadesView.vue';
 import FamiliasView from './views/FamiliasView.vue';
 import LogsView from './views/LogsView.vue';
-import RolesView from './views/RolesView.vue';
 import SolicitudesView from './views/SolicitudesView.vue';
 import { authService, hasAnyGroup } from './auth/authService';
 import { ADMIN_GROUPS, DAILY_OPERATION_GROUPS } from './auth/permissions';
@@ -45,7 +44,6 @@ export const router = createRouter({
         { path: '/solicitudes', name: 'solicitudes', component: SolicitudesView, meta: { label: 'Solicitudes', requiredGroups: ADMIN_GROUPS } },
         { path: '/catalogo', name: 'catalogo', component: CatalogoView, meta: { label: 'Catálogo', requiredGroups: ADMIN_GROUPS } },
         { path: '/cuentas', name: 'cuentas', component: CuentasView, meta: { label: 'Cuentas', requiredGroups: ADMIN_GROUPS } },
-        { path: '/roles', name: 'roles', component: RolesView, meta: { label: 'Roles', requiredGroups: ADMIN_GROUPS } },
         { path: '/usuarios', name: 'usuarios', component: UsuariosView, meta: { label: 'Usuarios', requiredGroups: ADMIN_GROUPS } },
         { path: '/logs', name: 'logs', component: LogsView, meta: { label: 'Logs', requiredGroups: ADMIN_GROUPS } },
         { path: '/:pathMatch(.*)*', redirect: '/donaciones' }

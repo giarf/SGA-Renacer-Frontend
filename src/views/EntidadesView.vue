@@ -423,6 +423,31 @@ const asignarEtiquetaSeleccionadas = async () => {
     }
 };
 
+const isGestionarEtiquetasModalOpen = ref(false);
+
+const openGestionarEtiquetasModal = () => {
+    isGestionarEtiquetasModalOpen.value = true;
+};
+
+const closeGestionarEtiquetasModal = () => {
+    isGestionarEtiquetasModalOpen.value = false;
+    nuevaEtiquetaNombre.value = '';
+};
+
+const eliminarEtiqueta = async (id: number) => {
+    if (!confirm('¿Estás seguro de eliminar esta etiqueta? Se quitará de todas las entidades.')) return;
+    try {
+        await apiService.eliminarEtiqueta(id);
+        await loadEtiquetas();
+        if (selectedEtiquetaId.value === id) selectedEtiquetaId.value = '';
+        if (selectedEtiquetaFilter.value === id) selectedEtiquetaFilter.value = '';
+        await loadData();
+        showToast('success', 'Etiqueta eliminada.');
+    } catch(e: any) {
+        showToast('error', e.message || 'Error al eliminar etiqueta.');
+    }
+};
+
 watch(activeSection, section => {
     if (createMode.value === 'persona' && section !== 'personas') {
         createMode.value = null;
@@ -554,24 +579,52 @@ onBeforeUnmount(() => {
                             placeholder="Buscar por nombre, RUT o comuna..."
                             class="h-10 rounded-xl border border-[var(--card-border)] bg-[var(--bg-base)]/60 px-4 text-sm focus:border-[var(--accent-color)] focus:ring-0"
                         >
-                        <select v-model="selectedEtiquetaFilter" class="compact-control h-10 rounded-xl">
-                            <option value="">Todas las etiquetas</option>
-                            <option v-for="etiqueta in etiquetas" :key="etiqueta.id" :value="etiqueta.id">
-                                {{ etiqueta.nombre }}
-                            </option>
-                        </select>
+                        <div class="flex gap-2">
+                            <select v-model="selectedEtiquetaFilter" class="compact-control h-10 rounded-xl flex-1">
+                                <option value="">Todas las etiquetas</option>
+                                <option v-for="etiqueta in etiquetas" :key="etiqueta.id" :value="etiqueta.id">
+                                    {{ etiqueta.nombre }}
+                                </option>
+                            </select>
+                            <button class="btn btn-outline h-10 px-3" type="button" title="Gestionar etiquetas" @click="openGestionarEtiquetasModal">
+                                <Tags class="h-4 w-4" />
+                            </button>
+                        </div>
                     </div>
                 </div>
 
-                <div class="flex flex-col gap-3 border-b border-[var(--card-border)] bg-[var(--accent-color-muted)] px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <div class="flex flex-col gap-3 border-b border-[var(--card-border)] bg-[var(--accent-color-muted)] px-5 py-3 sm:flex-row sm:items-center sm:justify-between transition-colors">
                     <div class="flex items-center gap-2 text-sm font-semibold text-[var(--text-primary)]">
                         <Tags class="h-4 w-4 text-[var(--accent-color)]" />
                         <span v-if="selectedPersonasCount > 0">{{ selectedPersonasCount }} persona(s) seleccionada(s)</span>
-                        <span v-else>Selecciona personas con los checks para asignar etiquetas</span>
+                        <span v-else>Selecciona personas para aplicar acciones</span>
                     </div>
-                    <button class="btn btn-outline h-10 px-4" type="button" :disabled="selectedPersonasCount === 0" @click="clearPersonaSelection">
-                        <X class="h-4 w-4" /> Limpiar selección
-                    </button>
+                    
+                    <div v-if="selectedPersonasCount > 0" class="flex flex-wrap items-center gap-2">
+                        <div class="flex items-center gap-2 bg-[var(--bg-card)] rounded-lg p-1 border border-[var(--card-border)]">
+                            <select v-model="selectedEtiquetaId" class="compact-control h-8 min-w-[140px] text-xs border-none bg-transparent focus:ring-0">
+                                <option value="">Seleccionar etiqueta...</option>
+                                <option v-for="etiqueta in etiquetas" :key="etiqueta.id" :value="etiqueta.id">
+                                    {{ etiqueta.nombre }}
+                                </option>
+                            </select>
+                            <button class="btn btn-primary h-8 px-3 py-1 text-xs" type="button" :disabled="bulkApplying || !selectedEtiquetaId" @click="asignarEtiquetaSeleccionadas">
+                                Asignar
+                            </button>
+                        </div>
+                        
+                        <button
+                            type="button"
+                            class="btn btn-outline h-10 px-3 flex items-center gap-2 bg-[var(--bg-card)]"
+                            :disabled="whatsappRecipients.length === 0"
+                            @click="openWhatsappModal"
+                        >
+                            <MessageCircle class="h-4 w-4" /> WhatsApp
+                        </button>
+                        <button class="btn btn-outline h-10 px-3 bg-[var(--bg-card)] text-red-600 hover:bg-red-50 border-red-200/60" type="button" @click="clearPersonaSelection" title="Limpiar selección">
+                            <X class="h-4 w-4" />
+                        </button>
+                    </div>
                 </div>
 
                 <div class="overflow-x-auto">
@@ -699,51 +752,6 @@ onBeforeUnmount(() => {
                     </table>
                 </div>
 
-                <div class="border-t border-[var(--card-border)] bg-[var(--surface-muted)]/30 px-5 py-4">
-                    <div class="flex flex-col gap-4">
-                        <div>
-                            <p class="text-sm font-semibold text-[var(--text-primary)]">Acciones para seleccionadas</p>
-                            <p class="text-xs text-[var(--text-muted)]">
-                                {{ filteredPersonas.length }} persona(s) visibles · {{ selectedVisiblePersonasCount }} seleccionada(s) en esta lista · {{ whatsappRecipients.length }} con WhatsApp válido
-                                <span v-if="whatsappInvalidCount > 0">· {{ whatsappInvalidCount }} seleccionada(s) sin teléfono válido</span>
-                            </p>
-                        </div>
-
-                        <div class="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-end">
-                            <div>
-                                <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Etiqueta existente</label>
-                                <select v-model="selectedEtiquetaId" class="compact-control h-10">
-                                    <option value="">Seleccionar etiqueta</option>
-                                    <option v-for="etiqueta in etiquetas" :key="etiqueta.id" :value="etiqueta.id">
-                                        {{ etiqueta.nombre }}
-                                    </option>
-                                </select>
-                            </div>
-                            <button class="btn btn-primary h-10" type="button" :disabled="bulkApplying || selectedPersonasCount === 0" @click="asignarEtiquetaSeleccionadas">
-                                Asignar etiqueta
-                            </button>
-                        </div>
-
-                        <div class="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-end">
-                            <div>
-                                <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Crear nueva etiqueta</label>
-                                <input v-model="nuevaEtiquetaNombre" class="compact-control h-10" placeholder="Nueva etiqueta rápida">
-                            </div>
-                            <button class="btn btn-outline h-10" type="button" @click="crearEtiquetaRapida">Crear etiqueta</button>
-                        </div>
-
-                        <div class="flex justify-end">
-                            <button
-                                type="button"
-                                class="btn btn-primary"
-                                :disabled="whatsappRecipients.length === 0"
-                                @click="openWhatsappModal"
-                            >
-                                <MessageCircle class="h-4 w-4" /> Enviar WhatsApp a seleccionadas
-                            </button>
-                        </div>
-                    </div>
-                </div>
             </div>
         </section>
 
@@ -913,6 +921,32 @@ onBeforeUnmount(() => {
             @close="closeDeleteModal"
             @confirm="handleDelete"
         />
+
+        <div v-if="isGestionarEtiquetasModalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-6 backdrop-blur-sm">
+            <div class="w-full max-w-lg overflow-hidden rounded-2xl border border-[var(--card-border)] bg-[var(--bg-card)] shadow-2xl">
+                <div class="flex items-center justify-between border-b border-[var(--card-border)] px-5 py-4">
+                    <h3 class="text-lg font-semibold text-[var(--text-primary)]">Gestionar Etiquetas</h3>
+                    <button type="button" class="rounded-lg p-2 text-[var(--text-muted)] hover:bg-black/5 dark:hover:bg-white/10" @click="closeGestionarEtiquetasModal">
+                        <X class="h-5 w-5" />
+                    </button>
+                </div>
+                <div class="p-5 space-y-4">
+                    <form @submit.prevent="crearEtiquetaRapida" class="flex gap-2">
+                        <input v-model="nuevaEtiquetaNombre" class="compact-control h-10 flex-1" placeholder="Nombre de la nueva etiqueta" required>
+                        <button type="submit" class="btn btn-primary h-10">Crear</button>
+                    </form>
+                    <div class="max-h-[300px] overflow-y-auto space-y-2 mt-4">
+                        <p v-if="etiquetas.length === 0" class="text-sm text-gray-500 text-center py-4">No hay etiquetas creadas.</p>
+                        <div v-for="etiqueta in etiquetas" :key="etiqueta.id" class="flex items-center justify-between p-3 rounded-xl border border-[var(--card-border)] bg-[var(--surface-muted)]/30">
+                            <span class="text-sm font-semibold">{{ etiqueta.nombre }}</span>
+                            <button type="button" class="text-red-500 hover:text-red-700 p-1.5 rounded-md hover:bg-red-50 transition-colors" title="Eliminar etiqueta" @click="eliminarEtiqueta(etiqueta.id)">
+                                <Trash2 class="w-4 h-4" />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </template>
 

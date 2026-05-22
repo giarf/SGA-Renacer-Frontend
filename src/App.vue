@@ -11,7 +11,6 @@ import {
     HandHeart,
     Handshake,
     Home,
-    IdCard,
     Landmark,
     LogOut,
     Menu,
@@ -104,8 +103,7 @@ const navigationGroups: { title: string; items: NavigationItem[] }[] = [
         title: 'Recursos',
         items: [
             { key: 'catalogo', to: '/catalogo', label: 'Catálogo', helper: 'Ítems, stock y valorización', icon: Boxes, requiredGroups: ADMIN_GROUPS },
-            { key: 'cuentas', to: '/cuentas', label: 'Cuentas', helper: 'Fondos internos y movimientos', icon: Wallet, badge: 'Nuevo', requiredGroups: ADMIN_GROUPS },
-            { key: 'roles', to: '/roles', label: 'Roles', helper: 'Directorio por rol', icon: IdCard, requiredGroups: ADMIN_GROUPS }
+            { key: 'cuentas', to: '/cuentas', label: 'Cuentas', helper: 'Fondos internos y movimientos', icon: Wallet, badge: 'Nuevo', requiredGroups: ADMIN_GROUPS }
         ]
     },
     {

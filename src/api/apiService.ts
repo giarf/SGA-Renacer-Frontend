@@ -642,6 +642,12 @@ export const apiService = {
         });
     },
 
+    async eliminarEtiqueta(id: number): Promise<{ mensaje?: string }> {
+        return await requestJson<{ mensaje?: string }>(`${API_BASE_URL}/etiquetas/${id}`, {
+            method: 'DELETE'
+        });
+    },
+
     async getEtiquetasEntidad(entidadId: number): Promise<Etiqueta[]> {
         return await requestJson<Etiqueta[]>(`${API_BASE_URL}/entidades/${entidadId}/etiquetas`);
     },
