@@ -10,6 +10,7 @@ interface ImportMetaEnv {
     readonly VITE_AUTHENTIK_ADMIN_TOKEN?: string;
     readonly VITE_AUTHENTIK_MEMBER_GROUP?: string;
     readonly VITE_AUTHENTIK_ADMIN_GROUP?: string;
+    readonly VITE_AUTHENTIK_GATE_ADMIN_GROUP?: string;
     readonly VITE_AUTHENTIK_USER_PATH?: string;
 }
 

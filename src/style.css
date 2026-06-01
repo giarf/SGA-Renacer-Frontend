@@ -74,6 +74,12 @@ textarea {
     transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
 }
 
+input[type="checkbox"] {
+    width: auto;
+    padding: 0;
+    box-shadow: none;
+}
+
 input::placeholder,
 textarea::placeholder {
     color: color-mix(in srgb, var(--text-primary) 50%, transparent);

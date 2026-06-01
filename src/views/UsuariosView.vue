@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
-import { Edit3, KeyRound, Loader2, Plus, RefreshCw, Shield, ShieldCheck, UserCheck, UserX, X } from 'lucide-vue-next';
+import { DoorOpen, Edit3, KeyRound, Loader2, Plus, RefreshCw, Shield, ShieldCheck, UserCheck, UserX, X } from 'lucide-vue-next';
 import { authentikAdminService, type ManagedAuthentikUser } from '../api/authentikAdminService';
 import { apiService } from '../api/apiService';
 import type { EntidadResumen } from '../types';
@@ -29,6 +29,7 @@ const form = reactive({
     username: '',
     password: '',
     isAdmin: false,
+    isGateAdmin: false,
     isActive: true
 });
 
@@ -138,6 +139,7 @@ const resetForm = () => {
     form.username = '';
     form.password = '';
     form.isAdmin = false;
+    form.isGateAdmin = false;
     form.isActive = true;
     personaQuery.value = '';
     personaResults.value = [];
@@ -203,6 +205,7 @@ const openEdit = (user: ManagedAuthentikUser) => {
     form.username = user.username;
     form.password = '';
     form.isAdmin = user.isAdmin;
+    form.isGateAdmin = user.isGateAdmin;
     form.isActive = user.isActive;
     modalMode.value = 'edit';
 };
@@ -222,7 +225,8 @@ const saveUser = async () => {
                 email: form.email,
                 username: form.username,
                 password: form.password,
-                isAdmin: form.isAdmin
+                isAdmin: form.isAdmin,
+                isGateAdmin: form.isGateAdmin
             });
             setMessage('success', 'Usuario creado en renacer-miembros.');
         } else if (selectedUser.value) {
@@ -233,6 +237,9 @@ const saveUser = async () => {
             });
             if (form.isAdmin !== selectedUser.value.isAdmin) {
                 await authentikAdminService.setAdmin(selectedUser.value.id, form.isAdmin);
+            }
+            if (form.isGateAdmin !== selectedUser.value.isGateAdmin) {
+                await authentikAdminService.setGateAdmin(selectedUser.value.id, form.isGateAdmin);
             }
             setMessage('success', 'Usuario actualizado.');
         }
@@ -270,6 +277,23 @@ const toggleAdmin = async (user: ManagedAuthentikUser) => {
         await loadUsers();
     } catch (error: any) {
         setMessage('error', error.message || 'No se pudo cambiar el permiso admin.');
+    } finally {
+        busyId.value = null;
+    }
+};
+
+const toggleGateAdmin = async (user: ManagedAuthentikUser) => {
+    busyId.value = user.id;
+    try {
+        const result = await authentikAdminService.setGateAdmin(user.id, !user.isGateAdmin);
+        if (result?.status === 'already_gate_admin' || result?.status === 'not_gate_admin') {
+            console.log(`[Usuarios] ${result.message}, recargando para verificar estado real`);
+        } else {
+            setMessage('success', result?.message || (user.isGateAdmin ? 'Permiso admin puerta removido.' : 'Permiso admin puerta agregado.'));
+        }
+        await loadUsers();
+    } catch (error: any) {
+        setMessage('error', error.message || 'No se pudo cambiar el permiso admin puerta.');
     } finally {
         busyId.value = null;
     }
@@ -387,6 +411,9 @@ onMounted(loadUsers);
                                     <span v-if="user.isAdmin" class="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-700">
                                         <Shield class="h-3 w-3" /> Admin
                                     </span>
+                                    <span v-if="user.isGateAdmin" class="inline-flex items-center gap-1 rounded-full bg-cyan-100 px-2 py-1 text-xs font-medium text-cyan-700">
+                                        <DoorOpen class="h-3 w-3" /> Puerta
+                                    </span>
                                 </div>
                             </td>
                             <td class="px-5 py-3 text-[var(--text-muted)]">{{ formattedDate(user.lastLogin) }}</td>
@@ -404,6 +431,9 @@ onMounted(loadUsers);
                                     </button>
                                     <button type="button" :class="`rounded-lg p-2 transition ${user.isAdmin ? 'text-amber-600 hover:bg-amber-50' : 'text-[var(--text-muted)] hover:bg-green-50 hover:text-green-600'}`" :title="user.isAdmin ? 'Quitar admin' : 'Hacer admin'" :disabled="busyId === user.id" @click="toggleAdmin(user)">
                                         <ShieldCheck class="h-4 w-4" />
+                                    </button>
+                                    <button type="button" :class="`rounded-lg p-2 transition ${user.isGateAdmin ? 'text-cyan-600 hover:bg-cyan-50' : 'text-[var(--text-muted)] hover:bg-cyan-50 hover:text-cyan-600'}`" :title="user.isGateAdmin ? 'Quitar admin puerta' : 'Hacer admin puerta'" :disabled="busyId === user.id" @click="toggleGateAdmin(user)">
+                                        <DoorOpen class="h-4 w-4" />
                                     </button>
                                 </div>
                             </td>
@@ -464,13 +494,17 @@ onMounted(loadUsers);
                         <input v-model="form.username" :disabled="modalMode === 'edit' || generatingUsername" :required="modalMode === 'create'" class="mt-1 disabled:bg-black/5" placeholder="Se genera al seleccionar persona" />
                     </label>
                     <label v-if="modalMode === 'create'" class="block text-sm font-medium">Contraseña temporal<input v-model="form.password" type="password" minlength="8" class="mt-1" /></label>
-                    <label class="flex items-center gap-3 rounded-xl border border-[var(--card-border)] bg-black/5 p-3 text-sm dark:bg-white/5">
-                        <input v-model="form.isAdmin" type="checkbox" class="h-4 w-4" />
-                        Pertenece a renacer-admin
+                    <label class="flex items-center gap-3 rounded-xl border border-[var(--card-border)] bg-black/5 p-3 text-sm text-[var(--text-primary)] dark:bg-white/5">
+                        <input v-model="form.isAdmin" type="checkbox" class="h-4 w-4 shrink-0" />
+                        <span>Pertenece a renacer-admin</span>
                     </label>
-                    <label v-if="modalMode === 'edit'" class="flex items-center gap-3 rounded-xl border border-[var(--card-border)] bg-black/5 p-3 text-sm dark:bg-white/5">
-                        <input v-model="form.isActive" type="checkbox" class="h-4 w-4" />
-                        Usuario activo
+                    <label class="flex items-center gap-3 rounded-xl border border-[var(--card-border)] bg-black/5 p-3 text-sm text-[var(--text-primary)] dark:bg-white/5">
+                        <input v-model="form.isGateAdmin" type="checkbox" class="h-4 w-4 shrink-0" />
+                        <span>Pertenece a renacer-puerta</span>
+                    </label>
+                    <label v-if="modalMode === 'edit'" class="flex items-center gap-3 rounded-xl border border-[var(--card-border)] bg-black/5 p-3 text-sm text-[var(--text-primary)] dark:bg-white/5">
+                        <input v-model="form.isActive" type="checkbox" class="h-4 w-4 shrink-0" />
+                        <span>Usuario activo</span>
                     </label>
                 </div>
                 <div class="flex gap-3 border-t border-[var(--card-border)] p-5">

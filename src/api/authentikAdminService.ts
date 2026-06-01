@@ -5,6 +5,7 @@ export type ManagedAuthentikUser = {
     email: string;
     isActive: boolean;
     isAdmin: boolean;
+    isGateAdmin: boolean;
     lastLogin?: string | null;
 };
 
@@ -14,6 +15,7 @@ export type CreateAuthentikUserPayload = {
     username?: string;
     password?: string;
     isAdmin?: boolean;
+    isGateAdmin?: boolean;
 };
 
 export type UpdateAuthentikUserPayload = {
@@ -32,10 +34,11 @@ const config = {
     token: import.meta.env.VITE_AUTHENTIK_ADMIN_TOKEN || '',
     memberGroup: import.meta.env.VITE_AUTHENTIK_MEMBER_GROUP || 'renacer-miembros',
     adminGroup: import.meta.env.VITE_AUTHENTIK_ADMIN_GROUP || 'renacer-admin',
+    gateAdminGroup: import.meta.env.VITE_AUTHENTIK_GATE_ADMIN_GROUP || 'renacer-puerta',
     userPath: import.meta.env.VITE_AUTHENTIK_USER_PATH || 'renacer'
 };
 
-let groupsCache: { member: AuthentikGroup; admin: AuthentikGroup } | null = null;
+let groupsCache: { member: AuthentikGroup; admin: AuthentikGroup; gateAdmin: AuthentikGroup } | null = null;
 
 const getApiError = (data: any, fallback: string) => {
     if (!data) return fallback;
@@ -104,13 +107,14 @@ const getGroups = async () => {
         console.log('[Authentik] getGroups (cached):', groupsCache);
         return groupsCache;
     }
-    console.log(`[Authentik] getGroups buscando: memberGroup="${config.memberGroup}", adminGroup="${config.adminGroup}"`);
-    const [member, admin] = await Promise.all([
+    console.log(`[Authentik] getGroups buscando: memberGroup="${config.memberGroup}", adminGroup="${config.adminGroup}", gateAdminGroup="${config.gateAdminGroup}"`);
+    const [member, admin, gateAdmin] = await Promise.all([
         findGroupByName(config.memberGroup),
-        findGroupByName(config.adminGroup)
+        findGroupByName(config.adminGroup),
+        findGroupByName(config.gateAdminGroup)
     ]);
-    console.log(`[Authentik] getGroups encontrado: member pk=${member?.pk}, admin pk=${admin?.pk}`);
-    groupsCache = { member, admin };
+    console.log(`[Authentik] getGroups encontrado: member pk=${member?.pk}, admin pk=${admin?.pk}, gateAdmin pk=${gateAdmin?.pk}`);
+    groupsCache = { member, admin, gateAdmin };
     return groupsCache;
 };
 
@@ -121,13 +125,14 @@ const userHasGroup = (rawUser: any, group: AuthentikGroup) => {
         || groupsObj.some((item: any) => String(item?.pk || item?.id || '').toLowerCase() === group.pk.toLowerCase() || String(item?.name || '').toLowerCase() === group.name.toLowerCase());
 };
 
-const normalizeUser = (rawUser: any, adminGroup: AuthentikGroup): ManagedAuthentikUser => ({
+const normalizeUser = (rawUser: any, adminGroup: AuthentikGroup, gateAdminGroup: AuthentikGroup): ManagedAuthentikUser => ({
     id: Number(rawUser?.pk ?? rawUser?.id ?? 0),
     username: rawUser?.username ?? '',
     name: rawUser?.name ?? '',
     email: rawUser?.email ?? '',
     isActive: Boolean(rawUser?.is_active),
     isAdmin: userHasGroup(rawUser, adminGroup),
+    isGateAdmin: userHasGroup(rawUser, gateAdminGroup),
     lastLogin: rawUser?.last_login ?? null
 });
 
@@ -171,14 +176,14 @@ const removeUserFromGroup = async (groupPk: string, userId: number) => {
 
 export const authentikAdminService = {
     async listUsers() {
-        const { member, admin } = await getGroups();
+        const { member, admin, gateAdmin } = await getGroups();
         const params = new URLSearchParams({ groups_by_pk: member.pk, ordering: 'username', page_size: '100' });
         const data = await requestAuthentik<any>(`/core/users/?${params.toString()}`);
-        return getResults<any>(data).map(user => normalizeUser(user, admin));
+        return getResults<any>(data).map(user => normalizeUser(user, admin, gateAdmin));
     },
 
     async createUser(payload: CreateAuthentikUserPayload) {
-        const { member, admin } = await getGroups();
+        const { member, admin, gateAdmin } = await getGroups();
         const email = payload.email.trim().toLowerCase();
         const username = (payload.username?.trim() || email.split('@')[0] || '').toLowerCase();
 
@@ -202,6 +207,7 @@ export const authentikAdminService = {
         const userId = Number(user?.pk ?? user?.id);
         if (payload.password) await this.setPassword(userId, payload.password);
         if (payload.isAdmin) await addUserToGroup(admin.pk, userId);
+        if (payload.isGateAdmin) await addUserToGroup(gateAdmin.pk, userId);
 
         return userId;
     },
@@ -248,6 +254,21 @@ export const authentikAdminService = {
             const result = await removeUserFromGroup(admin.pk, userId);
             if (result?.notMember) return { status: 'not_admin', message: 'El usuario no es admin' };
             return { status: 'removed', message: 'Permiso admin removido' };
+        }
+    },
+
+    async setGateAdmin(userId: number, isGateAdmin: boolean) {
+        console.log(`[Authentik] setGateAdmin: userId=${userId}, isGateAdmin=${isGateAdmin}`);
+        const { gateAdmin } = await getGroups();
+        console.log(`[Authentik] gate admin group pk:`, gateAdmin.pk);
+        if (isGateAdmin) {
+            const result = await addUserToGroup(gateAdmin.pk, userId);
+            if (result?.alreadyMember) return { status: 'already_gate_admin', message: 'El usuario ya es admin puerta' };
+            return { status: 'added', message: 'Permiso admin puerta agregado' };
+        } else {
+            const result = await removeUserFromGroup(gateAdmin.pk, userId);
+            if (result?.notMember) return { status: 'not_gate_admin', message: 'El usuario no es admin puerta' };
+            return { status: 'removed', message: 'Permiso admin puerta removido' };
         }
     }
 };
