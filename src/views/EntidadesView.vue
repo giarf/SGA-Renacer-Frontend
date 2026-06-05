@@ -7,7 +7,7 @@ import InstitucionForm from '../components/InstitucionForm.vue';
 import ModalEditar from '../components/ModalEditar.vue';
 import ModalConfirmacionEliminar from '../components/ModalConfirmacionEliminar.vue';
 import { formatRutForDisplay } from '../utils/rutFormatter';
-import { Trash2, Plus, Pencil, Users, Building2, Tags, X, MessageCircle } from 'lucide-vue-next';
+import { Trash2, Plus, Pencil, Users, Building2, Tags, X, MessageCircle, ArrowUp, ArrowDown } from 'lucide-vue-next';
 
 type WhatsappRecipient = {
     persona: EntidadResumen;
@@ -85,14 +85,106 @@ const normalizeWhatsappNumber = (telefono?: string) => {
     return raw.startsWith('56') ? raw : '';
 };
 
+const sortKey = ref<string | null>(null);
+const sortAsc = ref(true);
+
+const toggleSort = (key: string) => {
+    if (sortKey.value === key) {
+        if (sortAsc.value) {
+            sortAsc.value = false;
+        } else {
+            sortKey.value = null;
+            sortAsc.value = true;
+        }
+    } else {
+        sortKey.value = key;
+        sortAsc.value = true;
+    }
+};
+
+const sortedFilteredPersonas = computed(() => {
+    const arr = [...filteredPersonas.value];
+    if (!sortKey.value) return arr;
+    arr.sort((a, b) => {
+        let valA = '';
+        let valB = '';
+        switch (sortKey.value) {
+            case 'nombre':
+                valA = a.nombreCompleto?.toLowerCase() || '';
+                valB = b.nombreCompleto?.toLowerCase() || '';
+                break;
+            case 'contacto':
+                valA = (a.telefono || a.correo || '').toLowerCase();
+                valB = (b.telefono || b.correo || '').toLowerCase();
+                break;
+            case 'ubicacion':
+                valA = (a.comuna || a.direccion || '').toLowerCase();
+                valB = (b.comuna || b.direccion || '').toLowerCase();
+                break;
+            case 'gestor':
+                valA = getGestorLabel(a).toLowerCase();
+                valB = getGestorLabel(b).toLowerCase();
+                break;
+        }
+        if (valA < valB) return sortAsc.value ? -1 : 1;
+        if (valA > valB) return sortAsc.value ? 1 : -1;
+        return 0;
+    });
+    return arr;
+});
+
+const instSortKey = ref<string | null>(null);
+const instSortAsc = ref(true);
+
+const toggleInstSort = (key: string) => {
+    if (instSortKey.value === key) {
+        if (instSortAsc.value) {
+            instSortAsc.value = false;
+        } else {
+            instSortKey.value = null;
+            instSortAsc.value = true;
+        }
+    } else {
+        instSortKey.value = key;
+        instSortAsc.value = true;
+    }
+};
+
+const sortedFilteredInstituciones = computed(() => {
+    const arr = [...filteredInstituciones.value];
+    if (!instSortKey.value) return arr;
+    arr.sort((a, b) => {
+        let valA = '';
+        let valB = '';
+        switch (instSortKey.value) {
+            case 'nombre':
+                valA = a.nombreCompleto?.toLowerCase() || '';
+                valB = b.nombreCompleto?.toLowerCase() || '';
+                break;
+            case 'contacto':
+                valA = (a.telefono || a.correo || '').toLowerCase();
+                valB = (b.telefono || b.correo || '').toLowerCase();
+                break;
+            case 'ubicacion':
+                valA = (a.comuna || a.direccion || '').toLowerCase();
+                valB = (b.comuna || b.direccion || '').toLowerCase();
+                break;
+        }
+        if (valA < valB) return instSortAsc.value ? -1 : 1;
+        if (valA > valB) return instSortAsc.value ? 1 : -1;
+        return 0;
+    });
+    return arr;
+});
+
 const whatsappRecipients = computed<WhatsappRecipient[]>(() =>
-    filteredPersonas.value
+    sortedFilteredPersonas.value
         .filter(persona => selectedPersonaIds.value.has(persona.id))
         .map(persona => ({ persona, numero: normalizeWhatsappNumber(persona.telefono) }))
         .filter((recipient): recipient is WhatsappRecipient => Boolean(recipient.numero))
 );
 
-const selectedVisiblePersonasCount = computed(() => filteredPersonas.value.filter(persona => selectedPersonaIds.value.has(persona.id)).length);
+const selectedVisiblePersonasCount = computed(() => sortedFilteredPersonas.value.filter(persona => selectedPersonaIds.value.has(persona.id)).length);
 
 const whatsappInvalidCount = computed(() => selectedVisiblePersonasCount.value - whatsappRecipients.value.length);
 
@@ -380,7 +472,7 @@ const setPersonaSelected = (id: number, checked: boolean) => {
 
 const toggleAllVisiblePersonas = (checked: boolean) => {
     const next = new Set(selectedPersonaIds.value);
-    filteredPersonas.value.forEach(persona => {
+    sortedFilteredPersonas.value.forEach(persona => {
         if (checked) next.add(persona.id);
         else next.delete(persona.id);
     });
@@ -640,11 +732,39 @@ onBeforeUnmount(() => {
                                     >
                                     <span class="sr-only">Seleccionar todas las personas visibles</span>
                                 </th>
-                                <th class="min-w-[360px] px-6 py-3 text-left">Persona</th>
-                                <th class="px-6 py-3 text-left">Contacto</th>
-                                <th class="w-44 px-4 py-3 text-left">Ubicación</th>
+                                <th class="min-w-[360px] px-6 py-3 text-left cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors select-none group" @click="toggleSort('nombre')">
+                                    <div class="flex items-center gap-2">
+                                        Persona
+                                        <ArrowUp v-if="sortKey === 'nombre' && sortAsc" class="w-4 h-4 text-[var(--accent-color)]" />
+                                        <ArrowDown v-else-if="sortKey === 'nombre' && !sortAsc" class="w-4 h-4 text-[var(--accent-color)]" />
+                                        <ArrowUp v-else class="w-4 h-4 opacity-0 group-hover:opacity-30 transition-opacity" />
+                                    </div>
+                                </th>
+                                <th class="px-6 py-3 text-left cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors select-none group" @click="toggleSort('contacto')">
+                                    <div class="flex items-center gap-2">
+                                        Contacto
+                                        <ArrowUp v-if="sortKey === 'contacto' && sortAsc" class="w-4 h-4 text-[var(--accent-color)]" />
+                                        <ArrowDown v-else-if="sortKey === 'contacto' && !sortAsc" class="w-4 h-4 text-[var(--accent-color)]" />
+                                        <ArrowUp v-else class="w-4 h-4 opacity-0 group-hover:opacity-30 transition-opacity" />
+                                    </div>
+                                </th>
+                                <th class="w-44 px-4 py-3 text-left cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors select-none group" @click="toggleSort('ubicacion')">
+                                    <div class="flex items-center gap-2">
+                                        Ubicación
+                                        <ArrowUp v-if="sortKey === 'ubicacion' && sortAsc" class="w-4 h-4 text-[var(--accent-color)]" />
+                                        <ArrowDown v-else-if="sortKey === 'ubicacion' && !sortAsc" class="w-4 h-4 text-[var(--accent-color)]" />
+                                        <ArrowUp v-else class="w-4 h-4 opacity-0 group-hover:opacity-30 transition-opacity" />
+                                    </div>
+                                </th>
                                 <th class="px-6 py-3 text-left">Etiquetas</th>
-                                <th class="px-6 py-3 text-left">Gestor asignado</th>
+                                <th class="px-6 py-3 text-left cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors select-none group" @click="toggleSort('gestor')">
+                                    <div class="flex items-center gap-2">
+                                        Gestor asignado
+                                        <ArrowUp v-if="sortKey === 'gestor' && sortAsc" class="w-4 h-4 text-[var(--accent-color)]" />
+                                        <ArrowDown v-else-if="sortKey === 'gestor' && !sortAsc" class="w-4 h-4 text-[var(--accent-color)]" />
+                                        <ArrowUp v-else class="w-4 h-4 opacity-0 group-hover:opacity-30 transition-opacity" />
+                                    </div>
+                                </th>
                                 <th class="px-6 py-3 text-right">Acciones</th>
                             </tr>
                         </thead>
@@ -657,7 +777,7 @@ onBeforeUnmount(() => {
                             </tr>
                             <tr
                                 v-else
-                                v-for="persona in filteredPersonas"
+                                v-for="persona in sortedFilteredPersonas"
                                 :key="persona.id"
                                 :id="`persona-row-${persona.id}`"
                                 :class="[
@@ -781,9 +901,30 @@ onBeforeUnmount(() => {
                     <table class="min-w-full divide-y divide-[var(--card-border)] table-soft">
                         <thead class="bg-[var(--surface-muted)]/60 text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
                             <tr>
-                                <th class="px-6 py-3 text-left">Institución</th>
-                                <th class="px-6 py-3 text-left">Contacto</th>
-                                <th class="px-6 py-3 text-left">Ubicación</th>
+                                <th class="px-6 py-3 text-left cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors select-none group" @click="toggleInstSort('nombre')">
+                                    <div class="flex items-center gap-2">
+                                        Institución
+                                        <ArrowUp v-if="instSortKey === 'nombre' && instSortAsc" class="w-4 h-4 text-[var(--accent-color)]" />
+                                        <ArrowDown v-else-if="instSortKey === 'nombre' && !instSortAsc" class="w-4 h-4 text-[var(--accent-color)]" />
+                                        <ArrowUp v-else class="w-4 h-4 opacity-0 group-hover:opacity-30 transition-opacity" />
+                                    </div>
+                                </th>
+                                <th class="px-6 py-3 text-left cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors select-none group" @click="toggleInstSort('contacto')">
+                                    <div class="flex items-center gap-2">
+                                        Contacto
+                                        <ArrowUp v-if="instSortKey === 'contacto' && instSortAsc" class="w-4 h-4 text-[var(--accent-color)]" />
+                                        <ArrowDown v-else-if="instSortKey === 'contacto' && !instSortAsc" class="w-4 h-4 text-[var(--accent-color)]" />
+                                        <ArrowUp v-else class="w-4 h-4 opacity-0 group-hover:opacity-30 transition-opacity" />
+                                    </div>
+                                </th>
+                                <th class="px-6 py-3 text-left cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors select-none group" @click="toggleInstSort('ubicacion')">
+                                    <div class="flex items-center gap-2">
+                                        Ubicación
+                                        <ArrowUp v-if="instSortKey === 'ubicacion' && instSortAsc" class="w-4 h-4 text-[var(--accent-color)]" />
+                                        <ArrowDown v-else-if="instSortKey === 'ubicacion' && !instSortAsc" class="w-4 h-4 text-[var(--accent-color)]" />
+                                        <ArrowUp v-else class="w-4 h-4 opacity-0 group-hover:opacity-30 transition-opacity" />
+                                    </div>
+                                </th>
                                 <th class="px-6 py-3 text-right">Acciones</th>
                             </tr>
                         </thead>
@@ -796,7 +937,7 @@ onBeforeUnmount(() => {
                             </tr>
                             <tr
                                 v-else
-                                v-for="inst in filteredInstituciones"
+                                v-for="inst in sortedFilteredInstituciones"
                                 :key="inst.id"
                                 class="hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
                             >
