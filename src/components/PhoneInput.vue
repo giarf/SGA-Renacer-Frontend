@@ -11,6 +11,7 @@ interface Country {
 const props = defineProps<{
     modelValue: string;
     required?: boolean;
+    inputId?: string;
 }>();
 
 const emit = defineEmits<{
@@ -102,6 +103,7 @@ const displayValue = computed(() => phoneNumber.value);
     <div class="flex gap-2 w-full">
         <!-- Country Selector -->
         <select 
+            aria-label="Código de país"
             v-model="selectedCountry"
             @change="handleCountryChange"
             class="w-[35%] sm:w-[30%] px-2 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
@@ -117,6 +119,9 @@ const displayValue = computed(() => phoneNumber.value);
         
         <!-- Phone Number Input -->
         <input 
+            :id="inputId"
+            :aria-label="inputId ? undefined : 'Teléfono'"
+            autocomplete="tel-national"
             type="tel"
             :value="displayValue"
             @input="handlePhoneInput"

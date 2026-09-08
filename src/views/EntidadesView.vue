@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, nextTick, reactive, watch, onBeforeUnmount } from 'vue';
 import type { EntidadResumen, ActualizarEntidadPayload, ActualizarPersonaPayload, ActualizarInstitucionPayload, Etiqueta } from '../types';
 import { apiService } from '../api/apiService';
-import PersonaForm from '../components/PersonaForm.vue';
+import ModalCrearPersona from '../components/ModalCrearPersona.vue';
 import InstitucionForm from '../components/InstitucionForm.vue';
 import ModalEditar from '../components/ModalEditar.vue';
 import ModalConfirmacionEliminar from '../components/ModalConfirmacionEliminar.vue';
@@ -586,7 +586,7 @@ onBeforeUnmount(() => {
                 </div>
                 <div class="flex flex-wrap gap-3 items-center justify-end">
                     <button
-                        v-if="createMode"
+                        v-if="createMode === 'institucion'"
                         class="btn btn-outline"
                         @click="closeCreatePanel"
                     >
@@ -653,12 +653,7 @@ onBeforeUnmount(() => {
         </section>
 
         <section v-if="activeSection === 'personas'" class="space-y-4">
-            <div v-if="createMode === 'persona'" class="form-shell p-5">
-                <h3 class="mb-4 text-base font-semibold text-[var(--text-primary)]">Registrar nueva persona</h3>
-                <PersonaForm @cancel="closeCreatePanel" @created="handlePersonaCreada" />
-            </div>
-
-            <div v-else class="rounded-2xl border border-[var(--card-border)] bg-[var(--bg-card)] p-0 shadow-sm overflow-hidden">
+            <div class="rounded-2xl border border-[var(--card-border)] bg-[var(--bg-card)] p-0 shadow-sm overflow-hidden">
                 <div class="flex flex-col gap-3 border-b border-[var(--card-border)] px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                         <p class="text-xs uppercase tracking-[0.35em] text-[var(--accent-color)]">Personas</p>
@@ -1046,6 +1041,12 @@ onBeforeUnmount(() => {
                 </div>
             </div>
         </div>
+
+        <ModalCrearPersona
+            :is-open="createMode === 'persona'"
+            @close="closeCreatePanel"
+            @created="handlePersonaCreada"
+        />
 
         <ModalEditar
             :isOpen="isEditModalOpen"
