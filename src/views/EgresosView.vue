@@ -159,6 +159,7 @@ const loadOptions = async () => {
 };
 
 const loadCurrentResponsible = async () => {
+    selectedResponsable.value = null;
     resolvingResponsable.value = true;
     try {
         selectedResponsable.value = await resolveCurrentResponsible();
@@ -240,7 +241,6 @@ const closeItemDropdownDelayed = () => {
 
 type EgresoDraft = {
     form: typeof form.value;
-    selectedResponsable: EntidadResumen | null;
     selectedDestino: EntidadResumen | null;
 };
 
@@ -248,7 +248,6 @@ const restoreDraft = () => {
     const draft = loadFormDraft<EgresoDraft>(draftKey.value);
     if (!draft) return;
     form.value = { ...form.value, ...draft.form };
-    selectedResponsable.value = draft.selectedResponsable;
     selectedDestino.value = draft.selectedDestino;
 };
 
@@ -256,7 +255,6 @@ const persistDraft = () => {
     if (!draftReady.value) return;
     saveFormDraft(draftKey.value, {
         form: form.value,
-        selectedResponsable: selectedResponsable.value,
         selectedDestino: selectedDestino.value
     } satisfies EgresoDraft);
 };

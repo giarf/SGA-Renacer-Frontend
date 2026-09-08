@@ -118,6 +118,7 @@ const searchReceptor = debounce(async (query: string) => {
 }, 300);
 
 const loadCurrentResponsible = async () => {
+    selectedReceptor.value = null;
     resolvingReceptor.value = true;
     try {
         selectedReceptor.value = await resolveCurrentResponsible();
@@ -199,7 +200,6 @@ const clearGestor = () => {
 
 type DonationItemsDraft = {
     selectedDonador: EntidadResumen | null;
-    selectedReceptor: EntidadResumen | null;
     proposito: string;
     anotaciones: string;
     fechaIngreso: string;
@@ -211,7 +211,6 @@ const restoreDraft = () => {
     const draft = loadFormDraft<DonationItemsDraft>(draftKey);
     if (!draft) return;
     selectedDonador.value = draft.selectedDonador;
-    selectedReceptor.value = draft.selectedReceptor;
     proposito.value = draft.proposito;
     anotaciones.value = draft.anotaciones;
     fechaIngreso.value = draft.fechaIngreso;
@@ -223,7 +222,6 @@ const persistDraft = () => {
     if (!draftReady.value) return;
     saveFormDraft(draftKey, {
         selectedDonador: selectedDonador.value,
-        selectedReceptor: selectedReceptor.value,
         proposito: proposito.value,
         anotaciones: anotaciones.value,
         fechaIngreso: fechaIngreso.value,

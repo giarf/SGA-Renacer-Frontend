@@ -5,7 +5,7 @@
 - Run dev server with `pnpm dev` (`vite`; server is configured with `host: true`, `cors: true`, `allowedHosts: true`).
 - Verify changes with `pnpm build`; it runs `vue-tsc -b` before `vite build`.
 - Deploy with Nixpacks/Coolify using `nixpacks.toml`: install `pnpm install --frozen-lockfile`, build `pnpm build`, start `pnpm start` on `$PORT`.
-- There are no configured `test`, `lint`, or formatter scripts in `package.json`.
+- Run `pnpm test:responsible` for automatic responsible-person matching regressions. There are no general `test`, `lint`, or formatter scripts in `package.json`.
 
 ## App Structure
 - Single Vue 3 + Vite app; entrypoint is `src/main.ts`, mounted root is `src/App.vue`.

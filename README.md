@@ -14,6 +14,12 @@ Disponible para los grupos de operación diaria (administradores y miembros). La
 
 ## Desarrollo
 
+La asignación automática del responsable usa un correo exacto y único o una coincidencia única de nombre y apellido con los datos de Authentik. Compara palabras completas, tolerando tildes, mayúsculas y nombres adicionales registrados. No utiliza el primer resultado de una búsqueda parcial ni el nombre de usuario como sustituto del nombre completo. Si hay homónimos o no existe coincidencia, el formulario avisa y deja el responsable sin asignar.
+
+Los borradores conservan los datos de la operación, pero el responsable se identifica nuevamente al abrir el formulario para evitar recuperar una asignación antigua o de otra sesión. La selección manual sigue disponible para administradores.
+
+Verificar la selección de responsables con `pnpm test:responsible` y la aplicación con `pnpm build`.
+
 ```bash
 pnpm install
 pnpm dev

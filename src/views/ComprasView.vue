@@ -101,6 +101,7 @@ const loadCuentas = async () => {
 };
 
 const loadCurrentResponsible = async () => {
+    selectedResponsable.value = null;
     resolvingResponsable.value = true;
     try {
         selectedResponsable.value = await resolveCurrentResponsible();
@@ -245,7 +246,6 @@ const removeDetalle = (index: number) => {
 type CompraDraft = {
     selectedCuentaId: number | null;
     selectedProveedor: EntidadResumen | null;
-    selectedResponsable: EntidadResumen | null;
     fecha: string;
     numeroFacturaBoleta: string;
     montoNeto: number;
@@ -258,7 +258,6 @@ const restoreDraft = () => {
     if (!draft) return;
     selectedCuentaId.value = draft.selectedCuentaId;
     selectedProveedor.value = draft.selectedProveedor;
-    selectedResponsable.value = draft.selectedResponsable;
     fecha.value = draft.fecha;
     numeroFacturaBoleta.value = draft.numeroFacturaBoleta;
     montoNeto.value = draft.montoNeto;
@@ -271,7 +270,6 @@ const persistDraft = () => {
     saveFormDraft(draftKey, {
         selectedCuentaId: selectedCuentaId.value,
         selectedProveedor: selectedProveedor.value,
-        selectedResponsable: selectedResponsable.value,
         fecha: fecha.value,
         numeroFacturaBoleta: numeroFacturaBoleta.value,
         montoNeto: montoNeto.value,

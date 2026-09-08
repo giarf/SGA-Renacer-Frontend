@@ -103,6 +103,7 @@ let gestorSearchTimer: ReturnType<typeof setTimeout> | null = null;
 let responsableSearchTimer: ReturnType<typeof setTimeout> | null = null;
 
 const loadCurrentResponsible = async () => {
+    selectedResponsable.value = null;
     resolvingResponsable.value = true;
     try {
         selectedResponsable.value = await resolveCurrentResponsible();
@@ -175,7 +176,6 @@ type DonationDraft = {
     selectedEntidad: EntidadResumen | null;
     selectedFondoId: number | null;
     selectedGestor: EntidadResumen | null;
-    selectedResponsable: EntidadResumen | null;
 };
 
 const restoreDraft = () => {
@@ -185,7 +185,6 @@ const restoreDraft = () => {
     selectedEntidad.value = draft.selectedEntidad;
     selectedFondoId.value = draft.selectedFondoId;
     selectedGestor.value = draft.selectedGestor;
-    selectedResponsable.value = draft.selectedResponsable;
 };
 
 const persistDraft = () => {
@@ -194,8 +193,7 @@ const persistDraft = () => {
         donationForm: donationForm.value,
         selectedEntidad: selectedEntidad.value,
         selectedFondoId: selectedFondoId.value,
-        selectedGestor: selectedGestor.value,
-        selectedResponsable: selectedResponsable.value
+        selectedGestor: selectedGestor.value
     } satisfies DonationDraft);
 };
 

@@ -164,6 +164,7 @@ let gestorSearchTimer: ReturnType<typeof setTimeout> | null = null;
 let responsableSearchTimer: ReturnType<typeof setTimeout> | null = null;
 
 const loadCurrentResponsible = async () => {
+    selectedResponsable.value = null;
     resolvingResponsable.value = true;
     try {
         selectedResponsable.value = await resolveCurrentResponsible();

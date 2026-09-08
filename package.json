@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc -b && vite build",
+    "test:responsible": "node --experimental-strip-types --test tests/responsibleMatching.test.mjs",
     "preview": "vite preview",
     "start": "node server.mjs"
   },
