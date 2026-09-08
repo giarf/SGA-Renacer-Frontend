@@ -5,11 +5,11 @@ import { X, UserPlus } from 'lucide-vue-next';
 defineProps<{ isOpen: boolean }>();
 const emit = defineEmits<{
     (e: 'close'): void;
-    (e: 'created', rut: string): void;
+    (e: 'created', rut: string, id?: number): void;
 }>();
 
-const handleCreated = (rut: string) => {
-    emit('created', rut);
+const handleCreated = (rut: string, id?: number) => {
+    emit('created', rut, id);
     emit('close');
 };
 </script>

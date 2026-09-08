@@ -7,6 +7,7 @@ import {
     ChevronDown,
     ChevronsLeft,
     ClipboardList,
+    CalendarCheck,
     HandCoins,
     HandHeart,
     Handshake,
@@ -94,6 +95,7 @@ const navigationGroups: { title: string; items: NavigationItem[] }[] = [
     {
         title: 'Comunidad',
         items: [
+            { key: 'asistencia', to: '/asistencia', label: 'Asistencia', helper: 'Eventos y registro de asistentes', icon: CalendarCheck, requiredGroups: DAILY_OPERATION_GROUPS },
             { key: 'entidades', to: '/entidades', label: 'Entidades', helper: 'Personas e instituciones', icon: Users, requiredGroups: ADMIN_GROUPS },
             { key: 'familias', to: '/familias', label: 'Familias', helper: 'Grupos familiares y beneficiarios', icon: Home, requiredGroups: ADMIN_GROUPS },
             { key: 'solicitudes', to: '/solicitudes', label: 'Solicitudes', helper: 'Requerimientos de programas', icon: ClipboardList, requiredGroups: ADMIN_GROUPS }
@@ -223,7 +225,7 @@ const toggleItem = (itemKey: string) => {
     expandedItems.value[itemKey] = !expandedItems.value[itemKey];
 };
 
-const isItemActive = (item: { to?: string }) => Boolean(item.to && route.path === item.to);
+const isItemActive = (item: { to?: string }) => Boolean(item.to && (route.path === item.to || route.path.startsWith(`${item.to}/`)));
 const isParentActive = (item: NavigationItem) => Boolean(item.children?.some(child => route.path === child.to));
 
 const isSidebarCollapsed = ref(false);

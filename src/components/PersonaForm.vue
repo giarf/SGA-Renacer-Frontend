@@ -10,7 +10,7 @@ import type { RegistrarPersonaPayload, EntidadResumen } from '../types';
 
 const emit = defineEmits<{
     (e: 'cancel'): void;
-    (e: 'created', rut: string): void;
+    (e: 'created', rut: string, id?: number): void;
 }>();
 
 const loading = ref(false);
@@ -130,7 +130,7 @@ const submit = async () => {
         if (created.id && selectedEtiquetaIds.value.length > 0) {
             await Promise.all(selectedEtiquetaIds.value.map(etiquetaId => apiService.asignarEtiquetaEntidad(created.id, etiquetaId)));
         }
-        emit('created', payloadToSend.rut || '');
+        emit('created', payloadToSend.rut || '', created.id);
         resetForm();
     } catch (e: any) {
         error.value = e.message || 'Error al registrar persona';

@@ -1,4 +1,8 @@
 import type {
+    EventoAsistencia,
+    DetalleAsistencia,
+    TipoColumnaAsistencia,
+    ValorAsistencia,
     EntidadResumen,
     RegistroPersonaPayload,
     RegistrarInstitucionPayload,
@@ -34,6 +38,11 @@ import type {
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'https://api.familiarenacer.cl/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
 
+export class ApiError extends Error {
+    readonly status: number;
+    constructor(message: string, status: number) { super(message); this.status = status; }
+}
+
 const buildErrorMessage = (data: any, fallback: string) => {
     if (!data) return fallback;
     if (typeof data === 'string') return data || fallback;
@@ -54,7 +63,7 @@ const requestJson = async <T>(input: RequestInfo | URL, init?: RequestInit): Pro
     }
 
     if (!response.ok) {
-        throw new Error(buildErrorMessage(data, response.statusText || 'Error al comunicarse con la API'));
+        throw new ApiError(buildErrorMessage(data, response.statusText || 'Error al comunicarse con la API'), response.status);
     }
 
     return data as T;
@@ -312,6 +321,33 @@ const pruneEmpty = <T extends Record<string, any>>(obj: T): T => {
 };
 
 export const apiService = {
+    getEventosAsistencia(): Promise<EventoAsistencia[]> {
+        return requestJson(`${API_BASE_URL}/asistencia/eventos`, { cache: 'no-store', signal: AbortSignal.timeout(15000) });
+    },
+    crearEventoAsistencia(datos: Pick<EventoAsistencia, 'nombre' | 'fecha' | 'descripcion'>): Promise<{ id: number }> {
+        return requestJson(`${API_BASE_URL}/asistencia/eventos`, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(datos) });
+    },
+    eliminarEventoAsistencia(id: number): Promise<void> {
+        return requestJson(`${API_BASE_URL}/asistencia/eventos/${id}`, { method: 'DELETE' });
+    },
+    getAsistencia(id: number): Promise<DetalleAsistencia> {
+        return requestJson(`${API_BASE_URL}/asistencia/eventos/${id}`, { cache: 'no-store', signal: AbortSignal.timeout(15000) });
+    },
+    agregarAsistente(eventoId: number, personaId: number): Promise<{ id: number; creada: boolean }> {
+        return requestJson(`${API_BASE_URL}/asistencia/eventos/${eventoId}/personas`, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ personaId }) });
+    },
+    quitarAsistente(eventoId: number, asistenciaId: number): Promise<void> {
+        return requestJson(`${API_BASE_URL}/asistencia/eventos/${eventoId}/personas/${asistenciaId}`, { method: 'DELETE' });
+    },
+    crearColumnaAsistencia(eventoId: number, datos: { nombre: string; tipo: TipoColumnaAsistencia }): Promise<{ id: number }> {
+        return requestJson(`${API_BASE_URL}/asistencia/eventos/${eventoId}/columnas`, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(datos) });
+    },
+    eliminarColumnaAsistencia(eventoId: number, columnaId: number): Promise<void> {
+        return requestJson(`${API_BASE_URL}/asistencia/eventos/${eventoId}/columnas/${columnaId}`, { method: 'DELETE' });
+    },
+    guardarValorAsistencia(eventoId: number, asistenciaId: number, columnaId: number, dato: ValorAsistencia): Promise<ValorAsistencia> {
+        return requestJson(`${API_BASE_URL}/asistencia/eventos/${eventoId}/personas/${asistenciaId}/valores/${columnaId}`, { method: 'PUT', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(dato) });
+    },
     async getEntidades(tipo?: string): Promise<EntidadResumen[]> {
         const url = new URL(`${API_BASE_URL}/entidades`);
         if (tipo) {
@@ -374,9 +410,10 @@ export const apiService = {
         });
     },
 
-    async buscarEntidades(query: string): Promise<EntidadResumen[]> {
+    async buscarEntidades(query: string, tipo?: 'Persona' | 'Institucion'): Promise<EntidadResumen[]> {
         const url = new URL(`${API_BASE_URL}/entidades`);
         url.searchParams.append('q', query);
+        if (tipo) url.searchParams.set('tipo', tipo);
 
         const data = await requestJson<any[]>(url.toString());
         return data.map(mapEntidadGenerica);

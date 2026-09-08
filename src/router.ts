@@ -41,6 +41,7 @@ export const router = createRouter({
         { path: '/ajustes/pecuniario', name: 'ajustePecuniario', component: AjustePecuniarioView, meta: { label: 'Ajuste pecuniario', requiredGroups: DAILY_OPERATION_GROUPS } },
         { path: '/entidades', name: 'entidades', component: EntidadesView, meta: { label: 'Entidades', requiredGroups: ADMIN_GROUPS } },
         { path: '/familias', name: 'familias', component: FamiliasView, meta: { label: 'Familias', requiredGroups: ADMIN_GROUPS } },
+        { path: '/asistencia/:eventoId?', name: 'asistencia', component: () => import('./views/AsistenciaView.vue'), meta: { label: 'Asistencia', requiredGroups: DAILY_OPERATION_GROUPS } },
         { path: '/solicitudes', name: 'solicitudes', component: SolicitudesView, meta: { label: 'Solicitudes', requiredGroups: ADMIN_GROUPS } },
         { path: '/catalogo', name: 'catalogo', component: CatalogoView, meta: { label: 'Catálogo', requiredGroups: ADMIN_GROUPS } },
         { path: '/cuentas', name: 'cuentas', component: CuentasView, meta: { label: 'Cuentas', requiredGroups: ADMIN_GROUPS } },

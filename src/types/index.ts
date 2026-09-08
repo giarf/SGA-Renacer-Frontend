@@ -1,3 +1,32 @@
+export type TipoColumnaAsistencia = 'boolean' | 'text' | 'number';
+export type DatoAsistencia = boolean | string | number | null;
+export interface EventoAsistencia {
+    id: number;
+    nombre: string;
+    fecha: string;
+    descripcion: string;
+    totalAsistentes: number;
+}
+export interface ColumnaAsistencia {
+    id: number;
+    nombre: string;
+    tipo: TipoColumnaAsistencia;
+}
+export interface ValorAsistencia { valor: DatoAsistencia; version: number }
+export interface PersonaAsistente {
+    id: number;
+    personaId: number;
+    nombreCompleto: string;
+    rut?: string | null;
+    llegada: string;
+    valores: Record<string, ValorAsistencia>;
+}
+export interface DetalleAsistencia {
+    evento: EventoAsistencia;
+    columnas: ColumnaAsistencia[];
+    asistentes: PersonaAsistente[];
+}
+
 // Basic atomic interfaces
 export interface EntidadResumen {
     id: number;
