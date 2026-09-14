@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { matchesSearch } from '../utils/search';
 import { computed, onMounted, reactive, ref } from 'vue';
 import { DoorOpen, Edit3, KeyRound, Loader2, Plus, RefreshCw, Shield, ShieldCheck, UserCheck, UserX, X } from 'lucide-vue-next';
 import { authentikAdminService, type ManagedAuthentikUser } from '../api/authentikAdminService';
@@ -41,12 +42,10 @@ const passwordForm = reactive({
 let personaSearchTimer: ReturnType<typeof setTimeout> | null = null;
 
 const filteredUsers = computed(() => {
-    const term = search.value.trim().toLowerCase();
+    const term = search.value;
     if (!term) return users.value;
     return users.value.filter(user =>
-        user.name.toLowerCase().includes(term) ||
-        user.username.toLowerCase().includes(term) ||
-        user.email.toLowerCase().includes(term)
+        matchesSearch(term, user.name, user.username, user.email)
     );
 });
 

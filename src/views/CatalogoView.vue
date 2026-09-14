@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { matchesSearch } from '../utils/search';
 import { ref, onMounted, computed } from 'vue';
 import type { CatalogoItem } from '../types';
 import { apiService } from '../api/apiService';
@@ -51,10 +52,8 @@ const filteredItems = computed(() => {
     
     // Filter
     if (searchQuery.value) {
-        const query = searchQuery.value.toLowerCase();
         result = result.filter(item => 
-            item.nombre.toLowerCase().includes(query) ||
-            item.categoria.toLowerCase().includes(query)
+            matchesSearch(searchQuery.value, item.nombre, item.categoria)
         );
     }
     

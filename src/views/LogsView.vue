@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { matchesSearch } from '../utils/search';
 import { computed, onMounted, ref } from 'vue';
 import { Ban, Clock3, Pencil, Plus, RefreshCw, Printer, FileSpreadsheet, Funnel, Save, X } from 'lucide-vue-next';
 import { apiService } from '../api/apiService';
@@ -217,8 +218,7 @@ const tiposDisponibles = computed(() => {
 });
 
 const historialFiltrado = computed(() => {
-    const normalize = (value: string) => value.toLowerCase().trim();
-    const query = normalize(filtroPrograma.value);
+    const query = filtroPrograma.value;
     const fromDate = filtroDesde.value ? parseApiDate(filtroDesde.value) : null;
     const toDate = filtroHasta.value ? parseApiDate(filtroHasta.value) : null;
     const from = fromDate ? fromDate.getTime() : null;
@@ -229,8 +229,7 @@ const historialFiltrado = computed(() => {
             if (filtroTipo.value !== 'todos' && item.tipo !== filtroTipo.value) return false;
             if (filtroEstado.value !== 'todos' && (item.estado || '').toLowerCase() !== filtroEstado.value.toLowerCase()) return false;
             if (query) {
-                const searchable = `${item.descripcion || ''} ${item.tipo || ''}`.toLowerCase();
-                if (!searchable.includes(query)) return false;
+                if (!matchesSearch(query, item.descripcion, item.tipo)) return false;
             }
             const parsedDate = parseApiDate(item.fecha);
             if (!parsedDate) return false;

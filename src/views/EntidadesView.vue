@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { matchesSearch } from '../utils/search';
 import { ref, computed, onMounted, nextTick, reactive, watch, onBeforeUnmount } from 'vue';
 import type { EntidadResumen, ActualizarEntidadPayload, ActualizarPersonaPayload, ActualizarInstitucionPayload, Etiqueta } from '../types';
 import { apiService } from '../api/apiService';
@@ -55,26 +56,20 @@ const selectedPersonasCount = computed(() => selectedPersonaIds.value.size);
 const allVisiblePersonasSelected = computed(() => filteredPersonas.value.length > 0 && filteredPersonas.value.every(persona => selectedPersonaIds.value.has(persona.id)));
 
 const filteredPersonas = computed(() => {
-    const q = personaSearch.value.trim().toLowerCase();
+    const q = personaSearch.value;
     const etiquetaId = selectedEtiquetaFilter.value;
     return personas.value.filter(persona => {
-        const rut = persona.identificador?.toLowerCase() ?? '';
-        const nombre = persona.nombreCompleto?.toLowerCase() ?? '';
-        const comuna = persona.comuna?.toLowerCase() ?? '';
-        const matchesText = !q || nombre.includes(q) || rut.includes(q) || comuna.includes(q);
+        const matchesText = matchesSearch(q, persona.nombreCompleto, persona.identificador, persona.comuna);
         const matchesEtiqueta = !etiquetaId || persona.etiquetas?.some(etiqueta => etiqueta.id === Number(etiquetaId));
         return matchesText && matchesEtiqueta;
     });
 });
 
 const filteredInstituciones = computed(() => {
-    const q = institucionSearch.value.trim().toLowerCase();
+    const q = institucionSearch.value;
     if (!q) return instituciones.value;
     return instituciones.value.filter(inst => {
-        const rut = inst.identificador?.toLowerCase() ?? '';
-        const nombre = inst.nombreCompleto?.toLowerCase() ?? '';
-        const comuna = inst.comuna?.toLowerCase() ?? '';
-        return nombre.includes(q) || rut.includes(q) || comuna.includes(q);
+        return matchesSearch(q, inst.nombreCompleto, inst.identificador, inst.comuna);
     });
 });
 

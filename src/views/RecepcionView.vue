@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { matchesSearch } from '../utils/search';
 import { ref, computed, onMounted, watch } from 'vue';
 import type { EntidadResumen, DonacionPayload, Cuenta } from '../types';
 import { apiService } from '../api/apiService';
@@ -80,10 +81,8 @@ const selectedFondo = computed(() =>
 
 const filteredEntidades = computed(() => {
     if (!searchQuery.value) return entidades.value;
-    const q = searchQuery.value.toLowerCase();
     return entidades.value.filter(e => 
-        (e.nombreCompleto || '').toLowerCase().includes(q) || 
-        (e.identificador || '').toLowerCase().includes(q)
+        matchesSearch(searchQuery.value, e.nombreCompleto, e.identificador)
     );
 });
 

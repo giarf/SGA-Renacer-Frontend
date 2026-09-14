@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { matchesSearch } from '../utils/search';
 import { ref, computed, onMounted } from 'vue';
 import type { NuevoRegistro, DetalleDonacion, EntidadResumen, DonacionPayload, CatalogoItem, Cuenta } from '../types';
 import { apiService } from '../api/apiService';
@@ -67,18 +68,15 @@ const submitSuccess = ref(false);
 // Computed
 const filteredEntidades = computed(() => {
   if (!searchQuery.value) return entidades.value;
-  const lowerQuery = searchQuery.value.toLowerCase();
   return entidades.value.filter(e => 
-    e.nombreCompleto.toLowerCase().includes(lowerQuery) || 
-    e.identificador.toLowerCase().includes(lowerQuery)
+    matchesSearch(searchQuery.value, e.nombreCompleto, e.identificador)
   );
 });
 
 const filteredCatalogoItems = computed(() => {
   if (!catalogoSearchQuery.value) return catalogoItems.value;
-  const lowerQuery = catalogoSearchQuery.value.toLowerCase();
   return catalogoItems.value.filter(item => 
-    item.nombre.toLowerCase().includes(lowerQuery)
+    matchesSearch(catalogoSearchQuery.value, item.nombre)
   );
 });
 

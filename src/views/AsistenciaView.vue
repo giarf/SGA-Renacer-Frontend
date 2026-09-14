@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { matchesSearch } from '../utils/search';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { ArrowLeft, ArrowUpRight, CalendarCheck, CalendarDays, Check, ClipboardList, Columns3, Link, LoaderCircle, Plus, Search, Trash2, UserPlus, Users } from 'lucide-vue-next';
@@ -44,9 +45,8 @@ let searchTimer: ReturnType<typeof setTimeout> | undefined;
 let pollTimer: ReturnType<typeof setInterval> | undefined;
 let disposed = false;
 
-const normalize = (text: string) => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[.\-]/g, '');
-const filteredEvents = computed(() => eventos.value.filter(e => normalize(e.nombre).includes(normalize(eventFilter.value))));
-const asistentes = computed(() => (detalle.value?.asistentes ?? []).filter(p => normalize(`${p.nombreCompleto} ${p.rut ?? ''}`).includes(normalize(tableFilter.value))));
+const filteredEvents = computed(() => eventos.value.filter(e => matchesSearch(eventFilter.value, e.nombre)));
+const asistentes = computed(() => (detalle.value?.asistentes ?? []).filter(p => matchesSearch(tableFilter.value, p.nombreCompleto, p.rut)));
 const presentIds = computed(() => new Set(detalle.value?.asistentes.map(p => p.personaId)));
 const modalTitle = computed(() => modal.value === 'event' ? 'Crear evento' : modal.value === 'column' ? 'Agregar columna' : deletion.value?.kind === 'event' ? 'Eliminar evento' : deletion.value?.kind === 'column' ? 'Eliminar columna' : 'Quitar asistencia');
 const fecha = (value: string) => new Date(`${value}T12:00:00`).toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' });

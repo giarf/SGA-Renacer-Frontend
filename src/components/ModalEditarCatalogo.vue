@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { matchesSearch } from '../utils/search';
 import { ref, onMounted, watch, computed } from 'vue';
 import type { CatalogoItem, ActualizarCatalogoPayload } from '../types';
 import { apiService } from '../api/apiService';
@@ -49,7 +50,7 @@ const filteredCategorias = computed(() => {
     if (!formData.value.categoria) return categorias.value;
     const query = formData.value.categoria.toLowerCase();
     return categorias.value.filter(cat => 
-        cat.toLowerCase().includes(query)
+        matchesSearch(query, cat)
     );
 });
 

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { matchesSearch } from '../utils/search';
 import { computed, onMounted, ref } from 'vue';
 import type { BeneficiarioFamilia, EntidadResumen, Familia } from '../types';
 import { apiService } from '../api/apiService';
@@ -51,11 +52,10 @@ const showToast = (type: 'success' | 'error', text: string) => {
 };
 
 const filteredFamilias = computed(() => {
-    const q = familiaSearch.value.trim().toLowerCase();
+    const q = familiaSearch.value;
     if (!q) return familias.value;
     return familias.value.filter(f =>
-        f.nombreFamilia.toLowerCase().includes(q) ||
-        String(f.puntosVulnerabilidad).includes(q)
+        matchesSearch(q, f.nombreFamilia, String(f.puntosVulnerabilidad))
     );
 });
 
