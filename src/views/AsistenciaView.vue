@@ -7,6 +7,8 @@ import { ApiError, apiService } from '../api/apiService';
 import AsistenciaCelda from '../components/AsistenciaCelda.vue';
 import AsistenciaDialog from '../components/AsistenciaDialog.vue';
 import ModalCrearPersona from '../components/ModalCrearPersona.vue';
+import GrupoAsistencia from '../components/GrupoAsistencia.vue';
+import type { PersonaGrupo } from '../utils/grupoAsistencia';
 import type { ColumnaAsistencia, DetalleAsistencia, EntidadResumen, EventoAsistencia, TipoColumnaAsistencia, ValorAsistencia } from '../types';
 
 const route = useRoute();
@@ -33,6 +35,7 @@ const showResults = ref(false);
 const activeResult = ref(0);
 const searchInput = ref<HTMLInputElement | null>(null);
 const newPersonOpen = ref(false);
+const grupoPersona = ref<{ id: number; nombreCompleto: string } | null>(null);
 const modal = ref<'event' | 'column' | 'delete' | null>(null);
 const modalError = ref('');
 const eventForm = ref({ nombre: '', fecha: '', descripcion: '' });
@@ -89,6 +92,7 @@ watch(() => route.params.eventoId, () => {
     tableFilter.value = '';
     modal.value = null;
     newPersonOpen.value = false;
+    grupoPersona.value = null;
     void refresh();
 }, { immediate: true });
 
@@ -183,7 +187,33 @@ async function personCreated(rut: string, id?: number) {
 
 function chooseActive() {
     const person = results.value[activeResult.value];
-    if (showResults.value && person) void addPerson(person.id, person.nombreCompleto);
+    if (showResults.value && person) abrirGrupo(person);
+}
+
+function abrirGrupo(person: EntidadResumen) {
+    if (working.value) return;
+    error.value = '';
+    grupoPersona.value = { id: person.id, nombreCompleto: person.nombreCompleto };
+    showResults.value = false;
+}
+async function agregarGrupo(personas: PersonaGrupo[]) {
+    const id = eventoId.value;
+    if (!id) return;
+    await mutate(async () => {
+        let creadas = 0;
+        for (const p of personas) {
+            if (presentIds.value.has(p.id)) continue;
+            try {
+                const result = await apiService.agregarAsistente(id, p.id);
+                if (result.creada) creadas++;
+            } catch (e) {
+                throw new Error(`${creadas} asistencias nuevas guardadas. Falló ${p.nombreCompleto}: ${errorText(e)}. Puedes reintentar; no se duplicarán las asistencias.`);
+            }
+        }
+        grupoPersona.value = null;
+        search.value = '';
+        notice.value = `${creadas} asistencias registradas. Las personas que ya estaban presentes no se duplicaron.`;
+    });
 }
 
 function confirmDelete(kind: 'event' | 'column' | 'person', id: number, name: string, eventId = eventoId.value) {
@@ -324,9 +354,9 @@ onBeforeUnmount(() => {
                         <p v-else-if="searchError" class="p-4" role="alert">{{ searchError }}</p>
                         <div v-else-if="!results.length" class="p-4"><p class="muted mb-2">No encontramos personas.</p><button type="button" class="btn-primary" :disabled="working" @click="showResults = false; newPersonOpen = true">Crear «{{ search.trim() }}» y agregar</button></div>
                         <ul id="attendance-person-results" role="listbox" aria-label="Personas encontradas">
-                            <li v-for="(person, index) in results" :id="`person-result-${index}`" :key="person.id" role="option" :aria-selected="index === activeResult" :aria-disabled="presentIds.has(person.id)">
-                                <button type="button" class="person-result" :class="{ active: index === activeResult }" :disabled="working || presentIds.has(person.id)" @click="addPerson(person.id, person.nombreCompleto)">
-                                    <span><strong>{{ person.nombreCompleto }}</strong><small>{{ person.rut || person.identificador }}</small></span><span class="result-action">{{ presentIds.has(person.id) ? 'Ya presente' : 'Agregar' }} <Check v-if="presentIds.has(person.id)" :size="16" /><Plus v-else :size="16" /></span>
+                            <li v-for="(person, index) in results" :id="`person-result-${index}`" :key="person.id" role="option" :aria-selected="index === activeResult">
+                                <button type="button" class="person-result" :class="{ active: index === activeResult }" :disabled="working" @click="abrirGrupo(person)">
+                                    <span><strong>{{ person.nombreCompleto }}</strong><small>{{ person.rut || person.identificador }}{{ presentIds.has(person.id) ? ' · Ya presente' : '' }}</small></span><span class="result-action">Ver grupo <Users :size="16" /></span>
                                 </button>
                             </li>
                         </ul>
@@ -378,6 +408,7 @@ onBeforeUnmount(() => {
             </div>
         </AsistenciaDialog>
         <ModalCrearPersona :is-open="newPersonOpen" :initial-search="search" @close="newPersonOpen = false" @created="personCreated" />
+        <GrupoAsistencia v-if="grupoPersona" :key="`${eventoId}-${grupoPersona.id}`" :persona="grupoPersona" :presentes="presentIds" :busy="working" :save-error="error" @close="grupoPersona = null" @agregar="agregarGrupo" />
     </main>
 </template>
 
