@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, reactive } from 'vue';
+import { ref, watch, reactive, useId } from 'vue';
 import type { EntidadResumen, ActualizarPersonaPayload, ActualizarInstitucionPayload, ActualizarEntidadPayload } from '../types';
 import PhoneInput from './PhoneInput.vue';
 import ApoderadosPanel from './ApoderadosPanel.vue';
@@ -8,7 +8,7 @@ import EtiquetaChipsSelector from './EtiquetaChipsSelector.vue';
 import RegionComunaSelect from './RegionComunaSelect.vue';
 import { apiService } from '../api/apiService';
 import { formatRutForDisplay, formatRutForBackend } from '../utils/rutFormatter';
-import { X, Pencil } from 'lucide-vue-next';
+import { X, Pencil, ChevronDown, UserRound, MapPin, ClipboardList } from 'lucide-vue-next';
 
 const props = defineProps<{
     isOpen: boolean;
@@ -24,6 +24,12 @@ const submitting = ref(false);
 const error = ref<string | null>(null);
 const personaFotoFile = ref<File | null>(null);
 const selectedEtiquetaIds = ref<number[]>([]);
+const fieldId = useId();
+
+const revealInvalidField = (event: Event) => {
+    const section = (event.target as HTMLElement).closest('details');
+    if (section) section.open = true;
+};
 
 const personaForm = reactive({
     id: 0,
@@ -274,147 +280,186 @@ const save = async () => {
         v-if="isOpen"
         class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 px-4 py-6"
     >
-        <div class="relative bg-white dark:bg-[var(--bg-card)] rounded-3xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-            <div class="flex items-start justify-between px-6 py-6 border-b border-[var(--card-border)] sticky top-0 bg-white/95 dark:bg-[var(--bg-card)]/95 backdrop-blur">
+        <div class="edit-modal relative rounded-3xl shadow-2xl w-full" :class="{ 'edit-modal-person': entidad?.tipoEntidad === 'PersonaNatural' }" role="dialog" aria-modal="true" :aria-labelledby="`${fieldId}-title`">
+            <div class="edit-header flex items-start justify-between gap-4 border-b border-[var(--card-border)]">
                 <div class="flex items-center gap-3">
                     <div class="w-12 h-12 rounded-2xl bg-[var(--accent-color)]/10 text-[var(--accent-color)] flex items-center justify-center">
                         <Pencil class="w-5 h-5" />
                     </div>
                     <div>
-                        <p class="text-xs uppercase tracking-[0.35em] text-gray-500">Formulario</p>
-                        <h3 class="text-2xl font-bold text-gray-900 dark:text-white">
+                        <p class="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">Ficha de contacto</p>
+                        <h3 :id="`${fieldId}-title`" class="text-2xl font-bold text-[var(--text-primary)]">
                             Editar {{ entidad?.tipoEntidad === 'PersonaNatural' ? 'persona' : 'institución' }}
                         </h3>
+                        <p class="text-sm text-[var(--text-muted)] mt-1">{{ entidad?.nombreCompleto }}</p>
                     </div>
                 </div>
-                <button @click="emit('close')" class="text-gray-400 hover:text-gray-600">
+                <button type="button" @click="emit('close')" class="edit-close" aria-label="Cerrar edición">
                     <X class="w-6 h-6" />
                 </button>
             </div>
 
-            <div v-if="error" class="mx-6 mt-4 p-4 rounded-2xl border border-red-200 text-red-700 bg-red-50 dark:bg-red-500/10 dark:text-red-200">
+            <div v-if="error" role="alert" class="mx-6 mt-4 p-4 rounded-2xl border border-red-200 text-red-700 bg-red-50 dark:bg-red-500/10 dark:text-red-200">
                 {{ error }}
             </div>
 
-            <form @submit.prevent="save" class="px-6 pb-8 pt-4 space-y-6">
+            <form @submit.prevent="save" @invalid.capture="revealInvalidField" class="edit-form">
+                <div class="edit-scroll space-y-6">
                 <template v-if="entidad?.tipoEntidad === 'PersonaNatural'">
-                    <ApoderadosPanel v-if="isOpen" :key="entidad.id" :persona-id="entidad.id" />
-                    <div class="grid gap-5 lg:grid-cols-[1fr_auto] lg:items-start">
+                    <p class="edit-help">Abre la sección que necesitas actualizar. <span>* Campos obligatorios</span></p>
+                    <details class="edit-section" open>
+                        <summary>
+                            <span class="edit-section-icon"><UserRound :size="20" aria-hidden="true" /></span>
+                            <span class="edit-section-heading"><span>Datos personales</span><small>Identificación y foto de perfil</small></span>
+                            <ChevronDown :size="18" class="edit-chevron" aria-hidden="true" />
+                        </summary>
+                        <div class="edit-section-body">
+                            <div class="edit-profile">
+                                <ProfilePhotoInput
+                                    v-model="personaFotoFile"
+                                    compact
+                                    label="Foto de perfil"
+                                    :current-url="entidad.fotoUrl"
+                                    :fallback="personaForm.nombres || personaForm.apellidos || 'P'"
+                                    @error="error = $event"
+                                />
+                                <div class="edit-grid">
+                                    <div>
+                                        <label :for="`${fieldId}-nombres`">Nombres *</label>
+                                        <input :id="`${fieldId}-nombres`" v-model="personaForm.nombres" required autocomplete="given-name" placeholder="Juan" />
+                                    </div>
+                                    <div>
+                                        <label :for="`${fieldId}-apellidos`">Apellidos *</label>
+                                        <input :id="`${fieldId}-apellidos`" v-model="personaForm.apellidos" required autocomplete="family-name" placeholder="Pérez" />
+                                    </div>
+                                    <div>
+                                        <label :for="`${fieldId}-rut`">RUT</label>
+                                        <input :id="`${fieldId}-rut`" v-model="personaForm.rut" @input="handleRutInput($event, 'persona')" maxlength="12" placeholder="12.345.678-9" />
+                                    </div>
+                                    <div>
+                                        <label :for="`${fieldId}-nacimiento`">Fecha de nacimiento</label>
+                                        <input :id="`${fieldId}-nacimiento`" v-model="personaForm.fechaNacimiento" type="date" />
+                                    </div>
+                                    <div>
+                                        <label :for="`${fieldId}-genero`">Género</label>
+                                        <select :id="`${fieldId}-genero`" v-model="personaForm.genero">
+                                            <option value="">Seleccionar...</option>
+                                            <option value="Masculino">Masculino</option>
+                                            <option value="Femenino">Femenino</option>
+                                            <option value="Otro">Otro</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </details>
+
+                    <details class="edit-section">
+                        <summary>
+                            <span class="edit-section-icon"><MapPin :size="20" aria-hidden="true" /></span>
+                            <span class="edit-section-heading"><span>Contacto y domicilio</span><small>Teléfono, correo y ubicación</small></span>
+                            <ChevronDown :size="18" class="edit-chevron" aria-hidden="true" />
+                        </summary>
+                        <div class="edit-section-body">
+                            <div class="edit-grid">
+                                <div>
+                                    <label :for="`${fieldId}-telefono`">Teléfono *</label>
+                                    <PhoneInput :input-id="`${fieldId}-telefono`" v-model="personaForm.telefono" :required="true" />
+                                </div>
+                                <div>
+                                    <label :for="`${fieldId}-correo`">Correo electrónico</label>
+                                    <input :id="`${fieldId}-correo`" v-model="personaForm.correo" type="email" autocomplete="email" placeholder="correo@example.com" />
+                                </div>
+                                <div>
+                                    <label :for="`${fieldId}-red-social`">Red social</label>
+                                    <input :id="`${fieldId}-red-social`" v-model="personaForm.redSocial" placeholder="@usuario" />
+                                </div>
+                            </div>
+                            <div class="edit-subsection">
+                                <h4>Domicilio</h4>
+                                <div class="edit-grid">
+                                    <RegionComunaSelect v-model:region="personaForm.region" v-model:comuna="personaForm.comuna" class="edit-full-width" />
+                                    <div>
+                                        <label :for="`${fieldId}-direccion`">Calle y número</label>
+                                        <input :id="`${fieldId}-direccion`" v-model="personaForm.direccion" autocomplete="street-address" placeholder="Av. Principal 123" />
+                                    </div>
+                                    <div>
+                                        <label :for="`${fieldId}-sector`">Sector</label>
+                                        <input :id="`${fieldId}-sector`" v-model="personaForm.sector" placeholder="Sector" />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </details>
+
+                    <details class="edit-section">
+                        <summary>
+                            <span class="edit-section-icon"><ClipboardList :size="20" aria-hidden="true" /></span>
+                            <span class="edit-section-heading"><span>Información interna</span><small>Gestor, etiquetas, anotaciones y apoderados</small></span>
+                            <ChevronDown :size="18" class="edit-chevron" aria-hidden="true" />
+                        </summary>
+                        <div class="edit-section-body">
+                        <div class="edit-grid">
                         <div class="relative">
-                            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Gestor</label>
+                            <label :for="`${fieldId}-gestor`">Gestor</label>
                             <div
                                 v-if="selectedGestor"
-                                class="flex items-center justify-between bg-[var(--accent-color-muted)]/50 p-4 rounded-2xl border border-[var(--accent-color-muted)]"
+                                class="flex items-center justify-between gap-3 bg-[var(--surface-muted)] p-3 rounded-xl border border-[var(--card-border)]"
                             >
                                 <div>
                                     <span class="block font-bold text-[var(--accent-color)]">{{ selectedGestor.nombreCompleto }}</span>
-                                    <span class="text-xs text-gray-600 dark:text-gray-300">{{ formatRutForDisplay(selectedGestor.identificador) }}</span>
+                                    <span class="text-xs text-[var(--text-muted)]">{{ formatRutForDisplay(selectedGestor.identificador) }}</span>
                                 </div>
                                 <button type="button" @click="clearGestor" class="text-sm text-[var(--accent-color)] hover:underline">Cambiar</button>
                             </div>
                             <div v-else>
                                 <input
+                                    :id="`${fieldId}-gestor`"
                                     type="text"
                                     v-model="gestorQuery"
                                     @input="searchGestor(gestorQuery)"
                                     @focus="showGestorDropdown = true"
                                     placeholder="Buscar gestor por nombre o RUT..."
-                                    class="w-full px-4 py-2 rounded-2xl border border-[var(--card-border)] bg-[var(--bg-base)]/60"
                                 />
                                 <div
                                     v-if="showGestorDropdown && gestorQuery.length >= 2"
                                     class="dropdown-panel absolute z-20 mt-2 max-h-56 w-full overflow-auto"
                                 >
-                                    <div v-if="gestorLoading" class="p-3 text-center text-sm text-gray-500">Buscando...</div>
+                                    <div v-if="gestorLoading" class="p-3 text-center text-sm text-[var(--text-muted)]">Buscando...</div>
                                     <ul v-else-if="gestorResults.length > 0">
                                         <li
                                             v-for="entidad in gestorResults"
                                             :key="entidad.id"
-                                            @click="selectGestor(entidad)"
                                         >
-                                            <p class="font-medium text-gray-900 dark:text-white">{{ entidad.nombreCompleto }}</p>
-                                            <p class="text-xs text-gray-500">{{ formatRutForDisplay(entidad.identificador) }}</p>
+                                            <button type="button" class="w-full text-left" @click="selectGestor(entidad)">
+                                                <span class="block font-medium text-[var(--text-primary)]">{{ entidad.nombreCompleto }}</span>
+                                                <span class="block text-xs text-[var(--text-muted)]">{{ formatRutForDisplay(entidad.identificador) }}</span>
+                                            </button>
                                         </li>
                                     </ul>
-                                    <div v-else class="p-3 text-center text-sm text-gray-500">Sin coincidencias</div>
+                                    <div v-else class="p-3 text-center text-sm text-[var(--text-muted)]">Sin coincidencias</div>
                                 </div>
                             </div>
                         </div>
-                        <ProfilePhotoInput
-                            v-model="personaFotoFile"
-                            label="Foto actual"
-                            :current-url="entidad?.fotoUrl"
-                            :fallback="personaForm.nombres || personaForm.apellidos || 'P'"
-                            @error="error = $event"
-                        />
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Nombres *</label>
-                            <input v-model="personaForm.nombres" required placeholder="Juan" />
-                        </div>
-                        <div>
-                            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Apellidos *</label>
-                            <input v-model="personaForm.apellidos" required placeholder="Pérez" />
-                        </div>
-                        <div>
-                            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Teléfono *</label>
-                            <PhoneInput v-model="personaForm.telefono" :required="true" />
-                        </div>
-                        <div>
-                            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">RUT</label>
-                            <input
-                                v-model="personaForm.rut"
-                                @input="handleRutInput($event, 'persona')"
-                                maxlength="12"
-                                placeholder="12.345.678-9"
-                            />
-                        </div>
-                        <div>
-                            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Género</label>
-                            <select v-model="personaForm.genero">
-                                <option value="">Seleccionar...</option>
-                                <option value="Masculino">Masculino</option>
-                                <option value="Femenino">Femenino</option>
-                                <option value="Otro">Otro</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Fecha de nacimiento</label>
-                            <input v-model="personaForm.fechaNacimiento" type="date" />
-                        </div>
-                        <div>
-                            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Email</label>
-                            <input v-model="personaForm.correo" type="email" placeholder="correo@example.com" />
-                        </div>
-                        <div>
-                            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Calle y número</label>
-                            <input v-model="personaForm.direccion" placeholder="Calle Random 123" />
-                        </div>
-                        <RegionComunaSelect v-model:region="personaForm.region" v-model:comuna="personaForm.comuna" class="md:col-span-2" />
-                        <div>
-                            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Sector</label>
-                            <input v-model="personaForm.sector" placeholder="Sector" />
-                        </div>
-                        <div>
-                            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Ocupación</label>
-                            <input v-model="personaForm.ocupacion" placeholder="Ocupación" />
-                        </div>
-                        <div>
-                            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Red Social</label>
-                            <input v-model="personaForm.redSocial" placeholder="@usuario" />
+                            <label :for="`${fieldId}-ocupacion`">Ocupación</label>
+                            <input :id="`${fieldId}-ocupacion`" v-model="personaForm.ocupacion" placeholder="Ocupación" />
                         </div>
                     </div>
 
-                    <div>
+                    <div class="edit-subsection">
                         <EtiquetaChipsSelector v-model="selectedEtiquetaIds" />
                     </div>
 
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Anotaciones</label>
-                        <textarea v-model="personaForm.anotaciones" rows="2"></textarea>
+                    <div class="mt-6">
+                        <label :for="`${fieldId}-anotaciones`">Anotaciones</label>
+                        <textarea :id="`${fieldId}-anotaciones`" v-model="personaForm.anotaciones" rows="4" placeholder="Agrega información relevante para el equipo..."></textarea>
                     </div>
+                    <div class="edit-subsection">
+                        <ApoderadosPanel v-if="isOpen" :key="entidad.id" :persona-id="entidad.id" />
+                    </div>
+                        </div>
+                    </details>
                 </template>
 
                 <template v-else>
@@ -517,7 +562,8 @@ const save = async () => {
                     </div>
                 </template>
 
-                <div class="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t border-[var(--card-border)]">
+                </div>
+                <div class="edit-footer flex flex-col-reverse sm:flex-row justify-end gap-3 border-t border-[var(--card-border)]">
                     <button
                         type="button"
                         class="btn btn-ghost border border-[var(--card-border)]"
@@ -534,3 +580,59 @@ const save = async () => {
         </div>
     </div>
 </template>
+
+<style scoped>
+.edit-modal {
+    display: flex;
+    flex-direction: column;
+    max-width: 48rem;
+    max-height: min(92dvh, 64rem);
+    overflow: hidden;
+    background: var(--bg-card);
+    color: var(--text-primary);
+}
+
+.edit-modal-person { max-width: 58rem; }
+.edit-header { padding: 1.5rem 2rem; flex-shrink: 0; }
+.edit-close { padding: 0.5rem; border-radius: 0.75rem; color: var(--text-muted); }
+.edit-close:hover { background: var(--surface-muted); color: var(--text-primary); }
+.edit-form { display: flex; flex-direction: column; min-height: 0; }
+.edit-scroll { padding: 1.5rem 2rem 2rem; overflow-y: auto; overscroll-behavior: contain; }
+.edit-footer { flex-shrink: 0; padding: 1rem 2rem; background: var(--bg-card); }
+.edit-help { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; font-size: 0.8125rem; color: var(--text-muted); }
+.edit-help span { font-size: 0.75rem; }
+.edit-section { border: 1px solid var(--card-border); border-radius: 1rem; background: var(--bg-card); }
+.edit-section > summary { display: flex; align-items: center; gap: 0.875rem; padding: 1.25rem 1.5rem; cursor: pointer; list-style: none; border-radius: 1rem; }
+.edit-section > summary::-webkit-details-marker { display: none; }
+.edit-section > summary:hover { background: var(--surface-muted); }
+.edit-section > summary:focus-visible, .edit-close:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 3px; }
+.edit-section-icon { display: flex; align-items: center; justify-content: center; width: 2.5rem; height: 2.5rem; flex-shrink: 0; border-radius: 0.75rem; background: var(--surface-muted); color: var(--accent-color); }
+.edit-section-heading { display: flex; flex-direction: column; gap: 0.25rem; flex: 1; min-width: 0; font-weight: 650; }
+.edit-section-heading small { font-size: 0.8125rem; font-weight: 400; color: var(--text-muted); }
+.edit-chevron { flex-shrink: 0; color: var(--text-muted); transition: transform 180ms ease; }
+.edit-section[open] > summary .edit-chevron { transform: rotate(180deg); }
+.edit-section-body { padding: 1.5rem; border-top: 1px solid var(--card-border); }
+.edit-profile { display: flex; flex-direction: column; gap: 1.5rem; }
+.edit-profile > :first-child { align-self: flex-start; }
+.edit-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.5rem; }
+.edit-grid > * { min-width: 0; }
+.edit-full-width { grid-column: 1 / -1; }
+.edit-section-body label { display: block; font-size: 0.875rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; }
+.edit-section-body input:not([type='file']), .edit-section-body select, .edit-section-body textarea { width: 100%; min-width: 0; }
+.edit-section-body textarea { resize: vertical; }
+.edit-subsection { margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--card-border); }
+.edit-subsection h4 { margin-bottom: 1rem; font-size: 0.875rem; font-weight: 650; color: var(--text-muted); }
+
+@media (max-width: 639px) {
+    .edit-header { padding: 1.25rem; }
+    .edit-scroll { padding: 1rem 1rem 1.5rem; }
+    .edit-footer { padding: 1rem; }
+    .edit-section > summary { padding: 1rem; gap: 0.75rem; }
+    .edit-section-body { padding: 1.25rem 1rem; }
+    .edit-grid { grid-template-columns: minmax(0, 1fr); gap: 1.25rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .edit-chevron { transition: none; }
+}
+</style>
