@@ -103,8 +103,8 @@ watch(search, query => {
     if (!showResults.value) return;
     searchTimer = setTimeout(async () => {
         try {
-            const data = await apiService.buscarEntidades(query.trim(), 'Persona');
-            if (sequence === searchSequence && !disposed) results.value = data.filter(p => p.tipoEntidad === 'Persona').slice(0, 20);
+            const data = await apiService.buscarEntidades(query.trim(), 'PersonaNatural');
+            if (sequence === searchSequence && !disposed) results.value = data.filter(p => p.tipoEntidad === 'PersonaNatural').slice(0, 20);
         } catch (e) {
             if (sequence === searchSequence && !disposed) searchError.value = errorText(e);
         } finally {

@@ -115,7 +115,7 @@ const searchPersonas = debounce(async (query: string, target: 'jefe' | 'miembro'
         return;
     }
     try {
-        const results = (await apiService.buscarEntidades(query)).filter(e => e.tipoEntidad === 'Persona');
+        const results = (await apiService.buscarEntidades(query)).filter(e => e.tipoEntidad === 'PersonaNatural');
         if (target === 'jefe') jefeResults.value = results;
         else miembroResults.value = results;
     } catch (e: any) {

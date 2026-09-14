@@ -26,7 +26,7 @@ const selectedEtiquetaIds = ref<number[]>([]);
 
 const personaForm = reactive({
     id: 0,
-    tipoEntidad: 'Persona' as const,
+    tipoEntidad: 'PersonaNatural' as const,
     rut: '',
     telefono: '',
     correo: '',
@@ -135,7 +135,7 @@ const hydrateGestor = async (gestorId?: number, nombre?: string, rut?: string) =
     } catch {
         selectedGestor.value = {
             id: gestorId,
-            tipoEntidad: 'Persona',
+            tipoEntidad: 'PersonaNatural',
             identificador: rut || `PERSONA-${gestorId}`,
             nombreCompleto: nombre || 'Gestor asignado'
         } as EntidadResumen;
@@ -146,7 +146,7 @@ const hydrateGestor = async (gestorId?: number, nombre?: string, rut?: string) =
 
 const hydratePersona = async (entidad: EntidadResumen) => {
     personaForm.id = entidad.id;
-    personaForm.tipoEntidad = 'Persona';
+    personaForm.tipoEntidad = 'PersonaNatural';
     personaForm.rut = formatRutForDisplay(entidad.identificador || '');
     personaForm.telefono = entidad.telefono || '';
     personaForm.correo = entidad.correo || entidad.email || '';
@@ -193,7 +193,7 @@ watch(
         error.value = null;
         gestorQuery.value = '';
         gestorResults.value = [];
-        if (newVal.tipoEntidad === 'Persona') {
+        if (newVal.tipoEntidad === 'PersonaNatural') {
             await hydratePersona(newVal);
         } else {
             await hydrateInstitucion(newVal);
@@ -205,7 +205,7 @@ watch(
 const buildPersonaPayload = (): ActualizarPersonaPayload => {
     return {
         id: personaForm.id,
-        tipoEntidad: 'Persona',
+        tipoEntidad: 'PersonaNatural',
         rut: formatRutForBackend(personaForm.rut || ''),
         telefono: personaForm.telefono,
         correo: personaForm.correo,
@@ -251,14 +251,14 @@ const save = async () => {
     error.value = null;
     try {
         const payload =
-            props.entidad.tipoEntidad === 'Persona'
+            props.entidad.tipoEntidad === 'PersonaNatural'
                 ? buildPersonaPayload()
                 : buildInstitucionPayload();
         emit(
             'save',
             payload,
-            props.entidad.tipoEntidad === 'Persona' ? personaFotoFile.value ?? undefined : undefined,
-            props.entidad.tipoEntidad === 'Persona' ? selectedEtiquetaIds.value : undefined
+            props.entidad.tipoEntidad === 'PersonaNatural' ? personaFotoFile.value ?? undefined : undefined,
+            props.entidad.tipoEntidad === 'PersonaNatural' ? selectedEtiquetaIds.value : undefined
         );
     } catch (e: any) {
         error.value = e.message || 'Error al guardar';
@@ -282,7 +282,7 @@ const save = async () => {
                     <div>
                         <p class="text-xs uppercase tracking-[0.35em] text-gray-500">Formulario</p>
                         <h3 class="text-2xl font-bold text-gray-900 dark:text-white">
-                            Editar {{ entidad?.tipoEntidad === 'Persona' ? 'persona' : 'institución' }}
+                            Editar {{ entidad?.tipoEntidad === 'PersonaNatural' ? 'persona' : 'institución' }}
                         </h3>
                     </div>
                 </div>
@@ -296,7 +296,7 @@ const save = async () => {
             </div>
 
             <form @submit.prevent="save" class="px-6 pb-8 pt-4 space-y-6">
-                <template v-if="entidad?.tipoEntidad === 'Persona'">
+                <template v-if="entidad?.tipoEntidad === 'PersonaNatural'">
                     <div class="grid gap-5 lg:grid-cols-[1fr_auto] lg:items-start">
                         <div class="relative">
                             <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Gestor</label>

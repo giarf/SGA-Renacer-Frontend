@@ -5,7 +5,7 @@ import { ShieldAlert } from 'lucide-vue-next';
 const props = defineProps<{
     isOpen: boolean;
     entidadNombre: string;
-    entidadTipo?: 'Persona' | 'Institucion';
+    entidadTipo?: 'PersonaNatural' | 'Institucion';
     isDeleting?: boolean;
 }>();
 

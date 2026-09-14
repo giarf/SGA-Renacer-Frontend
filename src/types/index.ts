@@ -31,7 +31,7 @@ export interface DetalleAsistencia {
 export interface EntidadResumen {
     id: number;
     tipo?: 'PERSONA' | 'INSTITUCION';  // Legacy field, may not be returned by backend
-    tipoEntidad: 'Persona' | 'Institucion';  // Actual field from backend
+    tipoEntidad: 'PersonaNatural' | 'Institucion';  // Actual field from backend
     identificador: string; // RUT
     rut?: string;
     nombreCompleto: string; // Nombre + Apellido or Nombre
@@ -81,7 +81,7 @@ export interface Institucion {
 // Contract for POST /api/entidades/registrar
 export interface RegistroPersonaPayload {
     rut: string;
-    tipoEntidad: 'Persona'; // Fixed value for this specific case
+    tipoEntidad: 'PersonaNatural'; // Fixed value for this specific case
     telefono: string;
     correo: string;
     direccion: string;
@@ -118,7 +118,7 @@ export interface ActualizarPersonaPayload {
     direccion: string;
     comuna: string;
     region?: string;
-    tipoEntidad: 'Persona' | 'Institucion';
+    tipoEntidad: 'PersonaNatural' | 'Institucion';
     // Persona-specific fields
     nombres?: string;
     apellidos?: string;
@@ -158,7 +158,7 @@ export type ActualizarEntidadPayload = ActualizarPersonaPayload | ActualizarInst
 export interface PersonaEditPayload {
     id: number;
     rut: string;
-    tipoEntidad: "Persona";
+    tipoEntidad: "PersonaNatural";
     telefono: string;
     correo: string;
     direccion: string;
@@ -172,7 +172,7 @@ export interface PersonaEditPayload {
 // Contract for POST /api/entidades/registrar (create new person)
 export interface RegistrarPersonaPayload {
     rut?: string;
-    tipoEntidad: "Persona";
+    tipoEntidad: "PersonaNatural";
     telefono: string;
     correo?: string;
     direccion?: string;

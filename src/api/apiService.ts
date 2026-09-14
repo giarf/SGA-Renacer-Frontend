@@ -91,7 +91,7 @@ const mapPersona = (persona: any): EntidadResumen => {
     const nombreCompleto = persona?.nombreCompleto ?? buildNombreCompleto(persona?.nombres, persona?.apellidos, rut);
     return {
         id: persona?.id ?? 0,
-        tipoEntidad: 'Persona',
+        tipoEntidad: 'PersonaNatural',
         tipo: 'PERSONA',
         identificador: rut,
         rut,
@@ -351,7 +351,7 @@ export const apiService = {
     async getEntidades(tipo?: string): Promise<EntidadResumen[]> {
         const url = new URL(`${API_BASE_URL}/entidades`);
         if (tipo) {
-            // Backend expects 'Institucion' or 'Persona' capitalized based on curl example headers? 
+            // Backend entity types are 'Institucion' and 'PersonaNatural'.
             // User said "Institucion" in curl example: ?tipo=Institucion
             url.searchParams.append('tipo', tipo);
         }
@@ -410,7 +410,7 @@ export const apiService = {
         });
     },
 
-    async buscarEntidades(query: string, tipo?: 'Persona' | 'Institucion'): Promise<EntidadResumen[]> {
+    async buscarEntidades(query: string, tipo?: 'PersonaNatural' | 'Institucion'): Promise<EntidadResumen[]> {
         const url = new URL(`${API_BASE_URL}/entidades`);
         url.searchParams.append('q', query);
         if (tipo) url.searchParams.set('tipo', tipo);

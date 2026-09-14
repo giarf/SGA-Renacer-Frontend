@@ -69,7 +69,7 @@ const clearGestor = () => {
 
 const form = reactive<RegistrarPersonaPayload>({
     rut: '',
-    tipoEntidad: 'Persona',
+    tipoEntidad: 'PersonaNatural',
     telefono: '',
     correo: '',
     direccion: '',
@@ -104,7 +104,7 @@ const handleRutInput = (event: Event) => {
 const resetForm = () => {
     Object.assign(form, {
         rut: '',
-        tipoEntidad: 'Persona',
+        tipoEntidad: 'PersonaNatural',
         telefono: '',
         correo: '',
         direccion: '',

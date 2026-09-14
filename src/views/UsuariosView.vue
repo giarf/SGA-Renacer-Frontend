@@ -156,7 +156,7 @@ const searchPersonas = (query: string) => {
     personaSearchTimer = setTimeout(async () => {
         searchingPersona.value = true;
         try {
-            personaResults.value = (await apiService.buscarEntidades(query)).filter(entidad => entidad.tipoEntidad === 'Persona');
+            personaResults.value = (await apiService.buscarEntidades(query)).filter(entidad => entidad.tipoEntidad === 'PersonaNatural');
             showPersonaDropdown.value = true;
         } catch (error: any) {
             setMessage('error', error.message || 'No se pudieron buscar personas.');

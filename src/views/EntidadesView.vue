@@ -27,7 +27,7 @@ const selectedEntidad = ref<EntidadResumen | null>(null);
 const message = ref<{ type: 'success' | 'error'; text: string } | null>(null);
 const isDeleteModalOpen = ref(false);
 const isDeleting = ref(false);
-const deleteTarget = ref<{ id: number; tipo: 'Persona' | 'Institucion'; nombre: string } | null>(null);
+const deleteTarget = ref<{ id: number; tipo: 'PersonaNatural' | 'Institucion'; nombre: string } | null>(null);
 const highlightedPersonaId = ref<number | null>(null);
 const gestorFallback = reactive<Record<number, EntidadResumen>>({});
 const etiquetas = ref<Etiqueta[]>([]);
@@ -308,10 +308,10 @@ const syncPersonaEtiquetas = async (personaId: number, etiquetaIds: number[]) =>
 const handleSaveEdit = async (payload: ActualizarEntidadPayload, foto?: File, etiquetaIds?: number[]) => {
     try {
         await apiService.actualizarEntidad(payload.id, payload);
-        if (payload.tipoEntidad === 'Persona' && foto) {
+        if (payload.tipoEntidad === 'PersonaNatural' && foto) {
             await apiService.actualizarFotoPersona(payload.id, foto);
         }
-        if (payload.tipoEntidad === 'Persona' && etiquetaIds) {
+        if (payload.tipoEntidad === 'PersonaNatural' && etiquetaIds) {
             await syncPersonaEtiquetas(payload.id, etiquetaIds);
         }
         await loadData();
@@ -321,7 +321,7 @@ const handleSaveEdit = async (payload: ActualizarEntidadPayload, foto?: File, et
                 ...payload,
                 tipoEntidad: payload.tipoEntidad
             };
-            if (payload.tipoEntidad === 'Persona') {
+            if (payload.tipoEntidad === 'PersonaNatural') {
                 const personaPayload = payload as ActualizarPersonaPayload;
                 base.nombres = personaPayload.nombres ?? base.nombres;
                 base.apellidos = personaPayload.apellidos ?? base.apellidos;
@@ -386,13 +386,13 @@ const handleDelete = async () => {
     const target = { ...deleteTarget.value };
     isDeleting.value = true;
     try {
-        if (target.tipo === 'Persona') {
+        if (target.tipo === 'PersonaNatural') {
             await apiService.eliminarPersona(target.id);
         } else {
             await apiService.eliminarInstitucion(target.id);
         }
         await loadData();
-        showToast('success', target.tipo === 'Persona' ? 'Persona eliminada exitosamente.' : 'Institución eliminada exitosamente.');
+        showToast('success', target.tipo === 'PersonaNatural' ? 'Persona eliminada exitosamente.' : 'Institución eliminada exitosamente.');
         closeDeleteModal();
     } catch (e: any) {
         showToast('error', e.message || 'No se pudo eliminar la entidad.');

@@ -3,7 +3,7 @@ import test from 'node:test';
 import { matchResponsible } from '../src/auth/responsibleMatching.ts';
 
 const person = (id, nombres, apellidos, correo) => ({
-    id, tipoEntidad: 'Persona', identificador: `TEST-${id}`,
+    id, tipoEntidad: 'PersonaNatural', identificador: `TEST-${id}`,
     nombres, apellidos, nombreCompleto: `${nombres} ${apellidos}`, correo
 });
 const gabriel = person(10, 'Gabriel Andrés Ignacio', 'Rojas Soto', 'gabriel@example.test');

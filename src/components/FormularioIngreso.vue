@@ -147,7 +147,7 @@ const seleccionarEntidad = (entidad: EntidadResumen) => {
     selectedEntidad.value = entidad;
     nuevoRegistro.value.entidadId = entidad.id;
     // Use tipoEntidad which is always defined, and map to expected values
-    nuevoRegistro.value.tipoEntidad = entidad.tipoEntidad === 'Persona' ? 'PERSONA' : 'INSTITUCION';
+    nuevoRegistro.value.tipoEntidad = entidad.tipoEntidad === 'PersonaNatural' ? 'PERSONA' : 'INSTITUCION';
     searchQuery.value = ''; // "Limpiar" buscador visualmente, pero mostramos la selección aparte
     isDropdownOpen.value = false;
 };

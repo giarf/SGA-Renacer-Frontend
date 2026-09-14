@@ -50,7 +50,7 @@ const resultFor = (people: EntidadResumen[]): ResponsibleMatch => {
 };
 
 export const matchResponsible = (people: EntidadResumen[], profile: ResponsibleProfile): ResponsibleMatch => {
-    const candidates = [...new Map(people.filter(p => p.tipoEntidad === 'Persona' && p.id > 0).map(p => [p.id, p])).values()];
+    const candidates = [...new Map(people.filter(p => p.tipoEntidad === 'PersonaNatural' && p.id > 0).map(p => [p.id, p])).values()];
     const email = normalizeEmail(profile.email);
     if (email) {
         const emailMatches = candidates.filter(p => [p.correo, p.email].some(value => normalizeEmail(value) === email));
