@@ -322,7 +322,7 @@ onBeforeUnmount(() => {
                     <div v-if="showResults" class="search-dropdown">
                         <p v-if="searching" class="p-4 muted" role="status">Buscando personas…</p>
                         <p v-else-if="searchError" class="p-4" role="alert">{{ searchError }}</p>
-                        <p v-else-if="!results.length" class="p-4 muted">No encontramos personas. Puedes crear una con el botón “Nueva persona”.</p>
+                        <div v-else-if="!results.length" class="p-4"><p class="muted mb-2">No encontramos personas.</p><button type="button" class="btn-primary" :disabled="working" @click="showResults = false; newPersonOpen = true">Crear «{{ search.trim() }}» y agregar</button></div>
                         <ul id="attendance-person-results" role="listbox" aria-label="Personas encontradas">
                             <li v-for="(person, index) in results" :id="`person-result-${index}`" :key="person.id" role="option" :aria-selected="index === activeResult" :aria-disabled="presentIds.has(person.id)">
                                 <button type="button" class="person-result" :class="{ active: index === activeResult }" :disabled="working || presentIds.has(person.id)" @click="addPerson(person.id, person.nombreCompleto)">
@@ -377,7 +377,7 @@ onBeforeUnmount(() => {
                 <div class="dialog-actions"><button class="btn-secondary" :disabled="busy" autofocus @click="modal = null">Cancelar</button><button class="btn-primary" :disabled="busy" @click="performDelete">{{ busy ? 'Eliminando…' : deletion.kind === 'person' ? 'Quitar asistencia' : 'Sí, eliminar' }}</button></div>
             </div>
         </AsistenciaDialog>
-        <ModalCrearPersona :is-open="newPersonOpen" @close="newPersonOpen = false" @created="personCreated" />
+        <ModalCrearPersona :is-open="newPersonOpen" :initial-search="search" @close="newPersonOpen = false" @created="personCreated" />
     </main>
 </template>
 

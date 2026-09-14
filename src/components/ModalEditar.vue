@@ -2,6 +2,7 @@
 import { ref, watch, reactive } from 'vue';
 import type { EntidadResumen, ActualizarPersonaPayload, ActualizarInstitucionPayload, ActualizarEntidadPayload } from '../types';
 import PhoneInput from './PhoneInput.vue';
+import ApoderadosPanel from './ApoderadosPanel.vue';
 import ProfilePhotoInput from './ProfilePhotoInput.vue';
 import EtiquetaChipsSelector from './EtiquetaChipsSelector.vue';
 import RegionComunaSelect from './RegionComunaSelect.vue';
@@ -297,6 +298,7 @@ const save = async () => {
 
             <form @submit.prevent="save" class="px-6 pb-8 pt-4 space-y-6">
                 <template v-if="entidad?.tipoEntidad === 'PersonaNatural'">
+                    <ApoderadosPanel v-if="isOpen" :key="entidad.id" :persona-id="entidad.id" />
                     <div class="grid gap-5 lg:grid-cols-[1fr_auto] lg:items-start">
                         <div class="relative">
                             <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Gestor</label>

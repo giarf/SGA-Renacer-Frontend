@@ -589,3 +589,13 @@ export interface RolPersona {
     correo?: string;
     rol?: string;
 }
+export interface VinculoApoderado {
+    personaId: number;
+    apoderadoId: number;
+    nombreCompleto: string;
+    telefono?: string;
+    rut?: string;
+    parentesco: string;
+    esContactoPrincipal: boolean;
+    observaciones: string;
+}

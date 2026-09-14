@@ -8,6 +8,10 @@ import ProfilePhotoInput from './ProfilePhotoInput.vue';
 import EtiquetaChipsSelector from './EtiquetaChipsSelector.vue';
 import RegionComunaSelect from './RegionComunaSelect.vue';
 import type { RegistrarPersonaPayload, EntidadResumen } from '../types';
+const props = defineProps<{ initialSearch?: string }>();
+const initialText = (props.initialSearch ?? '').trim().replace(/\s+/g, ' ');
+const initialIsRut = /^(?=.*\d)[\d.kK-]+$/.test(initialText);
+const initialWords = initialText.split(' ');
 
 const emit = defineEmits<{
     (e: 'cancel'): void;
@@ -68,7 +72,7 @@ const clearGestor = () => {
 };
 
 const form = reactive<RegistrarPersonaPayload>({
-    rut: '',
+    rut: initialIsRut ? formatRutForDisplay(initialText) : '',
     tipoEntidad: 'PersonaNatural',
     telefono: '',
     correo: '',
@@ -79,8 +83,8 @@ const form = reactive<RegistrarPersonaPayload>({
     gestorId: undefined,
     anotaciones: '',
     sector: '',
-    nombres: '',
-    apellidos: '',
+    nombres: initialIsRut ? '' : initialWords.length === 2 ? initialWords[0]! : initialText,
+    apellidos: !initialIsRut && initialWords.length === 2 ? initialWords[1]! : '',
     genero: '',
     ocupacion: '',
     fechaNacimiento: ''

@@ -3,7 +3,7 @@ import { nextTick, ref, useId, watch } from 'vue';
 import PersonaForm from './PersonaForm.vue';
 import { X, UserPlus } from 'lucide-vue-next';
 
-const props = defineProps<{ isOpen: boolean }>();
+const props = defineProps<{ isOpen: boolean; initialSearch?: string }>();
 const emit = defineEmits<{
     (e: 'close'): void;
     (e: 'created', rut: string, id?: number): void;
@@ -45,7 +45,7 @@ const handleCreated = (rut: string, id?: number) => {
                     <X :size="20" aria-hidden="true" />
                 </button>
             </header>
-            <PersonaForm v-if="isOpen" @cancel="requestClose" @created="handleCreated" @busy="busy = $event" />
+            <PersonaForm v-if="isOpen" :initial-search="initialSearch" @cancel="requestClose" @created="handleCreated" @busy="busy = $event" />
         </dialog>
     </Teleport>
 </template>

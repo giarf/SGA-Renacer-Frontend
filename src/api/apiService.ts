@@ -1,4 +1,5 @@
 import type {
+    VinculoApoderado,
     EventoAsistencia,
     DetalleAsistencia,
     TipoColumnaAsistencia,
@@ -774,6 +775,18 @@ export const apiService = {
         });
     },
 
+    async getApoderados(id: number): Promise<VinculoApoderado[]> {
+        return requestJson(`${API_BASE_URL}/personas/${id}/apoderados`);
+    },
+    async getPersonasACargo(id: number): Promise<VinculoApoderado[]> {
+        return requestJson(`${API_BASE_URL}/personas/${id}/personas-a-cargo`);
+    },
+    async guardarApoderado(id: number, apoderadoId: number, datos: Pick<VinculoApoderado, 'parentesco' | 'esContactoPrincipal' | 'observaciones'>): Promise<void> {
+        await requestJson(`${API_BASE_URL}/personas/${id}/apoderados/${apoderadoId}`, { method: 'PUT', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(datos) });
+    },
+    async quitarApoderado(id: number, apoderadoId: number): Promise<void> {
+        await requestJson(`${API_BASE_URL}/personas/${id}/apoderados/${apoderadoId}`, { method: 'DELETE' });
+    },
     async getRoles(tipo: 'beneficiarios' | 'colaboradores' | 'trabajadores' | 'directivos'): Promise<RolPersona[]> {
         return await requestJson<RolPersona[]>(`${API_BASE_URL}/${tipo}`);
     }
