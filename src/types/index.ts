@@ -1,4 +1,32 @@
 export type TipoColumnaAsistencia = 'boolean' | 'text' | 'number';
+export type EstadoCampana = 'borrador' | 'activa' | 'cerrada';
+export interface Campana {
+    id: number;
+    nombre: string;
+    fecha: string;
+    descripcion: string;
+    estado: EstadoCampana;
+    version: number;
+    totalParticipantes: number;
+    sinPadrino: number;
+}
+export interface CrearCampana {
+    nombre: string;
+    fecha: string;
+    descripcion: string;
+    plantilla: 'apadrinamiento' | 'personalizada';
+}
+export interface ContactoCampana { id: number; nombreCompleto: string; telefono?: string | null }
+export interface ColumnaCampana extends ColumnaAsistencia { clave?: string | null }
+export interface ValorCampana extends ValorAsistencia { actualizadoEn: string }
+export interface ParticipanteCampana {
+    id: number;
+    beneficiario: ContactoCampana;
+    padrino?: ContactoCampana | null;
+    version: number;
+    valores: Record<string, ValorCampana>;
+}
+export interface DetalleCampana { campana: Campana; columnas: ColumnaCampana[]; participantes: ParticipanteCampana[] }
 export type DatoAsistencia = boolean | string | number | null;
 export interface EventoAsistencia {
     id: number;

@@ -1,4 +1,9 @@
 import type {
+    Campana,
+    CrearCampana,
+    DetalleCampana,
+    EstadoCampana,
+    ValorCampana,
     VinculoApoderado,
     EventoAsistencia,
     DetalleAsistencia,
@@ -322,6 +327,33 @@ const pruneEmpty = <T extends Record<string, any>>(obj: T): T => {
 };
 
 export const apiService = {
+    getCampanas(): Promise<Campana[]> {
+        return requestJson(`${API_BASE_URL}/campanas`, { cache: 'no-store', signal: AbortSignal.timeout(15000) });
+    },
+    getCampana(id: number): Promise<DetalleCampana> {
+        return requestJson(`${API_BASE_URL}/campanas/${id}`, { cache: 'no-store', signal: AbortSignal.timeout(15000) });
+    },
+    crearCampana(datos: CrearCampana): Promise<{ id: number }> {
+        return requestJson(`${API_BASE_URL}/campanas`, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(datos) });
+    },
+    cambiarEstadoCampana(id: number, estado: EstadoCampana, version: number): Promise<void> {
+        return requestJson(`${API_BASE_URL}/campanas/${id}/estado`, { method: 'PUT', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ estado, version }) });
+    },
+    agregarParticipanteCampana(id: number, beneficiarioId: number): Promise<{ id: number }> {
+        return requestJson(`${API_BASE_URL}/campanas/${id}/participantes`, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ beneficiarioId }) });
+    },
+    asignarPadrino(id: number, participanteId: number, padrinoId: number | null, version: number): Promise<void> {
+        return requestJson(`${API_BASE_URL}/campanas/${id}/participantes/${participanteId}/padrino`, { method: 'PUT', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ padrinoId, version }) });
+    },
+    quitarParticipanteCampana(id: number, participanteId: number): Promise<void> {
+        return requestJson(`${API_BASE_URL}/campanas/${id}/participantes/${participanteId}`, { method: 'DELETE' });
+    },
+    crearColumnaCampana(id: number, datos: { nombre: string; tipo: TipoColumnaAsistencia }): Promise<{ id: number }> {
+        return requestJson(`${API_BASE_URL}/campanas/${id}/columnas`, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(datos) });
+    },
+    guardarValorCampana(id: number, participanteId: number, columnaId: number, dato: ValorAsistencia): Promise<ValorCampana> {
+        return requestJson(`${API_BASE_URL}/campanas/${id}/participantes/${participanteId}/valores/${columnaId}`, { method: 'PUT', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(dato) });
+    },
     getEventosAsistencia(): Promise<EventoAsistencia[]> {
         return requestJson(`${API_BASE_URL}/asistencia/eventos`, { cache: 'no-store', signal: AbortSignal.timeout(15000) });
     },

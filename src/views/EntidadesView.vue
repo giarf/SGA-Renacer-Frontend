@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { normalizeWhatsappNumber } from '../utils/whatsapp';
 import { matchesSearch } from '../utils/search';
 import { ref, computed, onMounted, nextTick, reactive, watch, onBeforeUnmount } from 'vue';
 import type { EntidadResumen, ActualizarEntidadPayload, ActualizarPersonaPayload, ActualizarInstitucionPayload, Etiqueta } from '../types';
@@ -72,14 +73,6 @@ const filteredInstituciones = computed(() => {
         return matchesSearch(q, inst.nombreCompleto, inst.identificador, inst.comuna);
     });
 });
-
-const normalizeWhatsappNumber = (telefono?: string) => {
-    const raw = telefono?.replace(/[\s\-()+]/g, '') ?? '';
-    if (!raw) return '';
-    if (raw.startsWith('9') && raw.length === 9) return `56${raw}`;
-    return raw.startsWith('56') ? raw : '';
-};
-
 const sortKey = ref<string | null>(null);
 const sortAsc = ref(true);
 
