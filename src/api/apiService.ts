@@ -4,6 +4,8 @@ import type {
     DetalleCampana,
     EstadoCampana,
     ValorCampana,
+    TipoColumnaCampana,
+    GuardarValorCampana,
     VinculoApoderado,
     EventoAsistencia,
     DetalleAsistencia,
@@ -348,10 +350,10 @@ export const apiService = {
     quitarParticipanteCampana(id: number, participanteId: number): Promise<void> {
         return requestJson(`${API_BASE_URL}/campanas/${id}/participantes/${participanteId}`, { method: 'DELETE' });
     },
-    crearColumnaCampana(id: number, datos: { nombre: string; tipo: TipoColumnaAsistencia }): Promise<{ id: number }> {
+    crearColumnaCampana(id: number, datos: { nombre: string; tipo: TipoColumnaCampana }): Promise<{ id: number }> {
         return requestJson(`${API_BASE_URL}/campanas/${id}/columnas`, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(datos) });
     },
-    guardarValorCampana(id: number, participanteId: number, columnaId: number, dato: ValorAsistencia): Promise<ValorCampana> {
+    guardarValorCampana(id: number, participanteId: number, columnaId: number, dato: GuardarValorCampana): Promise<ValorCampana> {
         return requestJson(`${API_BASE_URL}/campanas/${id}/participantes/${participanteId}/valores/${columnaId}`, { method: 'PUT', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(dato) });
     },
     getEventosAsistencia(): Promise<EventoAsistencia[]> {

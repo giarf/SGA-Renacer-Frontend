@@ -17,8 +17,11 @@ export interface CrearCampana {
     plantilla: 'apadrinamiento' | 'personalizada';
 }
 export interface ContactoCampana { id: number; nombreCompleto: string; telefono?: string | null }
-export interface ColumnaCampana extends ColumnaAsistencia { clave?: string | null }
-export interface ValorCampana extends ValorAsistencia { actualizadoEn: string }
+export type TipoColumnaCampana = TipoColumnaAsistencia | 'whatsapp';
+export interface MensajeCampana { texto: string; enviado: boolean }
+export interface ColumnaCampana { id: number; nombre: string; tipo: TipoColumnaCampana; clave?: string | null }
+export interface GuardarValorCampana { valor: DatoAsistencia | MensajeCampana; version: number }
+export interface ValorCampana extends GuardarValorCampana { actualizadoEn: string }
 export interface ParticipanteCampana {
     id: number;
     beneficiario: ContactoCampana;
