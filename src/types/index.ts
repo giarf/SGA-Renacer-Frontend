@@ -19,8 +19,8 @@ export interface CrearCampana {
 export interface ContactoCampana { id: number; nombreCompleto: string; telefono?: string | null }
 export type TipoColumnaCampana = TipoColumnaAsistencia | 'whatsapp';
 export interface MensajeCampana { texto: string; enviado: boolean }
-export interface ColumnaCampana { id: number; nombre: string; tipo: TipoColumnaCampana; clave?: string | null }
-export interface GuardarValorCampana { valor: DatoAsistencia | MensajeCampana; version: number }
+export interface ColumnaCampana { id: number; nombre: string; tipo: TipoColumnaCampana; clave?: string | null; mensaje: string; destinatario: 'beneficiario' | 'colaborador'; version: number }
+export interface GuardarValorCampana { valor: DatoAsistencia | MensajeCampana; version: number; columnaVersion?: number }
 export interface ValorCampana extends GuardarValorCampana { actualizadoEn: string }
 export interface ParticipanteCampana {
     id: number;

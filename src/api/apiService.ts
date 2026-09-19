@@ -332,6 +332,9 @@ export const apiService = {
     getCampanas(): Promise<Campana[]> {
         return requestJson(`${API_BASE_URL}/campanas`, { cache: 'no-store', signal: AbortSignal.timeout(15000) });
     },
+    configurarMensajeCampana(id: number, columnaId: number, datos: { mensaje: string; destinatario: 'beneficiario' | 'colaborador'; version: number }): Promise<void> {
+        return requestJson(`${API_BASE_URL}/campanas/${id}/columnas/${columnaId}/mensaje`, { method: 'PUT', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(datos) });
+    },
     getCampana(id: number): Promise<DetalleCampana> {
         return requestJson(`${API_BASE_URL}/campanas/${id}`, { cache: 'no-store', signal: AbortSignal.timeout(15000) });
     },

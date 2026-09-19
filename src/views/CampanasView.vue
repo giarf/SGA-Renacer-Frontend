@@ -6,6 +6,7 @@ import { ApiError, apiService } from '../api/apiService';
 import AsistenciaDialog from '../components/AsistenciaDialog.vue';
 import AsistenciaCelda from '../components/AsistenciaCelda.vue';
 import CampanaMensajeCelda from '../components/CampanaMensajeCelda.vue';
+import type { ColumnaCampana } from '../types';
 import { matchesSearch } from '../utils/search';
 import { whatsappUrl } from '../utils/whatsapp';
 import type { Campana, CrearCampana, DetalleCampana, EntidadResumen, EstadoCampana, ParticipanteCampana, TipoColumnaCampana, GuardarValorCampana, ValorAsistencia, ValorCampana } from '../types';
@@ -23,7 +24,9 @@ const error = ref('');
 const notice = ref('');
 const filtro = ref('');
 const pendiente = ref('todos');
-const modal = ref<'campana' | 'persona' | 'padrino' | 'columna' | 'quitar' | null>(null);
+const modal = ref<'campana' | 'persona' | 'padrino' | 'columna' | 'mensaje' | 'quitar' | null>(null);
+const mensajeColumna = ref<ColumnaCampana | null>(null);
+const mensajeForm = ref('');
 const modalError = ref('');
 const selected = ref<ParticipanteCampana | null>(null);
 const form = ref<CrearCampana>({ nombre: '', fecha: '', descripcion: '', plantilla: 'apadrinamiento' });
@@ -32,7 +35,7 @@ const search = ref('');
 const results = ref<EntidadResumen[]>([]);
 const searching = ref(false);
 const cerrada = computed(() => detalle.value?.campana.estado === 'cerrada');
-const title = computed(() => ({ campana: 'Crear campaña', persona: 'Agregar beneficiario', padrino: 'Asignar padrino o madrina', columna: 'Agregar columna', whatsapp: 'Compartir por WhatsApp', quitar: 'Retirar participante' }[modal.value ?? 'campana']));
+const title = computed(() => ({ campana: 'Crear campaña', persona: 'Agregar beneficiario', padrino: 'Asignar padrino o madrina', columna: 'Agregar columna', mensaje: 'Editar mensaje para todos', quitar: 'Retirar participante' }[modal.value ?? 'campana']));
 const list = computed(() => campanas.value.filter(c => matchesSearch(filtro.value, c.nombre, c.descripcion)));
 const rows = computed(() => (detalle.value?.participantes ?? []).filter(p =>
     matchesSearch(filtro.value, p.beneficiario.nombreCompleto, p.padrino?.nombreCompleto) &&
@@ -131,6 +134,16 @@ async function addColumn() {
     const campaignId = id.value; if (!campaignId) return;
     await mutate(async () => { await apiService.crearColumnaCampana(campaignId, columna.value); modal.value = null; });
 }
+function editarMensaje(c: ColumnaCampana) {
+    mensajeColumna.value = { ...c }; mensajeForm.value = c.mensaje; modalError.value = ''; modal.value = 'mensaje';
+}
+async function configurarMensaje(c: ColumnaCampana, mensaje: string, destinatario = c.destinatario) {
+    const campaignId = id.value; if (!campaignId) return;
+    await mutate(async () => {
+        await apiService.configurarMensajeCampana(campaignId, c.id, { mensaje, destinatario, version: c.version });
+        modal.value = null;
+    });
+}
 async function setEstado(estado: EstadoCampana) {
     const c = detalle.value?.campana; if (!c) return;
     await mutate(async () => { await apiService.cambiarEstadoCampana(c.id, estado, c.version); notice.value = 'Estado actualizado.'; });
@@ -202,12 +215,12 @@ async function saveCell(rowId: number, columnId: number, value: GuardarValorCamp
                 <div class="filters"><label class="search-box"><Search :size="17" /><input v-model="filtro" placeholder="Buscar beneficiario o padrino…" aria-label="Buscar participante" /></label><select v-model="pendiente" aria-label="Filtrar pendientes"><option value="todos">Todos los registros</option><option value="sin_padrino">Sin padrino asignado</option><option v-for="c in checkpoints" :key="c.id" :value="String(c.id)">Pendiente: {{ c.nombre }}</option></select><span class="muted">{{ rows.length }} registros</span></div>
                 <p v-if="cerrada" class="closed-note">Campaña cerrada. Cambia su estado a activa para continuar el seguimiento.</p>
                 <div v-if="rows.length" class="table-scroll">
-                    <table><thead><tr><th class="beneficiary">Beneficiario</th><th>Padrino / madrina</th><th v-for="c in detalle.columnas" :key="c.id">{{ c.nombre }}</th><th>Acciones</th></tr></thead>
+                    <table><thead><tr><th class="beneficiary">Beneficiario</th><th>Padrino / madrina</th><th v-for="c in detalle.columnas" :key="c.id">{{ c.nombre }}<div v-if="c.tipo === 'whatsapp'" class="message-heading"><button class="text-action" :disabled="cerrada || working || loading" @click="editarMensaje(c)">Editar mensaje</button><select :aria-label="`Destinatario de ${c.nombre}`" :value="c.destinatario" :disabled="cerrada || working || loading" @change="configurarMensaje(c, c.mensaje, ($event.target as HTMLSelectElement).value as 'beneficiario' | 'colaborador')"><option value="beneficiario">Beneficiario</option><option value="colaborador">Colaborador</option></select></div></th><th>Acciones</th></tr></thead>
                         <tbody><tr v-for="p in rows" :key="p.id">
                             <td class="beneficiary"><strong>{{ p.beneficiario.nombreCompleto }}</strong><a v-if="whatsappUrl(p.beneficiario.telefono)" :href="whatsappUrl(p.beneficiario.telefono)" target="_blank" rel="noopener noreferrer" class="phone" :aria-label="`WhatsApp de ${p.beneficiario.nombreCompleto}`"><MessageCircle :size="13" /> {{ p.beneficiario.telefono }}</a></td>
                             <td class="sponsor"><template v-if="p.padrino"><strong>{{ p.padrino.nombreCompleto }}</strong><a v-if="whatsappUrl(p.padrino.telefono)" :href="whatsappUrl(p.padrino.telefono)" target="_blank" rel="noopener noreferrer" class="phone"><MessageCircle :size="13" /> {{ p.padrino.telefono }}</a><span v-else class="muted">Sin teléfono válido para WhatsApp</span><small class="muted">{{ padrinoCount(p.padrino.id) }} beneficiario(s) en esta campaña</small></template><span v-else class="unassigned">Sin asignar</span><button class="text-action" :disabled="cerrada || working || loading" @click="open('padrino', p)">{{ p.padrino ? 'Cambiar asignación' : 'Asignar padrino / madrina' }}</button></td>
                             <td v-for="c in detalle.columnas" :key="c.id">
-                                <CampanaMensajeCelda v-if="c.tipo === 'whatsapp'" :dato="p.valores[String(c.id)]" :label="`${c.nombre} · ${p.beneficiario.nombreCompleto}`" :telefono="p.padrino?.telefono" :readonly="cerrada || busy || loading" :variables="{ nombre: p.padrino?.nombreCompleto ?? '', beneficiario: p.beneficiario.nombreCompleto, campana: detalle.campana.nombre, gustos: String(valor(p, 'gustos') ?? '') }" :save-value="v => saveCell(p.id, c.id, v)" />
+                                <CampanaMensajeCelda v-if="c.tipo === 'whatsapp'" :mensaje="c.mensaje" :columna-version="c.version" :dato="p.valores[String(c.id)]" :label="`${c.nombre} · ${p.beneficiario.nombreCompleto}`" :telefono="c.destinatario === 'beneficiario' ? p.beneficiario.telefono : p.padrino?.telefono" :readonly="cerrada || busy || loading" :variables="{ nombre: (c.destinatario === 'beneficiario' ? p.beneficiario.nombreCompleto : p.padrino?.nombreCompleto) ?? '', beneficiario: p.beneficiario.nombreCompleto, campana: detalle.campana.nombre, gustos: String(valor(p, 'gustos') ?? '') }" :save-value="v => saveCell(p.id, c.id, v)" />
                                 <template v-else-if="cerrada"><span>{{ p.valores[String(c.id)]?.valor === true ? 'Sí' : p.valores[String(c.id)]?.valor === false ? 'No' : p.valores[String(c.id)]?.valor ?? '—' }}</span></template>
                                 <AsistenciaCelda v-else :persona-nombre="p.beneficiario.nombreCompleto" :columna="{ ...c, tipo: c.tipo }" :dato="p.valores[String(c.id)] as ValorAsistencia | undefined" :save-value="async v => await saveCell(p.id, c.id, v) as ValorAsistencia" />
                                 <small v-if="p.valores[String(c.id)]" class="timestamp" :title="`Última actualización: ${actualizado(p.valores[String(c.id)])}`">{{ actualizado(p.valores[String(c.id)]) }}</small>
@@ -223,6 +236,7 @@ async function saveCell(rowId: number, columnId: number, value: GuardarValorCamp
 
         <AsistenciaDialog :open="modal !== null" :title="title" :busy="working || loading" @close="modal = null">
             <p v-if="modalError" role="alert" class="feedback error">{{ modalError }}</p>
+            <form v-if="modal === 'mensaje' && mensajeColumna" class="dialog-form" @submit.prevent="configurarMensaje(mensajeColumna, mensajeForm)"><label>Mensaje<textarea v-model="mensajeForm" maxlength="2000" rows="8" /></label><p class="muted">{nombre}: destinatario · {beneficiario} · {campana} · {gustos}</p><button class="btn btn-primary" :disabled="working || loading">Guardar para todos</button></form>
             <form v-if="modal === 'campana'" class="dialog-form" @submit.prevent="create"><label>Nombre<input v-model="form.nombre" required maxlength="120" placeholder="Apadrinamiento Navidad 2026" /></label><label>Fecha de referencia<input v-model="form.fecha" type="date" required /></label><label>Descripción<textarea v-model="form.descripcion" maxlength="2000" rows="3" /></label><label>Plantilla<select v-model="form.plantilla"><option value="apadrinamiento">Apadrinamiento · regalos y agradecimientos</option><option value="personalizada">Personalizada · agregar mis columnas</option></select></label><p class="muted">Ambas permiten relacionar beneficiarios con padrinos y agregar columnas de seguimiento.</p><button class="btn btn-primary" :disabled="working || loading || !form.nombre.trim()">Crear campaña</button></form>
             <div v-else-if="modal === 'persona' || modal === 'padrino'" class="dialog-form"><p v-if="selected">Beneficiario: <strong>{{ selected.beneficiario.nombreCompleto }}</strong></p><p v-if="modal === 'padrino'" class="muted">Selecciona una persona existente. Puede apoyar a más de un beneficiario.</p><p v-if="modal === 'padrino' && selected?.padrino" class="muted">Al cambiar de padrino, la ficha y el agradecimiento quedan pendientes de enviar al nuevo contacto.</p><label>Buscar persona<input v-model="search" placeholder="Nombre o RUT (mínimo 2 caracteres)" :disabled="working" /></label><p v-if="searching" role="status">Buscando…</p><div v-else class="person-results"><button v-for="p in results" :key="p.id" :disabled="working || loading" @click="choose(p.id)"><strong>{{ p.nombreCompleto }}</strong><span>{{ p.identificador || 'Sin RUT' }}<template v-if="modal === 'padrino'"> · {{ padrinoCount(p.id) }} beneficiario(s)</template></span><Plus :size="16" /></button><p v-if="search.trim().length >= 2 && !results.length" class="muted">No hay coincidencias disponibles. Puedes registrar personas nuevas en Entidades.</p></div><button v-if="modal === 'padrino' && selected?.padrino" class="btn btn-outline" :disabled="working || loading" @click="choose(null)">Quitar padrino y dejar pendiente</button></div>
             <form v-else-if="modal === 'columna'" class="dialog-form" @submit.prevent="addColumn"><label>Nombre<input v-model="columna.nombre" required maxlength="120" /></label><label>Tipo<select v-model="columna.tipo"><option value="boolean">Casilla · Sí / No</option><option value="text">Texto</option><option value="number">Número</option><option value="whatsapp">Mensaje de WhatsApp</option></select></label><button class="btn btn-primary" :disabled="working || loading || !columna.nombre.trim()">Agregar columna</button></form>
