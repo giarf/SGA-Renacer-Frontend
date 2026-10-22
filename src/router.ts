@@ -48,6 +48,7 @@ export const router = createRouter({
         { path: '/cuentas', name: 'cuentas', component: CuentasView, meta: { label: 'Cuentas', requiredGroups: ADMIN_GROUPS } },
         { path: '/usuarios', name: 'usuarios', component: UsuariosView, meta: { label: 'Usuarios', requiredGroups: ADMIN_GROUPS } },
         { path: '/logs', name: 'logs', component: LogsView, meta: { label: 'Logs', requiredGroups: ADMIN_GROUPS } },
+        { path: '/dashboard-ai', name: 'dashboardAi', component: () => import('./views/DashboardAiView.vue'), meta: { label: 'Dashboard AI', requiredGroups: ADMIN_GROUPS } },
         { path: '/:pathMatch(.*)*', redirect: '/donaciones' }
     ],
     scrollBehavior() {

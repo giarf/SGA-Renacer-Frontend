@@ -21,6 +21,7 @@ import {
     ScrollText,
     ShoppingCart,
     SlidersHorizontal,
+    Sparkles,
     Sun,
     Users,
     UserCog,
@@ -113,7 +114,8 @@ const navigationGroups: { title: string; items: NavigationItem[] }[] = [
         title: 'Seguimiento',
         items: [
             { key: 'usuarios', to: '/usuarios', label: 'Usuarios', helper: 'Crear accesos y permisos Authentik', icon: UserCog, requiredGroups: ADMIN_GROUPS },
-            { key: 'logs', to: '/logs', label: 'Logs', helper: 'Historial y reportes', icon: ScrollText, requiredGroups: ADMIN_GROUPS }
+            { key: 'logs', to: '/logs', label: 'Logs', helper: 'Historial y reportes', icon: ScrollText, requiredGroups: ADMIN_GROUPS },
+            { key: 'dashboardAi', to: '/dashboard-ai', label: 'Dashboard AI', helper: 'Pregunta por cifras y gráficos en lenguaje natural', icon: Sparkles, badge: 'IA', requiredGroups: ADMIN_GROUPS }
         ]
     }
 ];
