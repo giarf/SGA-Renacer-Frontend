@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import { ChevronDown, Download, FileDown, FileSpreadsheet, ImageDown, Table2, BarChart3 } from 'lucide-vue-next';
+import { Download, FileDown, FileSpreadsheet, ImageDown, Table2, BarChart3 } from 'lucide-vue-next';
 import type { FormatoValor, Visualizacion } from '../ai/aiAgent';
 import type { Valor } from '../ai/queryEngine';
 
@@ -360,8 +360,8 @@ const descargarCsv = () => {
                     <BarChart3 v-if="verTabla" :size="16" /><Table2 v-else :size="16" />
                 </button>
                 <div v-if="puedeExportarImagen || v.tipo !== 'kpi'" ref="menuExportar" class="exportar">
-                    <button type="button" class="icon-btn btn-exportar" :disabled="exportando" :aria-expanded="menuAbierto" aria-haspopup="menu" @click="alternarMenu">
-                        <Download :size="15" />Exportar<ChevronDown :size="13" class="chevron" />
+                    <button type="button" class="icon-btn btn-exportar" :disabled="exportando" :aria-expanded="menuAbierto" aria-haspopup="menu" title="Exportar" aria-label="Exportar" @click="alternarMenu">
+                        <Download :size="16" />
                     </button>
                     <div v-if="menuAbierto" class="menu" role="menu">
                         <button v-if="puedeExportarImagen" type="button" role="menuitem" @click="exportar('png')">
@@ -505,10 +505,7 @@ const descargarCsv = () => {
 /* El menú abierto debe quedar sobre las tarjetas vecinas. */
 .viz.con-menu { z-index: 10; }
 .exportar { position: relative; }
-.btn-exportar { display: inline-flex; gap: 0.35rem; width: auto; padding: 0 0.55rem 0 0.65rem; font-size: 0.75rem; font-weight: 600; }
-.btn-exportar .chevron { transition: transform 0.15s ease; }
 .btn-exportar[aria-expanded="true"] { background: var(--surface-muted); color: var(--text-primary); }
-.btn-exportar[aria-expanded="true"] .chevron { transform: rotate(180deg); }
 .menu {
     position: absolute;
     top: calc(100% + 0.35rem);
