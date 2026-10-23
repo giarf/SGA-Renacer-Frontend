@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import { Download, ImageDown, PenTool, Table2, BarChart3 } from 'lucide-vue-next';
+import { Download, FileDown, ImageDown, Table2, BarChart3 } from 'lucide-vue-next';
 import type { FormatoValor, Visualizacion } from '../ai/aiAgent';
 import type { Valor } from '../ai/queryEngine';
 
@@ -335,9 +335,9 @@ const descargarCsv = () => {
                 <button v-if="v.tipo !== 'tabla' && v.tipo !== 'kpi'" type="button" class="icon-btn" :aria-pressed="verTabla" :title="verTabla ? 'Ver gráfico' : 'Ver tabla'" @click="verTabla = !verTabla">
                     <BarChart3 v-if="verTabla" :size="16" /><Table2 v-else :size="16" />
                 </button>
-                <button v-if="puedeExportarImagen" type="button" class="icon-btn" :disabled="exportando" title="Descargar imagen PNG (sin fondo)" aria-label="Descargar imagen PNG" @click="descargarImagen('png')"><ImageDown :size="16" /></button>
-                <button v-if="puedeExportarImagen" type="button" class="icon-btn" :disabled="exportando" title="Descargar imagen vectorial SVG (sin fondo, calidad ilimitada)" aria-label="Descargar imagen SVG" @click="descargarImagen('svg')"><PenTool :size="16" /></button>
-                <button v-if="v.tipo !== 'kpi'" type="button" class="icon-btn" title="Descargar CSV" aria-label="Descargar CSV" @click="descargarCsv"><Download :size="16" /></button>
+                <button v-if="puedeExportarImagen" type="button" class="icon-btn btn-descarga" :disabled="exportando" title="Descargar imagen PNG (sin fondo)" aria-label="Descargar imagen PNG" @click="descargarImagen('png')"><ImageDown :size="15" />PNG</button>
+                <button v-if="puedeExportarImagen" type="button" class="icon-btn btn-descarga" :disabled="exportando" title="Descargar imagen vectorial SVG (sin fondo, calidad ilimitada)" aria-label="Descargar imagen SVG" @click="descargarImagen('svg')"><FileDown :size="15" />SVG</button>
+                <button v-if="v.tipo !== 'kpi'" type="button" class="icon-btn btn-descarga" title="Descargar CSV" aria-label="Descargar CSV" @click="descargarCsv"><Download :size="15" />CSV</button>
             </div>
         </header>
 
@@ -460,11 +460,12 @@ const descargarCsv = () => {
 }
 @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 
-.viz-head { display: flex; justify-content: space-between; gap: 0.75rem; align-items: flex-start; }
+.viz-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.5rem 0.75rem; align-items: flex-start; }
 .viz-head h3 { font-size: 0.98rem; font-weight: 650; line-height: 1.3; }
 .viz-sub { color: var(--text-muted); font-size: 0.8rem; margin-top: 0.15rem; }
 .viz-actions { display: flex; gap: 0.25rem; flex-shrink: 0; }
 .icon-btn { display: grid; place-items: center; width: 2rem; height: 2rem; border-radius: 999px; color: var(--text-muted); transition: background 0.15s ease, color 0.15s ease; }
+.btn-descarga { display: inline-flex; gap: 0.3rem; width: auto; padding: 0 0.6rem; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.02em; }
 .icon-btn:hover, .icon-btn[aria-pressed="true"] { background: var(--surface-muted); color: var(--text-primary); }
 
 .viz-body { position: relative; min-width: 0; }
