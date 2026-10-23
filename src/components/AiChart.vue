@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import { Download, FileDown, ImageDown, Table2, BarChart3 } from 'lucide-vue-next';
+import { ChevronDown, Download, FileDown, FileSpreadsheet, ImageDown, Table2, BarChart3 } from 'lucide-vue-next';
 import type { FormatoValor, Visualizacion } from '../ai/aiAgent';
 import type { Valor } from '../ai/queryEngine';
 
@@ -17,7 +17,31 @@ onMounted(() => {
     observer = new ResizeObserver(entries => { ancho.value = Math.max(260, Math.floor(entries[0]?.contentRect.width ?? ancho.value)); });
     observer.observe(contenedor.value);
 });
-onBeforeUnmount(() => observer?.disconnect());
+onBeforeUnmount(() => {
+    observer?.disconnect();
+    cerrarMenu();
+});
+
+const menuExportar = ref<HTMLElement | null>(null);
+const menuAbierto = ref(false);
+const alClicFuera = (evento: PointerEvent) => { if (!menuExportar.value?.contains(evento.target as Node)) cerrarMenu(); };
+const alTecla = (evento: KeyboardEvent) => { if (evento.key === 'Escape') cerrarMenu(); };
+const cerrarMenu = () => {
+    menuAbierto.value = false;
+    document.removeEventListener('pointerdown', alClicFuera);
+    document.removeEventListener('keydown', alTecla);
+};
+const alternarMenu = () => {
+    if (menuAbierto.value) return cerrarMenu();
+    menuAbierto.value = true;
+    document.addEventListener('pointerdown', alClicFuera);
+    document.addEventListener('keydown', alTecla);
+};
+const exportar = (formato: 'png' | 'svg' | 'csv') => {
+    cerrarMenu();
+    if (formato === 'csv') descargarCsv();
+    else descargarImagen(formato);
+};
 
 const numero = new Intl.NumberFormat('es-CL', { maximumFractionDigits: 2 });
 const moneda = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
@@ -325,7 +349,7 @@ const descargarCsv = () => {
 </script>
 
 <template>
-    <article ref="articulo" class="viz surface-card" :class="{ 'viz-kpi': v.tipo === 'kpi' }">
+    <article ref="articulo" class="viz surface-card" :class="{ 'viz-kpi': v.tipo === 'kpi', 'con-menu': menuAbierto }">
         <header class="viz-head">
             <div>
                 <h3>{{ v.titulo }}</h3>
@@ -335,9 +359,22 @@ const descargarCsv = () => {
                 <button v-if="v.tipo !== 'tabla' && v.tipo !== 'kpi'" type="button" class="icon-btn" :aria-pressed="verTabla" :title="verTabla ? 'Ver gráfico' : 'Ver tabla'" @click="verTabla = !verTabla">
                     <BarChart3 v-if="verTabla" :size="16" /><Table2 v-else :size="16" />
                 </button>
-                <button v-if="puedeExportarImagen" type="button" class="icon-btn btn-descarga" :disabled="exportando" title="Descargar imagen PNG (sin fondo)" aria-label="Descargar imagen PNG" @click="descargarImagen('png')"><ImageDown :size="15" />PNG</button>
-                <button v-if="puedeExportarImagen" type="button" class="icon-btn btn-descarga" :disabled="exportando" title="Descargar imagen vectorial SVG (sin fondo, calidad ilimitada)" aria-label="Descargar imagen SVG" @click="descargarImagen('svg')"><FileDown :size="15" />SVG</button>
-                <button v-if="v.tipo !== 'kpi'" type="button" class="icon-btn btn-descarga" title="Descargar CSV" aria-label="Descargar CSV" @click="descargarCsv"><Download :size="15" />CSV</button>
+                <div v-if="puedeExportarImagen || v.tipo !== 'kpi'" ref="menuExportar" class="exportar">
+                    <button type="button" class="icon-btn btn-exportar" :disabled="exportando" :aria-expanded="menuAbierto" aria-haspopup="menu" @click="alternarMenu">
+                        <Download :size="15" />Exportar<ChevronDown :size="13" class="chevron" />
+                    </button>
+                    <div v-if="menuAbierto" class="menu" role="menu">
+                        <button v-if="puedeExportarImagen" type="button" role="menuitem" @click="exportar('png')">
+                            <ImageDown :size="16" /><span><b>Imagen PNG</b><small>Sin fondo, alta resolución. Sirve en todas partes.</small></span>
+                        </button>
+                        <button v-if="puedeExportarImagen" type="button" role="menuitem" @click="exportar('svg')">
+                            <FileDown :size="16" /><span><b>Imagen vectorial SVG</b><small>Sin fondo, nítida a cualquier tamaño. PowerPoint, Word, Canva.</small></span>
+                        </button>
+                        <button v-if="v.tipo !== 'kpi'" type="button" role="menuitem" @click="exportar('csv')">
+                            <FileSpreadsheet :size="16" /><span><b>Datos CSV</b><small>Para abrir en Excel o Google Sheets.</small></span>
+                        </button>
+                    </div>
+                </div>
             </div>
         </header>
 
@@ -465,7 +502,33 @@ const descargarCsv = () => {
 .viz-sub { color: var(--text-muted); font-size: 0.8rem; margin-top: 0.15rem; }
 .viz-actions { display: flex; gap: 0.25rem; flex-shrink: 0; }
 .icon-btn { display: grid; place-items: center; width: 2rem; height: 2rem; border-radius: 999px; color: var(--text-muted); transition: background 0.15s ease, color 0.15s ease; }
-.btn-descarga { display: inline-flex; gap: 0.3rem; width: auto; padding: 0 0.6rem; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.02em; }
+/* El menú abierto debe quedar sobre las tarjetas vecinas. */
+.viz.con-menu { z-index: 10; }
+.exportar { position: relative; }
+.btn-exportar { display: inline-flex; gap: 0.35rem; width: auto; padding: 0 0.55rem 0 0.65rem; font-size: 0.75rem; font-weight: 600; }
+.btn-exportar .chevron { transition: transform 0.15s ease; }
+.btn-exportar[aria-expanded="true"] { background: var(--surface-muted); color: var(--text-primary); }
+.btn-exportar[aria-expanded="true"] .chevron { transform: rotate(180deg); }
+.menu {
+    position: absolute;
+    top: calc(100% + 0.35rem);
+    right: 0;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    width: min(17rem, 80vw);
+    padding: 0.35rem;
+    border-radius: 0.9rem;
+    background: var(--bg-card);
+    border: 1px solid var(--card-border);
+    box-shadow: var(--shadow-soft);
+}
+.menu button { display: flex; gap: 0.65rem; align-items: flex-start; padding: 0.55rem 0.6rem; border-radius: 0.6rem; text-align: left; color: var(--text-muted); }
+.menu button:hover, .menu button:focus-visible { background: var(--surface-muted); color: var(--text-primary); }
+.menu button svg { margin-top: 0.1rem; flex-shrink: 0; }
+.menu span { display: flex; flex-direction: column; gap: 0.1rem; }
+.menu b { font-size: 0.82rem; font-weight: 600; color: var(--text-primary); }
+.menu small { font-size: 0.72rem; line-height: 1.35; }
 .icon-btn:hover, .icon-btn[aria-pressed="true"] { background: var(--surface-muted); color: var(--text-primary); }
 
 .viz-body { position: relative; min-width: 0; }
