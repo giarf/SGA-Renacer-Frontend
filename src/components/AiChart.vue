@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import { Download, ImageDown, Table2, BarChart3 } from 'lucide-vue-next';
+import { Download, ImageDown, PenTool, Table2, BarChart3 } from 'lucide-vue-next';
 import type { FormatoValor, Visualizacion } from '../ai/aiAgent';
 import type { Valor } from '../ai/queryEngine';
 
@@ -205,7 +205,7 @@ const descargar = (blob: Blob, nombre: string) => {
 
 const articulo = ref<HTMLElement | null>(null);
 const exportando = ref(false);
-const puedeExportarPng = computed(() => props.v.tipo !== 'tabla' && !verTabla.value && (props.v.tipo === 'kpi' || filas.value.length > 0));
+const puedeExportarImagen = computed(() => props.v.tipo !== 'tabla' && !verTabla.value && (props.v.tipo === 'kpi' || filas.value.length > 0));
 
 // Las clases y variables CSS no existen dentro de una imagen, así que se copian los estilos ya resueltos.
 const ESTILOS_SVG = ['fill', 'fill-opacity', 'stroke', 'stroke-width', 'stroke-opacity', 'stroke-linecap', 'stroke-linejoin', 'opacity', 'font-size', 'font-family', 'font-weight', 'font-variant-numeric', 'text-anchor', 'dominant-baseline', 'display'];
@@ -220,63 +220,73 @@ const inlinearEstilos = (origen: Element, copia: Element) => {
 
 const xml = (texto: string) => texto.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-const descargarPng = async () => {
-    if (!articulo.value || !contenedor.value || exportando.value) return;
+// Compone título, leyenda y gráfico en un único SVG autónomo, sin fondo.
+const construirSvg = () => {
+    if (!articulo.value || !contenedor.value) throw new Error('No se pudo generar la imagen.');
+    const estilo = getComputedStyle(articulo.value);
+    const fuente = estilo.fontFamily.replace(/"/g, "'");
+    const primario = estilo.color;
+    const secundario = estilo.getPropertyValue('--text-muted').trim() || '#5d626a';
+    const grafico = contenedor.value.querySelector('svg');
+    const PAD = 24;
+    const anchoGrafico = grafico ? Number(grafico.getAttribute('width')) || grafico.getBoundingClientRect().width : 320;
+    const W = Math.max(anchoGrafico, 320) + PAD * 2;
+    const partes: string[] = [];
+    let y = PAD;
+
+    partes.push(`<text x="${PAD}" y="${y + 18}" font-size="18" font-weight="700" fill="${primario}">${xml(props.v.titulo)}</text>`);
+    y += 28;
+    if (props.v.subtitulo) {
+        partes.push(`<text x="${PAD}" y="${y + 13}" font-size="13" fill="${secundario}">${xml(props.v.subtitulo)}</text>`);
+        y += 22;
+    }
+    y += 8;
+
+    const leyenda = Array.from(contenedor.value.querySelectorAll('.legend li'));
+    if (leyenda.length) {
+        let x = PAD;
+        leyenda.forEach(item => {
+            const muestra = item.querySelector('i');
+            const color = muestra ? getComputedStyle(muestra).backgroundColor : primario;
+            const texto = (item.textContent ?? '').trim();
+            const anchoItem = 18 + texto.length * 7 + 16;
+            if (x + anchoItem > W - PAD && x > PAD) { x = PAD; y += 22; }
+            partes.push(`<rect x="${x}" y="${y + 2}" width="11" height="11" rx="3" fill="${color}"/><text x="${x + 17}" y="${y + 12}" font-size="12" fill="${primario}">${xml(texto)}</text>`);
+            x += anchoItem;
+        });
+        y += 30;
+    }
+
+    if (props.v.tipo === 'kpi' && kpi.value) {
+        partes.push(`<text x="${PAD}" y="${y + 50}" font-size="54" font-weight="750" letter-spacing="-1.5" fill="${primario}">${xml(String(kpi.value.valor))}</text>`);
+        partes.push(`<text x="${PAD}" y="${y + 78}" font-size="14" fill="${secundario}">${xml(kpi.value.etiqueta)}</text>`);
+        y += 90;
+    } else if (grafico) {
+        const copia = grafico.cloneNode(true) as SVGSVGElement;
+        inlinearEstilos(grafico, copia);
+        copia.querySelectorAll('[data-export="omitir"]').forEach(el => el.remove());
+        const altoGrafico = Number(grafico.getAttribute('height')) || grafico.getBoundingClientRect().height;
+        copia.setAttribute('x', String((W - anchoGrafico) / 2));
+        copia.setAttribute('y', String(y));
+        copia.setAttribute('overflow', 'visible');
+        partes.push(new XMLSerializer().serializeToString(copia));
+        y += altoGrafico;
+    }
+
+    const H = y + PAD;
+    return { W, H, svg: `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="${fuente}">${partes.join('')}</svg>` };
+};
+
+const descargarImagen = async (formato: 'png' | 'svg') => {
+    if (exportando.value) return;
     exportando.value = true;
     hover.value = null;
     try {
-        const estilo = getComputedStyle(articulo.value);
-        const fuente = estilo.fontFamily.replace(/"/g, "'");
-        const primario = estilo.color;
-        const secundario = estilo.getPropertyValue('--text-muted').trim() || '#5d626a';
-        const grafico = contenedor.value.querySelector('svg');
-        const PAD = 24;
-        const anchoGrafico = grafico ? Number(grafico.getAttribute('width')) || grafico.getBoundingClientRect().width : 320;
-        const W = Math.max(anchoGrafico, 320) + PAD * 2;
-        const partes: string[] = [];
-        let y = PAD;
-
-        partes.push(`<text x="${PAD}" y="${y + 18}" font-size="18" font-weight="700" fill="${primario}">${xml(props.v.titulo)}</text>`);
-        y += 28;
-        if (props.v.subtitulo) {
-            partes.push(`<text x="${PAD}" y="${y + 13}" font-size="13" fill="${secundario}">${xml(props.v.subtitulo)}</text>`);
-            y += 22;
+        const { W, H, svg } = construirSvg();
+        if (formato === 'svg') {
+            descargar(new Blob([svg], { type: 'image/svg+xml;charset=utf-8' }), nombreArchivo('svg'));
+            return;
         }
-        y += 8;
-
-        const leyenda = Array.from(contenedor.value.querySelectorAll('.legend li'));
-        if (leyenda.length) {
-            let x = PAD;
-            leyenda.forEach(item => {
-                const muestra = item.querySelector('i');
-                const color = muestra ? getComputedStyle(muestra).backgroundColor : primario;
-                const texto = (item.textContent ?? '').trim();
-                const anchoItem = 18 + texto.length * 7 + 16;
-                if (x + anchoItem > W - PAD && x > PAD) { x = PAD; y += 22; }
-                partes.push(`<rect x="${x}" y="${y + 2}" width="11" height="11" rx="3" fill="${color}"/><text x="${x + 17}" y="${y + 12}" font-size="12" fill="${primario}">${xml(texto)}</text>`);
-                x += anchoItem;
-            });
-            y += 30;
-        }
-
-        if (props.v.tipo === 'kpi' && kpi.value) {
-            partes.push(`<text x="${PAD}" y="${y + 50}" font-size="54" font-weight="750" letter-spacing="-1.5" fill="${primario}">${xml(String(kpi.value.valor))}</text>`);
-            partes.push(`<text x="${PAD}" y="${y + 78}" font-size="14" fill="${secundario}">${xml(kpi.value.etiqueta)}</text>`);
-            y += 90;
-        } else if (grafico) {
-            const copia = grafico.cloneNode(true) as SVGSVGElement;
-            inlinearEstilos(grafico, copia);
-            copia.querySelectorAll('[data-export="omitir"]').forEach(el => el.remove());
-            const altoGrafico = Number(grafico.getAttribute('height')) || grafico.getBoundingClientRect().height;
-            copia.setAttribute('x', String((W - anchoGrafico) / 2));
-            copia.setAttribute('y', String(y));
-            copia.setAttribute('overflow', 'visible');
-            partes.push(new XMLSerializer().serializeToString(copia));
-            y += altoGrafico;
-        }
-
-        const H = y + PAD;
-        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="${fuente}">${partes.join('')}</svg>`;
         const imagen = new Image();
         await new Promise<void>((resolve, reject) => {
             imagen.onload = () => resolve();
@@ -284,8 +294,8 @@ const descargarPng = async () => {
             imagen.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
         });
 
-        // Doble resolución para que se vea nítido en presentaciones; el lienzo queda transparente.
-        const escala = 2;
+        // Cuádruple resolución para que aguante impresión y proyección; el lienzo queda transparente.
+        const escala = 4;
         const canvas = document.createElement('canvas');
         canvas.width = W * escala;
         canvas.height = H * escala;
@@ -325,7 +335,8 @@ const descargarCsv = () => {
                 <button v-if="v.tipo !== 'tabla' && v.tipo !== 'kpi'" type="button" class="icon-btn" :aria-pressed="verTabla" :title="verTabla ? 'Ver gráfico' : 'Ver tabla'" @click="verTabla = !verTabla">
                     <BarChart3 v-if="verTabla" :size="16" /><Table2 v-else :size="16" />
                 </button>
-                <button v-if="puedeExportarPng" type="button" class="icon-btn" :disabled="exportando" title="Descargar imagen PNG (sin fondo)" aria-label="Descargar imagen PNG" @click="descargarPng"><ImageDown :size="16" /></button>
+                <button v-if="puedeExportarImagen" type="button" class="icon-btn" :disabled="exportando" title="Descargar imagen PNG (sin fondo)" aria-label="Descargar imagen PNG" @click="descargarImagen('png')"><ImageDown :size="16" /></button>
+                <button v-if="puedeExportarImagen" type="button" class="icon-btn" :disabled="exportando" title="Descargar imagen vectorial SVG (sin fondo, calidad ilimitada)" aria-label="Descargar imagen SVG" @click="descargarImagen('svg')"><PenTool :size="16" /></button>
                 <button v-if="v.tipo !== 'kpi'" type="button" class="icon-btn" title="Descargar CSV" aria-label="Descargar CSV" @click="descargarCsv"><Download :size="16" /></button>
             </div>
         </header>
