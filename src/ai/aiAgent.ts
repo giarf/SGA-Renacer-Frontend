@@ -1,5 +1,7 @@
+import { apiService } from '../api/apiService';
+import { NOMBRES_ACCIONES, catalogoAccionesPrompt, construirVista, ejecutarOperacion, validarOperaciones, type Confirmacion, type OperacionPropuesta } from './aiActions';
 import type { AiSettings } from './aiSettings';
-import { DATASETS, buscarDataset, cargarDataset } from './datasets';
+import { DATASETS, buscarDataset, cargarDataset, limpiarCacheDatasets } from './datasets';
 import { ejecutarConsulta, normalizarTexto, type Consulta, type Fila, type ResultadoConsulta } from './queryEngine';
 
 export type TipoVisualizacion = 'kpi' | 'barras' | 'barras_horizontales' | 'lineas' | 'torta' | 'tabla';
@@ -27,9 +29,13 @@ export interface MensajeChat {
 export interface CallbacksAgente {
     onPaso: (texto: string) => void;
     onVisualizacion: (visualizacion: Visualizacion) => void;
+    onTexto: (markdown: string) => void;
+    // Muestra la tarjeta de confirmación. Resuelve con la confirmación (la instancia que la UI
+    // observa, para reflejar los resultados) sólo si el administrador aprueba; si no, null.
+    onConfirmacion: (confirmacion: Confirmacion) => Promise<Confirmacion | null>;
 }
 
-const MAX_ITERACIONES = 10;
+const MAX_ITERACIONES = 14;
 const CAMPOS_SIN_EJEMPLOS = new Set(['nombre', 'beneficiario', 'padrino', 'destino', 'jefeHogar', 'descripcion', 'llegada', 'id', 'personaId', 'beneficiarioId']);
 
 const esquemaConsulta = {
@@ -86,6 +92,44 @@ const HERRAMIENTAS = [
     {
         type: 'function',
         function: {
+            name: 'buscar',
+            description: 'Busca registros para obtener sus IDs antes de proponer acciones: personas/instituciones por nombre o RUT, ítems de catálogo, etiquetas, cuentas, familias; o el detalle de un evento/campaña (columnas con su ID, asistentes o participantes).',
+            parameters: {
+                type: 'object',
+                properties: {
+                    tipo: { type: 'string', enum: ['entidades', 'personas', 'instituciones', 'catalogo', 'etiquetas', 'cuentas', 'familias', 'detalle_evento', 'detalle_campana'] },
+                    texto: { type: 'string', description: 'Texto a buscar (mínimo 2 caracteres para entidades)' },
+                    id: { type: 'number', description: 'ID del evento o campaña para los detalles' }
+                },
+                required: ['tipo']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'proponer_acciones',
+            description: 'Propone una o varias acciones de escritura (crear, modificar, eliminar). El administrador verá una vista previa y debe confirmarlas; devuelve si las aprobó y el resultado de cada una. Agrupa en una sola llamada todas las acciones de una misma tarea.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    resumen: { type: 'string', description: 'Una frase que explique qué se hará y por qué' },
+                    acciones: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            properties: { accion: { type: 'string', enum: NOMBRES_ACCIONES }, parametros: { type: 'object' } },
+                            required: ['accion', 'parametros']
+                        }
+                    }
+                },
+                required: ['resumen', 'acciones']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
             name: 'describir_dataset',
             description: 'Devuelve los campos reales de un dataset, la cantidad de filas y los valores más frecuentes de cada campo. Úsala antes de filtrar por texto para conocer los nombres exactos (por ejemplo cómo se llama el evento de Fiestas Patrias).',
             parameters: { type: 'object', properties: { dataset: { type: 'string', enum: DATASETS.map(d => d.nombre) } }, required: ['dataset'] }
@@ -121,7 +165,7 @@ const HERRAMIENTAS = [
     }
 ];
 
-const promptSistema = () => `Eres el analista de datos de la Fundación Familia Renacer dentro del sistema SGA. Respondes en español de Chile, claro y breve, a administradores que no son técnicos.
+const promptSistema = () => `Eres el asistente de datos y operaciones de la Fundación Familia Renacer dentro del sistema SGA. Respondes en español de Chile, claro y breve, a administradores que no son técnicos. Puedes analizar datos y también crear, modificar o eliminar registros.
 Hoy es ${new Date().toISOString().slice(0, 10)}.
 
 Datasets disponibles:
@@ -133,7 +177,18 @@ Cómo trabajar:
 3. Cuando la respuesta sea una cifra, un ranking, una comparación o una evolución, llama a mostrar (puedes llamarla varias veces para armar un pequeño tablero). Para personas únicas usa count_distinct sobre personaId o beneficiarioId. Pon alias legibles a las métricas.
 4. "Niños" significa grupoEtario 'Niño/a (0-12)' salvo que el usuario indique otra edad; menciona cuántos registros no tienen fecha de nacimiento si eso afecta el resultado.
 5. Excluye egresos o ingresos con estado anulado salvo que pidan lo contrario.
-6. Termina con 1 a 4 frases que resuman el hallazgo. No repitas tablas completas en el texto ni menciones las herramientas.`;
+6. Responde en Markdown: negritas para cifras clave, listas cortas y tablas Markdown para listados pequeños (hasta ~15 filas). Para listados más largos usa mostrar con tipo tabla. Termina con 1 a 4 frases que resuman el hallazgo. No menciones las herramientas.
+
+Acciones de escritura (siempre mediante proponer_acciones; * = obligatorio):
+${catalogoAccionesPrompt()}
+
+Reglas para acciones:
+- Nunca digas que algo se creó, modificó o eliminó si proponer_acciones no devolvió aprobado=true y ok=true para esa acción.
+- Usa buscar o consultar para obtener los IDs reales; nunca inventes IDs. Si hay varias coincidencias posibles, pregunta al usuario cuál es antes de proponer.
+- Si falta un dato obligatorio que no puedes deducir, pregúntalo. Las fechas por defecto son hoy.
+- Para modificar, envía sólo los campos que cambian.
+- Si el usuario rechaza, no vuelvas a proponer lo mismo; pregunta qué quiere ajustar.
+- La gestión de usuarios y permisos (Authentik) no está disponible aquí.`;
 
 const ejemplosCampo = (filas: Fila[], campo: string) => {
     const conteo = new Map<string, number>();
@@ -199,6 +254,8 @@ export const ejecutarConsultaSegura = async (consulta: Consulta) => ejecutarCons
 const textoPaso = (nombre: string, args: any) => {
     if (nombre === 'describir_dataset') return `Revisando ${String(args?.dataset ?? 'datos').replace(/_/g, ' ')}`;
     if (nombre === 'consultar') return `Calculando sobre ${String(args?.dataset ?? 'datos').replace(/_/g, ' ')}`;
+    if (nombre === 'buscar') return `Buscando ${String(args?.tipo ?? '').replace(/_/g, ' ')}${args?.texto ? ` «${args.texto}»` : ''}`;
+    if (nombre === 'proponer_acciones') return 'Esperando tu confirmación';
     return `Dibujando «${args?.titulo ?? 'visualización'}»`;
 };
 
@@ -209,8 +266,67 @@ const elegirEjes = (resultado: ResultadoConsulta, x?: string, y?: string[]) => {
     return { x: ejeX, y: (ejeY.length ? ejeY : numericas.filter(c => c !== ejeX)).slice(0, 3) };
 };
 
+const coincide = (texto: unknown, busqueda?: string) => !busqueda || normalizarTexto(texto).includes(normalizarTexto(busqueda));
+
+const buscar = async (args: { tipo: string; texto?: string; id?: number }) => {
+    const { tipo, texto } = args;
+    if (tipo === 'entidades' || tipo === 'personas' || tipo === 'instituciones') {
+        if (!texto || texto.trim().length < 2) throw new Error('Indica al menos 2 caracteres para buscar.');
+        const filtro = tipo === 'personas' ? 'PersonaNatural' : tipo === 'instituciones' ? 'Institucion' : undefined;
+        const resultados = await apiService.buscarEntidades(texto.trim(), filtro);
+        return resultados.slice(0, 25).map(e => ({ id: e.id, nombre: e.nombreCompleto, tipo: e.tipoEntidad, comuna: e.comuna ?? null }));
+    }
+    if (tipo === 'catalogo') return (await apiService.getCatalogoItems()).filter(c => coincide(c.nombre, texto) || coincide(c.categoria, texto)).slice(0, 40).map(c => ({ id: c.id, nombre: c.nombre, categoria: c.categoria, unidad: c.unidadMedidaEstandar, stock: c.stockActual, precioReferencia: c.precioReferencia }));
+    if (tipo === 'etiquetas') return (await apiService.getEtiquetas()).filter(e => coincide(e.nombre, texto)).map(e => ({ id: e.id, nombre: e.nombre, descripcion: e.descripcion, activa: e.activa }));
+    if (tipo === 'cuentas') return (await apiService.getCuentas()).filter(c => coincide(c.nombre, texto)).map(c => ({ id: c.id, nombre: c.nombre, saldoActual: c.saldoActual }));
+    if (tipo === 'familias') return (await apiService.getFamilias()).filter(f => coincide(f.nombreFamilia, texto) || coincide(f.jefeHogarNombre, texto)).slice(0, 40).map(f => ({ id: f.id, nombre: f.nombreFamilia, jefeHogar: f.jefeHogarNombre, jefeHogarId: f.jefeHogarId }));
+    if (tipo === 'detalle_evento') {
+        if (!args.id) throw new Error('Indica el id del evento.');
+        const d = await apiService.getAsistencia(Number(args.id));
+        return { evento: d.evento, columnas: d.columnas, asistentes: d.asistentes.filter(a => coincide(a.nombreCompleto, texto)).slice(0, 300).map(a => ({ personaId: a.personaId, nombre: a.nombreCompleto })) };
+    }
+    if (tipo === 'detalle_campana') {
+        if (!args.id) throw new Error('Indica el id de la campaña.');
+        const d = await apiService.getCampana(Number(args.id));
+        return {
+            campana: d.campana,
+            columnas: d.columnas.map(c => ({ id: c.id, nombre: c.nombre, tipo: c.tipo })),
+            participantes: d.participantes.filter(p => coincide(p.beneficiario.nombreCompleto, texto) || coincide(p.padrino?.nombreCompleto, texto)).slice(0, 300).map(p => ({ beneficiarioId: p.beneficiario.id, beneficiario: p.beneficiario.nombreCompleto, padrinoId: p.padrino?.id ?? null, padrino: p.padrino?.nombreCompleto ?? null }))
+        };
+    }
+    throw new Error(`Tipo de búsqueda desconocido: ${tipo}`);
+};
+
+const proponerAcciones = async (args: { resumen?: string; acciones: OperacionPropuesta[] }, callbacks: CallbacksAgente) => {
+    validarOperaciones(args.acciones);
+    const confirmacion: Confirmacion = {
+        id: crypto.randomUUID(),
+        resumen: args.resumen ?? '',
+        operaciones: await Promise.all(args.acciones.map(construirVista)),
+        estado: 'pendiente'
+    };
+    const aprobada = await callbacks.onConfirmacion(confirmacion);
+    if (!aprobada) return { aprobado: false, mensaje: 'El administrador rechazó las acciones. No se realizó ningún cambio.' };
+
+    const resultados = [];
+    for (const [i, op] of args.acciones.entries()) {
+        const vista = aprobada.operaciones[i]!;
+        try {
+            vista.resultado = { ok: true, mensaje: await ejecutarOperacion(op) };
+        } catch (error) {
+            vista.resultado = { ok: false, mensaje: error instanceof Error ? error.message : String(error) };
+        }
+        resultados.push({ accion: op.accion, ...vista.resultado });
+    }
+    aprobada.estado = 'completada';
+    limpiarCacheDatasets();
+    return { aprobado: true, resultados };
+};
+
 const ejecutarHerramienta = async (nombre: string, args: any, callbacks: CallbacksAgente): Promise<unknown> => {
     if (nombre === 'describir_dataset') return describirDataset(args.dataset);
+    if (nombre === 'buscar') return buscar(args);
+    if (nombre === 'proponer_acciones') return proponerAcciones(args, callbacks);
 
     if (nombre === 'consultar') {
         const resultado = await ejecutarConsultaSegura(args as Consulta);
@@ -259,6 +375,25 @@ const llamarModelo = async (settings: AiSettings, mensajes: MensajeChat[], signa
 
 export const nuevoHistorial = (): MensajeChat[] => [{ role: 'system', content: promptSistema() }];
 
+// Los chats guardados conservan su historial; se refresca el prompt (fecha, acciones) al continuar.
+const conPromptActual = (historial: MensajeChat[]) => {
+    if (historial[0]?.role === 'system') historial[0] = { role: 'system', content: promptSistema() };
+    else historial.unshift({ role: 'system', content: promptSistema() });
+};
+
+// Si una consulta se interrumpió, las llamadas a herramientas quedan sin respuesta y el
+// proveedor rechazaría el historial; se completan como interrumpidas.
+const repararHistorial = (historial: MensajeChat[]) => {
+    const respondidas = new Set(historial.filter(m => m.role === 'tool').map(m => m.tool_call_id));
+    for (let i = historial.length - 1; i >= 0; i--) {
+        const pendientes = (historial[i]!.tool_calls ?? []).filter(t => !respondidas.has(t.id));
+        if (!pendientes.length) continue;
+        let fin = i + 1;
+        while (historial[fin]?.role === 'tool') fin++;
+        historial.splice(fin, 0, ...pendientes.map(t => ({ role: 'tool' as const, tool_call_id: t.id, content: JSON.stringify({ error: 'Interrumpido por el usuario; no se realizó ninguna acción.' }) })));
+    }
+};
+
 export const preguntar = async (
     settings: AiSettings,
     historial: MensajeChat[],
@@ -266,6 +401,8 @@ export const preguntar = async (
     callbacks: CallbacksAgente,
     signal: AbortSignal
 ): Promise<string> => {
+    conPromptActual(historial);
+    repararHistorial(historial);
     historial.push({ role: 'user', content: pregunta });
 
     for (let iteracion = 0; iteracion < MAX_ITERACIONES; iteracion++) {
@@ -274,6 +411,7 @@ export const preguntar = async (
         historial.push({ role: 'assistant', content: mensaje.content ?? null, ...(mensaje.tool_calls?.length ? { tool_calls: mensaje.tool_calls } : {}) });
 
         if (!mensaje.tool_calls?.length) return mensaje.content?.trim() || 'Listo.';
+        if (mensaje.content?.trim()) callbacks.onTexto(mensaje.content.trim());
 
         for (const llamada of mensaje.tool_calls) {
             let resultado: unknown;
