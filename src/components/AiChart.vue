@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import { Download, Table2, BarChart3 } from 'lucide-vue-next';
+import { Download, ImageDown, Table2, BarChart3 } from 'lucide-vue-next';
 import type { FormatoValor, Visualizacion } from '../ai/aiAgent';
 import type { Valor } from '../ai/queryEngine';
 
@@ -192,33 +192,141 @@ const mostrarHover = (evento: MouseEvent, titulo: string, fila: Record<string, V
 
 const columnasTabla = computed(() => props.v.resultado.columnas);
 
+const nombreArchivo = (extension: string) => `${props.v.titulo.replace(/[^\p{L}\p{N}]+/gu, '_').slice(0, 60) || 'grafico'}.${extension}`;
+
+const descargar = (blob: Blob, nombre: string) => {
+    const url = URL.createObjectURL(blob);
+    const enlace = document.createElement('a');
+    enlace.href = url;
+    enlace.download = nombre;
+    enlace.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+};
+
+const articulo = ref<HTMLElement | null>(null);
+const exportando = ref(false);
+const puedeExportarPng = computed(() => props.v.tipo !== 'tabla' && !verTabla.value && (props.v.tipo === 'kpi' || filas.value.length > 0));
+
+// Las clases y variables CSS no existen dentro de una imagen, así que se copian los estilos ya resueltos.
+const ESTILOS_SVG = ['fill', 'fill-opacity', 'stroke', 'stroke-width', 'stroke-opacity', 'stroke-linecap', 'stroke-linejoin', 'opacity', 'font-size', 'font-family', 'font-weight', 'font-variant-numeric', 'text-anchor', 'dominant-baseline', 'display'];
+const inlinearEstilos = (origen: Element, copia: Element) => {
+    const estilo = getComputedStyle(origen);
+    // Los bordes color tarjeta separan porciones en pantalla, pero sobre un fondo transparente se verían como líneas blancas.
+    const sinBorde = origen.classList.contains('slice') || origen.classList.contains('ring');
+    copia.setAttribute('style', ESTILOS_SVG.map(p => `${p}:${sinBorde && p === 'stroke' ? 'none' : estilo.getPropertyValue(p)}`).join(';'));
+    copia.removeAttribute('class');
+    Array.from(origen.children).forEach((hijo, i) => { const c = copia.children[i]; if (c) inlinearEstilos(hijo, c); });
+};
+
+const xml = (texto: string) => texto.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+const descargarPng = async () => {
+    if (!articulo.value || !contenedor.value || exportando.value) return;
+    exportando.value = true;
+    hover.value = null;
+    try {
+        const estilo = getComputedStyle(articulo.value);
+        const fuente = estilo.fontFamily.replace(/"/g, "'");
+        const primario = estilo.color;
+        const secundario = estilo.getPropertyValue('--text-muted').trim() || '#5d626a';
+        const grafico = contenedor.value.querySelector('svg');
+        const PAD = 24;
+        const anchoGrafico = grafico ? Number(grafico.getAttribute('width')) || grafico.getBoundingClientRect().width : 320;
+        const W = Math.max(anchoGrafico, 320) + PAD * 2;
+        const partes: string[] = [];
+        let y = PAD;
+
+        partes.push(`<text x="${PAD}" y="${y + 18}" font-size="18" font-weight="700" fill="${primario}">${xml(props.v.titulo)}</text>`);
+        y += 28;
+        if (props.v.subtitulo) {
+            partes.push(`<text x="${PAD}" y="${y + 13}" font-size="13" fill="${secundario}">${xml(props.v.subtitulo)}</text>`);
+            y += 22;
+        }
+        y += 8;
+
+        const leyenda = Array.from(contenedor.value.querySelectorAll('.legend li'));
+        if (leyenda.length) {
+            let x = PAD;
+            leyenda.forEach(item => {
+                const muestra = item.querySelector('i');
+                const color = muestra ? getComputedStyle(muestra).backgroundColor : primario;
+                const texto = (item.textContent ?? '').trim();
+                const anchoItem = 18 + texto.length * 7 + 16;
+                if (x + anchoItem > W - PAD && x > PAD) { x = PAD; y += 22; }
+                partes.push(`<rect x="${x}" y="${y + 2}" width="11" height="11" rx="3" fill="${color}"/><text x="${x + 17}" y="${y + 12}" font-size="12" fill="${primario}">${xml(texto)}</text>`);
+                x += anchoItem;
+            });
+            y += 30;
+        }
+
+        if (props.v.tipo === 'kpi' && kpi.value) {
+            partes.push(`<text x="${PAD}" y="${y + 50}" font-size="54" font-weight="750" letter-spacing="-1.5" fill="${primario}">${xml(String(kpi.value.valor))}</text>`);
+            partes.push(`<text x="${PAD}" y="${y + 78}" font-size="14" fill="${secundario}">${xml(kpi.value.etiqueta)}</text>`);
+            y += 90;
+        } else if (grafico) {
+            const copia = grafico.cloneNode(true) as SVGSVGElement;
+            inlinearEstilos(grafico, copia);
+            copia.querySelectorAll('[data-export="omitir"]').forEach(el => el.remove());
+            const altoGrafico = Number(grafico.getAttribute('height')) || grafico.getBoundingClientRect().height;
+            copia.setAttribute('x', String((W - anchoGrafico) / 2));
+            copia.setAttribute('y', String(y));
+            copia.setAttribute('overflow', 'visible');
+            partes.push(new XMLSerializer().serializeToString(copia));
+            y += altoGrafico;
+        }
+
+        const H = y + PAD;
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="${fuente}">${partes.join('')}</svg>`;
+        const imagen = new Image();
+        await new Promise<void>((resolve, reject) => {
+            imagen.onload = () => resolve();
+            imagen.onerror = () => reject(new Error('No se pudo generar la imagen.'));
+            imagen.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+        });
+
+        // Doble resolución para que se vea nítido en presentaciones; el lienzo queda transparente.
+        const escala = 2;
+        const canvas = document.createElement('canvas');
+        canvas.width = W * escala;
+        canvas.height = H * escala;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) throw new Error('El navegador no permite generar imágenes.');
+        ctx.scale(escala, escala);
+        ctx.drawImage(imagen, 0, 0, W, H);
+        const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/png'));
+        if (!blob) throw new Error('No se pudo generar la imagen.');
+        descargar(blob, nombreArchivo('png'));
+    } catch (error) {
+        console.error(error);
+        window.alert(error instanceof Error ? error.message : 'No se pudo generar la imagen.');
+    } finally {
+        exportando.value = false;
+    }
+};
+
 const descargarCsv = () => {
     const escapar = (valor: Valor) => {
         const texto = Array.isArray(valor) ? valor.join('; ') : String(valor ?? '');
         return /[",\n;]/.test(texto) ? `"${texto.replace(/"/g, '""')}"` : texto;
     };
     const csv = [columnasTabla.value.map(escapar).join(','), ...filas.value.map(f => columnasTabla.value.map(c => escapar(f[c])).join(','))].join('\n');
-    const url = URL.createObjectURL(new Blob([`﻿${csv}`], { type: 'text/csv;charset=utf-8' }));
-    const enlace = document.createElement('a');
-    enlace.href = url;
-    enlace.download = `${props.v.titulo.replace(/[^\p{L}\p{N}]+/gu, '_').slice(0, 60) || 'datos'}.csv`;
-    enlace.click();
-    URL.revokeObjectURL(url);
+    descargar(new Blob([`﻿${csv}`], { type: 'text/csv;charset=utf-8' }), nombreArchivo('csv'));
 };
 </script>
 
 <template>
-    <article class="viz surface-card" :class="{ 'viz-kpi': v.tipo === 'kpi' }">
+    <article ref="articulo" class="viz surface-card" :class="{ 'viz-kpi': v.tipo === 'kpi' }">
         <header class="viz-head">
             <div>
                 <h3>{{ v.titulo }}</h3>
                 <p v-if="v.subtitulo" class="viz-sub">{{ v.subtitulo }}</p>
             </div>
-            <div v-if="v.tipo !== 'kpi'" class="viz-actions">
-                <button v-if="v.tipo !== 'tabla'" type="button" class="icon-btn" :aria-pressed="verTabla" :title="verTabla ? 'Ver gráfico' : 'Ver tabla'" @click="verTabla = !verTabla">
+            <div class="viz-actions">
+                <button v-if="v.tipo !== 'tabla' && v.tipo !== 'kpi'" type="button" class="icon-btn" :aria-pressed="verTabla" :title="verTabla ? 'Ver gráfico' : 'Ver tabla'" @click="verTabla = !verTabla">
                     <BarChart3 v-if="verTabla" :size="16" /><Table2 v-else :size="16" />
                 </button>
-                <button type="button" class="icon-btn" title="Descargar CSV" @click="descargarCsv"><Download :size="16" /></button>
+                <button v-if="puedeExportarPng" type="button" class="icon-btn" :disabled="exportando" title="Descargar imagen PNG (sin fondo)" aria-label="Descargar imagen PNG" @click="descargarPng"><ImageDown :size="16" /></button>
+                <button v-if="v.tipo !== 'kpi'" type="button" class="icon-btn" title="Descargar CSV" aria-label="Descargar CSV" @click="descargarCsv"><Download :size="16" /></button>
             </div>
         </header>
 
@@ -260,7 +368,7 @@ const descargarCsv = () => {
                         </g>
                     </g>
                     <g v-for="g in barras.grupos" :key="g.etiqueta + g.centro">
-                        <rect class="hit" :x="g.centro - g.banda / 2" :y="M.top" :width="g.banda" :height="barras.base - M.top" @mousemove="mostrarHover($event, String(formatear(g.fila[xCampo], 'numero')), g.fila)" />
+                        <rect class="hit" data-export="omitir" :x="g.centro - g.banda / 2" :y="M.top" :width="g.banda" :height="barras.base - M.top" @mousemove="mostrarHover($event, String(formatear(g.fila[xCampo], 'numero')), g.fila)" />
                         <path v-for="b in g.barras" :key="b.serie" :class="`fill-${b.serie}`" :d="`M${b.x},${barras.base} V${b.y + Math.min(4, b.h)} q0,-${Math.min(4, b.h)} ${Math.min(4, b.w / 2)},-${Math.min(4, b.h)} H${b.x + b.w - Math.min(4, b.w / 2)} q${Math.min(4, b.w / 2)},0 ${Math.min(4, b.w / 2)},${Math.min(4, b.h)} V${barras.base} Z`" pointer-events="none" />
                         <text class="axis-label" :x="g.centro" :y="barras.base + 18" text-anchor="middle">{{ g.etiqueta }}</text>
                     </g>
@@ -269,7 +377,7 @@ const descargarCsv = () => {
 
                 <svg v-else-if="tipoGrafico === 'barras_horizontales'" :width="ancho" :height="horizontales.alto" role="img" :aria-label="v.titulo">
                     <g v-for="f in horizontales.filas" :key="f.completa + f.y">
-                        <rect class="hit" x="0" :y="f.y" :width="ancho" :height="f.alturaGrupo" @mousemove="mostrarHover($event, f.completa, f.fila)" />
+                        <rect class="hit" data-export="omitir" x="0" :y="f.y" :width="ancho" :height="f.alturaGrupo" @mousemove="mostrarHover($event, f.completa, f.fila)" />
                         <text class="axis-label" :x="horizontales.etiquetaAncho - 10" :y="f.y + f.alturaGrupo / 2 + 2" text-anchor="end" dominant-baseline="middle">{{ f.etiqueta }}</text>
                         <g v-for="b in f.barras" :key="b.serie" pointer-events="none">
                             <rect :class="`fill-${b.serie}`" :x="b.x" :y="b.y" :width="b.w" :height="b.h" rx="4" />
@@ -288,11 +396,11 @@ const descargarCsv = () => {
                     <template v-for="e in lineas.etiquetas" :key="e.x">
                         <text v-if="e.visible" class="axis-label" :x="e.x" :y="lineas.base + 18" text-anchor="middle">{{ e.texto }}</text>
                     </template>
-                    <path v-for="s in lineas.series" :key="s.nombre" :class="`stroke-${s.serie}`" :d="s.path" fill="none" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+                    <path v-for="s in lineas.series" :key="s.nombre" :class="`linea-${s.serie}`" :d="s.path" fill="none" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
                     <template v-for="s in lineas.series" :key="`p-${s.nombre}`">
                         <circle v-for="(p, i) in s.puntos" v-show="lineas.puntos.length <= 24 || (hover && Math.abs(hover.x - p.x) < 1)" :key="i" :class="`fill-${s.serie} ring`" :cx="p.x" :cy="p.y" r="4" />
                     </template>
-                    <rect v-for="(p, i) in lineas.puntos" :key="`h-${i}`" class="hit" :x="p.x - (ancho / Math.max(2, lineas.puntos.length)) / 2" :y="M.top" :width="ancho / Math.max(2, lineas.puntos.length)" :height="lineas.base - M.top" @mousemove="mostrarHover($event, String(formatear(p.fila[xCampo], 'numero')), p.fila)" />
+                    <rect v-for="(p, i) in lineas.puntos" :key="`h-${i}`" class="hit" data-export="omitir" :x="p.x - (ancho / Math.max(2, lineas.puntos.length)) / 2" :y="M.top" :width="ancho / Math.max(2, lineas.puntos.length)" :height="lineas.base - M.top" @mousemove="mostrarHover($event, String(formatear(p.fila[xCampo], 'numero')), p.fila)" />
                     <line class="baseline" :x1="M.left" :x2="ancho - M.right" :y1="lineas.base" :y2="lineas.base" />
                 </svg>
 
@@ -370,7 +478,8 @@ svg text { font-size: 11px; fill: var(--text-muted); font-variant-numeric: tabul
 
 .fill-0 { fill: var(--series-0); } .fill-1 { fill: var(--series-1); } .fill-2 { fill: var(--series-2); }
 .fill-3 { fill: var(--series-3); } .fill-4 { fill: var(--series-4); } .fill-otros { fill: var(--series-otros); }
-.stroke-0 { stroke: var(--series-0); } .stroke-1 { stroke: var(--series-1); } .stroke-2 { stroke: var(--series-2); }
+/* No usar stroke-N: choca con las utilidades de Tailwind que fijan stroke-width. */
+.linea-0 { stroke: var(--series-0); } .linea-1 { stroke: var(--series-1); } .linea-2 { stroke: var(--series-2); }
 .sw-0 { background: var(--series-0); } .sw-1 { background: var(--series-1); } .sw-2 { background: var(--series-2); }
 .sw-3 { background: var(--series-3); } .sw-4 { background: var(--series-4); } .sw-otros { background: var(--series-otros); }
 
