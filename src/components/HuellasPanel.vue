@@ -94,7 +94,7 @@ async function quitar(huella: HuellaRegistrada) {
             <button type="button" class="btn-primary" :disabled="ocupado" @click="registrar">
                 <LoaderCircle v-if="leyendo" :size="18" class="animate-spin" aria-hidden="true" />
                 <FingerprintPattern v-else :size="18" aria-hidden="true" />
-                {{ leyendo ? 'Pon el dedo en el lector…' : reemplaza ? 'Volver a registrar' : 'Registrar huella' }}
+                {{ leyendo ? 'Pon y retira el dedo 5 veces…' : reemplaza ? 'Volver a registrar' : 'Registrar huella' }}
             </button>
         </div>
     </section>
