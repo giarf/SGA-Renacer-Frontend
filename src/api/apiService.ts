@@ -7,6 +7,8 @@ import type {
     TipoColumnaCampana,
     GuardarValorCampana,
     VinculoApoderado,
+    HuellaRegistrada,
+    PersonaIdentificada,
     EventoAsistencia,
     DetalleAsistencia,
     TipoColumnaAsistencia,
@@ -823,6 +825,18 @@ export const apiService = {
     },
     async quitarApoderado(id: number, apoderadoId: number): Promise<void> {
         await requestJson(`${API_BASE_URL}/personas/${id}/apoderados/${apoderadoId}`, { method: 'DELETE' });
+    },
+    getHuellas(personaId: number): Promise<{ dedos: string[]; huellas: HuellaRegistrada[] }> {
+        return requestJson(`${API_BASE_URL}/personas/${personaId}/huellas`, { cache: 'no-store' });
+    },
+    registrarHuella(personaId: number, dedo: string): Promise<HuellaRegistrada> {
+        return requestJson(`${API_BASE_URL}/personas/${personaId}/huellas`, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ dedo }), signal: AbortSignal.timeout(70000) });
+    },
+    eliminarHuella(personaId: number, huellaId: number): Promise<void> {
+        return requestJson(`${API_BASE_URL}/personas/${personaId}/huellas/${huellaId}`, { method: 'DELETE' });
+    },
+    identificarHuella(): Promise<PersonaIdentificada> {
+        return requestJson(`${API_BASE_URL}/huellero/identificar`, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: '{}', signal: AbortSignal.timeout(70000) });
     },
     async getRoles(tipo: 'beneficiarios' | 'colaboradores' | 'trabajadores' | 'directivos'): Promise<RolPersona[]> {
         return await requestJson<RolPersona[]>(`${API_BASE_URL}/${tipo}`);

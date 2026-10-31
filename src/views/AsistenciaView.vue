@@ -8,8 +8,9 @@ import AsistenciaCelda from '../components/AsistenciaCelda.vue';
 import AsistenciaDialog from '../components/AsistenciaDialog.vue';
 import ModalCrearPersona from '../components/ModalCrearPersona.vue';
 import GrupoAsistencia from '../components/GrupoAsistencia.vue';
+import LeerHuellaButton from '../components/LeerHuellaButton.vue';
 import type { PersonaGrupo } from '../utils/grupoAsistencia';
-import type { ColumnaAsistencia, DetalleAsistencia, EntidadResumen, EventoAsistencia, TipoColumnaAsistencia, ValorAsistencia } from '../types';
+import type { ColumnaAsistencia, DetalleAsistencia, EntidadResumen, EventoAsistencia, PersonaIdentificada, TipoColumnaAsistencia, ValorAsistencia } from '../types';
 
 const route = useRoute();
 const router = useRouter();
@@ -196,6 +197,14 @@ function abrirGrupo(person: EntidadResumen) {
     grupoPersona.value = { id: person.id, nombreCompleto: person.nombreCompleto };
     showResults.value = false;
 }
+function huellaIdentificada(persona: PersonaIdentificada) {
+    search.value = '';
+    abrirGrupo({ id: persona.id, nombreCompleto: persona.nombreCompleto, tipoEntidad: 'PersonaNatural', identificador: persona.rut ?? '' });
+}
+function huellaError(mensaje: string) {
+    notice.value = '';
+    error.value = mensaje;
+}
 async function agregarGrupo(personas: PersonaGrupo[]) {
     const id = eventoId.value;
     if (!id) return;
@@ -363,6 +372,7 @@ onBeforeUnmount(() => {
                         <p v-if="results.length === 20" class="p-3 text-xs muted">Mostrando 20 resultados. Escribe más para precisar la búsqueda.</p>
                     </div>
                 </div>
+                <LeerHuellaButton :disabled="working" @identificada="huellaIdentificada" @error="huellaError" />
                 <button class="btn-secondary" :disabled="working" @click="showResults = false; newPersonOpen = true"><Plus :size="17" /> Nueva persona</button>
             </section>
 

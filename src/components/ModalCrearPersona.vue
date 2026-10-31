@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { nextTick, ref, useId, watch } from 'vue';
 import PersonaForm from './PersonaForm.vue';
-import { X, UserPlus } from 'lucide-vue-next';
+import HuellasPanel from './HuellasPanel.vue';
+import { X, UserPlus, FingerprintPattern } from 'lucide-vue-next';
 
 const props = defineProps<{ isOpen: boolean; initialSearch?: string }>();
 const emit = defineEmits<{
@@ -11,24 +12,39 @@ const emit = defineEmits<{
 const dialog = ref<HTMLDialogElement | null>(null);
 const busy = ref(false);
 const titleId = useId();
+const creada = ref<{ rut: string; id: number } | null>(null);
 
 watch(() => props.isOpen, async (open) => {
     await nextTick();
     if (open && props.isOpen) {
         busy.value = false;
+        creada.value = null;
         dialog.value?.showModal();
     } else if (!props.isOpen) {
         dialog.value?.close();
     }
 }, { immediate: true });
 
-const requestClose = () => {
-    if (!busy.value) emit('close');
+const finish = () => {
+    const persona = creada.value;
+    creada.value = null;
+    if (persona) emit('created', persona.rut, persona.id);
+    emit('close');
 };
 
+const requestClose = () => {
+    if (busy.value) return;
+    if (creada.value) finish();
+    else emit('close');
+};
+
+// Con la persona ya creada se ofrece registrar su huella antes de devolverla.
 const handleCreated = (rut: string, id?: number) => {
-    emit('created', rut, id);
-    emit('close');
+    if (id) creada.value = { rut, id };
+    else {
+        emit('created', rut, id);
+        emit('close');
+    }
 };
 </script>
 
@@ -36,16 +52,20 @@ const handleCreated = (rut: string, id?: number) => {
     <Teleport to="body">
         <dialog ref="dialog" class="person-dialog" :aria-labelledby="titleId" @cancel.prevent="requestClose">
             <header class="person-dialog-header">
-                <div class="person-dialog-icon"><UserPlus :size="21" aria-hidden="true" /></div>
+                <div class="person-dialog-icon"><FingerprintPattern v-if="creada" :size="21" aria-hidden="true" /><UserPlus v-else :size="21" aria-hidden="true" /></div>
                 <div class="min-w-0 flex-1">
-                    <h2 :id="titleId">Nueva persona</h2>
-                    <p>Registra sus datos sin salir de esta página.</p>
+                    <h2 :id="titleId">{{ creada ? 'Registrar huella' : 'Nueva persona' }}</h2>
+                    <p>{{ creada ? 'Persona registrada. Puedes agregar su huella ahora u omitir este paso.' : 'Registra sus datos sin salir de esta página.' }}</p>
                 </div>
                 <button type="button" class="person-dialog-close" aria-label="Cerrar nueva persona" :disabled="busy" @click="requestClose">
                     <X :size="20" aria-hidden="true" />
                 </button>
             </header>
-            <PersonaForm v-if="isOpen" :initial-search="initialSearch" @cancel="requestClose" @created="handleCreated" @busy="busy = $event" />
+            <template v-if="isOpen && creada">
+                <div class="person-dialog-step"><HuellasPanel :persona-id="creada.id" /></div>
+                <footer class="person-dialog-footer"><button type="button" class="btn-primary" @click="finish">Listo</button></footer>
+            </template>
+            <PersonaForm v-else-if="isOpen" :initial-search="initialSearch" @cancel="requestClose" @created="handleCreated" @busy="busy = $event" />
         </dialog>
     </Teleport>
 </template>
@@ -101,7 +121,10 @@ const handleCreated = (rut: string, id?: number) => {
 .person-dialog-close:hover { background: var(--surface-muted); }
 .person-dialog-close:disabled { opacity: .4; cursor: wait; }
 .person-dialog-close:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 2px; }
+.person-dialog-step { overflow-y: auto; padding: 1.25rem 1.5rem; }
+.person-dialog-footer { display: flex; justify-content: flex-end; flex-shrink: 0; padding: 1rem 1.5rem; border-top: 1px solid var(--card-border); }
 @media (max-width: 480px) {
+    .person-dialog-step, .person-dialog-footer { padding: 1rem; }
     .person-dialog { width: calc(100% - 1.25rem); max-height: calc(100dvh - 1.5rem); border-radius: 1.15rem; }
     .person-dialog-header { padding: 1rem; gap: .65rem; }
     .person-dialog-icon { display: none; }

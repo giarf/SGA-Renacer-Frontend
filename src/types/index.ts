@@ -630,3 +630,19 @@ export interface VinculoApoderado {
     esContactoPrincipal: boolean;
     observaciones: string;
 }
+
+export interface HuellaRegistrada {
+    id: number;
+    personaId: number;
+    dedo: string;
+    formato: string;
+    calidad?: number;
+    registrada: string;
+}
+
+export interface PersonaIdentificada {
+    id: number;
+    nombreCompleto: string;
+    rut?: string;
+    dedo: string;
+}

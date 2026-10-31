@@ -3,12 +3,13 @@ import { ref, watch, reactive, useId } from 'vue';
 import type { EntidadResumen, ActualizarPersonaPayload, ActualizarInstitucionPayload, ActualizarEntidadPayload } from '../types';
 import PhoneInput from './PhoneInput.vue';
 import ApoderadosPanel from './ApoderadosPanel.vue';
+import HuellasPanel from './HuellasPanel.vue';
 import ProfilePhotoInput from './ProfilePhotoInput.vue';
 import EtiquetaChipsSelector from './EtiquetaChipsSelector.vue';
 import RegionComunaSelect from './RegionComunaSelect.vue';
 import { apiService } from '../api/apiService';
 import { formatRutForDisplay, formatRutForBackend } from '../utils/rutFormatter';
-import { X, Pencil, ChevronDown, UserRound, MapPin, ClipboardList } from 'lucide-vue-next';
+import { X, Pencil, ChevronDown, UserRound, MapPin, ClipboardList, FingerprintPattern } from 'lucide-vue-next';
 
 const props = defineProps<{
     isOpen: boolean;
@@ -458,6 +459,17 @@ const save = async () => {
                     <div class="edit-subsection">
                         <ApoderadosPanel v-if="isOpen" :key="entidad.id" :persona-id="entidad.id" />
                     </div>
+                        </div>
+                    </details>
+
+                    <details class="edit-section">
+                        <summary>
+                            <span class="edit-section-icon"><FingerprintPattern :size="20" aria-hidden="true" /></span>
+                            <span class="edit-section-heading"><span>Huellas digitales</span><small>Registrar o reemplazar huellas con el lector</small></span>
+                            <ChevronDown :size="18" class="edit-chevron" aria-hidden="true" />
+                        </summary>
+                        <div class="edit-section-body">
+                            <HuellasPanel v-if="isOpen" :key="entidad.id" :persona-id="entidad.id" />
                         </div>
                     </details>
                 </template>

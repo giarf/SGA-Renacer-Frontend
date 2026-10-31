@@ -2,12 +2,13 @@
 import { normalizeWhatsappNumber } from '../utils/whatsapp';
 import { matchesSearch } from '../utils/search';
 import { ref, computed, onMounted, nextTick, reactive, watch, onBeforeUnmount } from 'vue';
-import type { EntidadResumen, ActualizarEntidadPayload, ActualizarPersonaPayload, ActualizarInstitucionPayload, Etiqueta } from '../types';
+import type { EntidadResumen, ActualizarEntidadPayload, ActualizarPersonaPayload, ActualizarInstitucionPayload, Etiqueta, PersonaIdentificada } from '../types';
 import { apiService } from '../api/apiService';
 import ModalCrearPersona from '../components/ModalCrearPersona.vue';
 import InstitucionForm from '../components/InstitucionForm.vue';
 import ModalEditar from '../components/ModalEditar.vue';
 import ModalConfirmacionEliminar from '../components/ModalConfirmacionEliminar.vue';
+import LeerHuellaButton from '../components/LeerHuellaButton.vue';
 import { formatRutForDisplay } from '../utils/rutFormatter';
 import { Trash2, Plus, Pencil, Users, Building2, Tags, X, MessageCircle, ArrowUp, ArrowDown } from 'lucide-vue-next';
 
@@ -276,6 +277,12 @@ const openCreatePanel = (mode: 'persona' | 'institucion') => {
 
 const closeCreatePanel = () => {
     createMode.value = null;
+};
+
+const huellaIdentificada = (persona: PersonaIdentificada) => {
+    const encontrada = personas.value.find(p => p.id === persona.id);
+    personaSearch.value = encontrada?.identificador || persona.rut || persona.nombreCompleto;
+    showToast('success', `Huella reconocida: ${persona.nombreCompleto}.`);
 };
 
 const startEdit = (entidad: EntidadResumen) => {
@@ -648,12 +655,15 @@ onBeforeUnmount(() => {
                         <p class="text-sm text-gray-500 dark:text-gray-400">Listado actualizado con vínculo a su gestor</p>
                     </div>
                     <div class="grid w-full gap-2 sm:grid-cols-2 lg:w-auto lg:min-w-[520px]">
-                        <input
-                            v-model="personaSearch"
-                            type="search"
-                            placeholder="Buscar por nombre, RUT o comuna..."
-                            class="h-10 rounded-xl border border-[var(--card-border)] bg-[var(--bg-base)]/60 px-4 text-sm focus:border-[var(--accent-color)] focus:ring-0"
-                        >
+                        <div class="flex gap-2">
+                            <input
+                                v-model="personaSearch"
+                                type="search"
+                                placeholder="Buscar por nombre, RUT o comuna..."
+                                class="h-10 flex-1 min-w-0 rounded-xl border border-[var(--card-border)] bg-[var(--bg-base)]/60 px-4 text-sm focus:border-[var(--accent-color)] focus:ring-0"
+                            >
+                            <LeerHuellaButton class="!min-h-10 !min-w-10 !rounded-xl" @identificada="huellaIdentificada" @error="showToast('error', $event)" />
+                        </div>
                         <div class="flex gap-2">
                             <select v-model="selectedEtiquetaFilter" class="compact-control h-10 rounded-xl flex-1">
                                 <option value="">Todas las etiquetas</option>
