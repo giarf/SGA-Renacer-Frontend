@@ -28,6 +28,7 @@ import {
     Wallet
 } from 'lucide-vue-next';
 import { authService, hasAnyGroup } from './auth/authService';
+import HuelleroEstado from './components/HuelleroEstado.vue';
 import { resolveCurrentResponsible } from './auth/currentResponsible';
 import { ADMIN_GROUPS, DAILY_OPERATION_GROUPS } from './auth/permissions';
 import type { EntidadResumen } from './types';
@@ -645,6 +646,7 @@ const logout = () => {
                     </div>
 
                     <div class="ml-auto flex shrink-0 items-center gap-2">
+                        <HuelleroEstado />
                         <button
                             type="button"
                             class="inline-flex h-10 w-10 shrink-0 items-center justify-center gap-2 rounded-full text-sm transition sm:w-auto sm:px-4"

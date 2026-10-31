@@ -8,7 +8,7 @@ import AsistenciaCelda from '../components/AsistenciaCelda.vue';
 import AsistenciaDialog from '../components/AsistenciaDialog.vue';
 import ModalCrearPersona from '../components/ModalCrearPersona.vue';
 import GrupoAsistencia from '../components/GrupoAsistencia.vue';
-import LeerHuellaButton from '../components/LeerHuellaButton.vue';
+import HuellaContinua from '../components/HuellaContinua.vue';
 import type { PersonaGrupo } from '../utils/grupoAsistencia';
 import type { ColumnaAsistencia, DetalleAsistencia, EntidadResumen, EventoAsistencia, PersonaIdentificada, TipoColumnaAsistencia, ValorAsistencia } from '../types';
 
@@ -197,13 +197,19 @@ function abrirGrupo(person: EntidadResumen) {
     grupoPersona.value = { id: person.id, nombreCompleto: person.nombreCompleto };
     showResults.value = false;
 }
-function huellaIdentificada(persona: PersonaIdentificada) {
-    search.value = '';
-    abrirGrupo({ id: persona.id, nombreCompleto: persona.nombreCompleto, tipoEntidad: 'PersonaNatural', identificador: persona.rut ?? '' });
+// El modo continuo registra sin bloquear la pantalla: agregarAsistente es idempotente.
+const huellaPausada = computed(() => modal.value !== null || newPersonOpen.value || grupoPersona.value !== null);
+async function registrarPorHuella(id: number, persona: PersonaIdentificada) {
+    ++revision;
+    try {
+        return await apiService.agregarAsistente(id, persona.id);
+    } finally {
+        ++revision;
+        if (!disposed && !working.value) void refresh();
+    }
 }
-function huellaError(mensaje: string) {
-    notice.value = '';
-    error.value = mensaje;
+function grupoPorHuella(persona: PersonaIdentificada) {
+    abrirGrupo({ id: persona.id, nombreCompleto: persona.nombreCompleto, tipoEntidad: 'PersonaNatural', identificador: persona.rut ?? '' });
 }
 async function agregarGrupo(personas: PersonaGrupo[]) {
     const id = eventoId.value;
@@ -372,9 +378,10 @@ onBeforeUnmount(() => {
                         <p v-if="results.length === 20" class="p-3 text-xs muted">Mostrando 20 resultados. Escribe más para precisar la búsqueda.</p>
                     </div>
                 </div>
-                <LeerHuellaButton :disabled="working" @identificada="huellaIdentificada" @error="huellaError" />
                 <button class="btn-secondary" :disabled="working" @click="showResults = false; newPersonOpen = true"><Plus :size="17" /> Nueva persona</button>
             </section>
+
+            <HuellaContinua :key="detalle.evento.id" :evento-id="detalle.evento.id" :pausado="huellaPausada" :procesar="registrarPorHuella" @grupo="grupoPorHuella" />
 
             <section class="attendance-sheet" aria-labelledby="sheet-title">
                 <div class="sheet-toolbar">

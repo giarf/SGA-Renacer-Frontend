@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { FingerprintPattern, LoaderCircle, Trash2 } from 'lucide-vue-next';
-import { apiService } from '../api/apiService';
+import { ApiError, apiService } from '../api/apiService';
 import type { HuellaRegistrada } from '../types';
 
 const props = defineProps<{ personaId: number }>();
@@ -43,7 +43,16 @@ async function registrar() {
     if (ocupado.value) return;
     leyendo.value = true; error.value = ''; mensaje.value = '';
     try {
-        const huella = await apiService.registrarHuella(props.personaId, dedo.value);
+        // En Asistencia la lectura continua puede tener el lector unos segundos más; se reintenta.
+        let huella: HuellaRegistrada | null = null;
+        for (let intento = 0; !huella; intento++) {
+            try {
+                huella = await apiService.registrarHuella(props.personaId, dedo.value);
+            } catch (e) {
+                if (!(e instanceof ApiError && e.codigo === 'ocupado') || intento >= 7) throw e;
+                await new Promise(resolve => setTimeout(resolve, 2000));
+            }
+        }
         huellas.value = [...huellas.value.filter(h => h.dedo !== huella.dedo), huella];
         mensaje.value = `${nombreDedo(huella.dedo)} registrado.`;
     } catch (e) {

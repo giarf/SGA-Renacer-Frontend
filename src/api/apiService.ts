@@ -50,7 +50,8 @@ const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
 
 export class ApiError extends Error {
     readonly status: number;
-    constructor(message: string, status: number) { super(message); this.status = status; }
+    readonly codigo?: string;
+    constructor(message: string, status: number, codigo?: string) { super(message); this.status = status; this.codigo = codigo; }
 }
 
 const buildErrorMessage = (data: any, fallback: string) => {
@@ -73,7 +74,7 @@ const requestJson = async <T>(input: RequestInfo | URL, init?: RequestInit): Pro
     }
 
     if (!response.ok) {
-        throw new ApiError(buildErrorMessage(data, response.statusText || 'Error al comunicarse con la API'), response.status);
+        throw new ApiError(buildErrorMessage(data, response.statusText || 'Error al comunicarse con la API'), response.status, typeof data?.codigo === 'string' ? data.codigo : undefined);
     }
 
     return data as T;
@@ -835,8 +836,16 @@ export const apiService = {
     eliminarHuella(personaId: number, huellaId: number): Promise<void> {
         return requestJson(`${API_BASE_URL}/personas/${personaId}/huellas/${huellaId}`, { method: 'DELETE' });
     },
-    identificarHuella(): Promise<PersonaIdentificada> {
-        return requestJson(`${API_BASE_URL}/huellero/identificar`, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: '{}', signal: AbortSignal.timeout(70000) });
+    getEstadoHuellero(): Promise<{ conectado: boolean; error?: string; codigo?: string }> {
+        return requestJson(`${API_BASE_URL}/huellero/estado`, { cache: 'no-store', signal: AbortSignal.timeout(15000) });
+    },
+    identificarHuella(opciones: { timeout?: number; signal?: AbortSignal } = {}): Promise<PersonaIdentificada> {
+        const espera = AbortSignal.timeout(((opciones.timeout ?? 40) + 30) * 1000);
+        return requestJson(`${API_BASE_URL}/huellero/identificar`, {
+            method: 'POST', headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify(opciones.timeout ? { timeout: opciones.timeout } : {}),
+            signal: opciones.signal ? AbortSignal.any([opciones.signal, espera]) : espera
+        });
     },
     async getRoles(tipo: 'beneficiarios' | 'colaboradores' | 'trabajadores' | 'directivos'): Promise<RolPersona[]> {
         return await requestJson<RolPersona[]>(`${API_BASE_URL}/${tipo}`);
