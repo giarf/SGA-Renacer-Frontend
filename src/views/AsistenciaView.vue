@@ -309,9 +309,7 @@ onBeforeUnmount(() => {
         <header class="page-heading">
             <div>
                 <RouterLink v-if="eventoId" to="/asistencia" class="back-link"><ArrowLeft :size="16" /> Todos los eventos</RouterLink>
-                <p v-else class="eyebrow">Comunidad · Encuentros</p>
-                <h1>{{ eventoId ? (detalle?.evento.nombre ?? 'Asistencia del evento') : 'Asistencia' }}</h1>
-                <p class="muted mt-2">{{ eventoId ? 'Busca a cada persona al llegar y registra su participación.' : 'Cada encuentro, su propia lista. Registra a las personas a medida que llegan.' }}</p>
+                <h1 v-if="eventoId">{{ detalle?.evento.nombre ?? 'Asistencia del evento' }}</h1>
             </div>
             <div class="flex gap-2 flex-wrap">
                 <template v-if="detalle">
@@ -335,7 +333,6 @@ onBeforeUnmount(() => {
             <div v-if="!eventos.length && connected" class="empty-state surface-card">
                 <CalendarCheck :size="44" class="accent" />
                 <h2>El próximo encuentro empieza aquí</h2>
-                <p>Crea un evento, como “18 de septiembre”. Su lista comenzará vacía.</p>
                 <button class="btn-primary mt-2" @click="openEvent"><Plus :size="18" /> Crear primer evento</button>
             </div>
             <p v-else-if="!filteredEvents.length" class="empty-state muted">No hay eventos que coincidan con la búsqueda.</p>
@@ -344,7 +341,7 @@ onBeforeUnmount(() => {
                     <RouterLink :to="`/asistencia/${event.id}`" class="event-link">
                         <span class="event-date"><CalendarDays :size="16" /> {{ fecha(event.fecha) }}</span>
                         <h2>{{ event.nombre }}</h2>
-                        <p class="muted event-description">{{ event.descripcion || 'Lista abierta para registrar a quienes lleguen.' }}</p>
+                        <p v-if="event.descripcion" class="muted event-description">{{ event.descripcion }}</p>
                         <span class="event-bottom"><span class="flex items-center gap-2"><Users :size="18" /> <strong>{{ event.totalAsistentes }}</strong> asistentes</span><ArrowUpRight :size="22" /></span>
                     </RouterLink>
                     <button class="event-delete btn-ghost !p-2" :aria-label="`Eliminar ${event.nombre}`" :disabled="working" @click="confirmDelete('event', event.id, event.nombre, event.id)"><Trash2 :size="16" /></button>
@@ -360,7 +357,7 @@ onBeforeUnmount(() => {
             </section>
 
             <section class="arrival-panel" aria-labelledby="arrival-title">
-                <div class="arrival-label"><UserPlus :size="22" /><div><h2 id="arrival-title">Registrar llegada</h2><p class="muted">Busca, selecciona y agrega a la lista.</p></div></div>
+                <div class="arrival-label"><UserPlus :size="22" /><div><h2 id="arrival-title">Registrar llegada</h2></div></div>
                 <div class="person-search">
                     <label for="attendance-person-search" class="sr-only">Buscar persona por nombre o RUT</label>
                     <div class="search-field large"><Search :size="20" /><input id="attendance-person-search" ref="searchInput" v-model="search" placeholder="Nombre o RUT de la persona…" autocomplete="off" role="combobox" :aria-expanded="showResults" aria-controls="attendance-person-results" :aria-activedescendant="showResults && results.length ? `person-result-${activeResult}` : undefined" :disabled="busy" @focus="showResults = search.trim().length >= 2" @keydown.down.prevent="activeResult = Math.min(activeResult + 1, results.length - 1)" @keydown.up.prevent="activeResult = Math.max(0, activeResult - 1)" @keydown.enter.prevent="chooseActive" @keydown.esc="showResults = false" /> <LoaderCircle v-if="searching" :size="18" class="animate-spin" /></div>
@@ -385,7 +382,7 @@ onBeforeUnmount(() => {
 
             <section class="attendance-sheet" aria-labelledby="sheet-title">
                 <div class="sheet-toolbar">
-                    <div><h2 id="sheet-title">Lista de asistencia</h2><p class="muted text-sm">{{ tableFilter ? `${asistentes.length} de ${detalle.asistentes.length} asistentes` : 'Los cambios se guardan automáticamente.' }}</p></div>
+                    <div><h2 id="sheet-title">Lista de asistencia</h2><p v-if="tableFilter" class="muted text-sm">{{ asistentes.length }} de {{ detalle.asistentes.length }} asistentes</p></div>
                     <div class="flex gap-3 flex-wrap items-center"><label class="search-field"><Search :size="16" /><input v-model="tableFilter" aria-label="Filtrar asistentes" placeholder="Buscar en esta lista…" /></label><button class="btn-secondary" :disabled="working" @click="openColumn"><Columns3 :size="17" /> Agregar columna</button></div>
                 </div>
                 <div v-if="detalle.columnas.length" class="column-totals" aria-label="Totales del evento"><div v-for="column in detalle.columnas" :key="column.id"><span>{{ column.nombre }}</span><strong>{{ summary(column) }}</strong></div></div>
@@ -397,9 +394,9 @@ onBeforeUnmount(() => {
                         </tbody>
                     </table>
                 </div>
-                <div v-if="!detalle.asistentes.length" class="empty-state sheet-empty"><ClipboardList :size="34" class="accent" /><h3>Esperando a la primera persona</h3><p>Busca su nombre o RUT arriba para registrar su llegada.</p><p class="text-sm">Puedes agregar columnas ahora o durante el evento.</p></div>
+                <div v-if="!detalle.asistentes.length" class="empty-state sheet-empty"><ClipboardList :size="34" class="accent" /><h3>Esperando a la primera persona</h3></div>
                 <p v-else-if="!asistentes.length" class="empty-state muted">No hay asistentes que coincidan con la búsqueda.</p>
-                <footer class="sheet-footer">{{ detalle.asistentes.length }} asistentes en total <span>Compartida entre todos los equipos · Se actualiza cada 3 segundos</span></footer>
+                <footer class="sheet-footer">{{ detalle.asistentes.length }} asistentes en total</footer>
             </section>
         </template>
 
@@ -409,13 +406,11 @@ onBeforeUnmount(() => {
                 <label>Nombre del evento<input v-model="eventForm.nombre" required maxlength="120" placeholder="Ej. 18 de septiembre" autofocus :disabled="busy" /></label>
                 <label>Fecha<input v-model="eventForm.fecha" type="date" required :disabled="busy" /></label>
                 <label>Descripción <span class="font-normal">(opcional)</span><textarea v-model="eventForm.descripcion" maxlength="2000" rows="3" placeholder="Lugar, motivo u otros detalles del encuentro" :disabled="busy" /></label>
-                <p class="muted text-sm">La lista comienza vacía. Agrega personas y columnas cuando lo necesites.</p>
                 <div class="dialog-actions"><button type="button" class="btn-secondary" :disabled="busy" @click="modal = null">Cancelar</button><button class="btn-primary" :disabled="busy || !eventForm.nombre.trim()">{{ busy ? 'Creando…' : 'Crear evento' }}</button></div>
             </form>
             <form v-else-if="modal === 'column'" class="dialog-form" @submit.prevent="createColumn">
                 <label>Nombre de la columna<input v-model="columnForm.nombre" required maxlength="120" placeholder="Ej. Traje típico o Recibió choripán" autofocus :disabled="busy" /></label>
                 <label>Tipo de respuesta<select v-model="columnForm.tipo" :disabled="busy"><option value="boolean">Sí / No — marcar con un clic</option><option value="text">Texto — notas o respuestas libres</option><option value="number">Número — cantidades</option></select></label>
-                <p class="muted text-sm">La columna aparecerá para todas las personas de este evento. {{ columnForm.tipo === 'boolean' ? 'Verás el total de respuestas sí y no.' : columnForm.tipo === 'number' ? 'Verás la suma de las cantidades.' : 'Verás cuántas personas tienen una respuesta.' }}</p>
                 <div class="dialog-actions"><button type="button" class="btn-secondary" :disabled="busy" @click="modal = null">Cancelar</button><button class="btn-primary" :disabled="busy || !columnForm.nombre.trim()">{{ busy ? 'Agregando…' : 'Agregar columna' }}</button></div>
             </form>
             <div v-else-if="modal === 'delete' && deletion" class="dialog-form">
@@ -431,7 +426,7 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .attendance-page { max-width: 1600px; margin: 0 auto; padding: 1.5rem; color: var(--text-primary); }
-.page-heading { display: flex; justify-content: space-between; align-items: center; gap: 1.5rem; margin-bottom: 1.75rem; }
+.page-heading { display: flex; justify-content: space-between; align-items: center; gap: 1.5rem; margin-bottom: 1.25rem; }
 .eyebrow { color: var(--accent-color); text-transform: uppercase; letter-spacing: .18em; font-size: .7rem; font-weight: 700; margin-bottom: .5rem; }
 h1 { font-size: clamp(1.8rem, 3vw, 2.5rem); line-height: 1.2; font-weight: 750; letter-spacing: -.035em; overflow-wrap: anywhere; }
 h2, h3 { font-weight: 700; }

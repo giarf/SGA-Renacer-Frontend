@@ -208,12 +208,6 @@ const submitSolicitud = async () => {
 
 <template>
     <div class="form-page space-y-4">
-        <header class="form-shell px-5 py-4">
-            <p class="eyebrow text-[var(--accent-color)]">Solicitudes internas</p>
-            <h2 class="text-lg font-semibold text-[var(--text-primary)]">Requerimientos de programas y talleres</h2>
-            <p class="text-xs text-[var(--text-muted)]">Registra necesidades de insumos vinculadas a beneficiarios y actividades.</p>
-        </header>
-
         <div v-if="message" :class="['message-banner', message.type === 'success' ? 'message-success' : 'message-error']">
             {{ message.text }}
         </div>
@@ -299,8 +293,8 @@ const submitSolicitud = async () => {
             </div>
 
             <div class="grid grid-cols-1 gap-4 border-t border-[var(--card-border)] px-5 py-4 md:grid-cols-2">
-                <div class="form-panel space-y-3">
-                    <p class="text-sm font-semibold text-gray-800">Ítems desde catálogo</p>
+                <div class="space-y-3">
+                    <h4 class="form-section-title !mb-0">Desde catálogo</h4>
                     <div class="relative">
                         <input
                             v-model="catalogQuery"
@@ -356,8 +350,8 @@ const submitSolicitud = async () => {
                     </div>
                 </div>
 
-                <div class="form-panel space-y-4">
-                    <p class="text-sm font-semibold text-gray-800">Ítems manuales</p>
+                <div class="space-y-3 border-t border-[var(--card-border)] pt-4 md:border-l md:border-t-0 md:pl-4 md:pt-0">
+                    <h4 class="form-section-title !mb-0">Manual</h4>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
                         <input
@@ -387,8 +381,8 @@ const submitSolicitud = async () => {
             </div>
 
             <div class="space-y-3 border-t border-[var(--card-border)] px-5 py-4">
-                <h3 class="text-base font-semibold text-[var(--text-primary)]">Resumen de la solicitud</h3>
-                <div v-if="items.length" class="overflow-x-auto rounded-lg border border-[var(--card-border)]">
+                <h4 class="form-section-title !mb-0">Resumen</h4>
+                <div v-if="items.length" class="flat-table">
                     <table class="min-w-full divide-y divide-[var(--card-border)]">
                         <thead class="bg-[var(--surface-muted)]">
                             <tr>

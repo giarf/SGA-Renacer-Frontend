@@ -570,91 +570,53 @@ onBeforeUnmount(() => {
             {{ message.text }}
         </div>
 
-        <section class="rounded-2xl border border-[var(--card-border)] bg-[var(--bg-card)] px-5 py-4 shadow-sm">
-            <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <div>
-                    <p class="eyebrow text-[var(--accent-color)]">Acceder</p>
-                    <h2 class="text-lg font-semibold text-[var(--text-primary)]">Entidades</h2>
-                    <p class="max-w-2xl text-xs text-[var(--text-muted)]">
-                        Administra personas e instituciones desde un mismo panel, con búsquedas rápidas, formularios integrados y acciones contextuales.
-                    </p>
-                </div>
-                <div class="flex flex-wrap gap-3 items-center justify-end">
-                    <button
-                        v-if="createMode === 'institucion'"
-                        class="btn btn-outline"
-                        @click="closeCreatePanel"
-                    >
-                        Volver a la lista
-                    </button>
-                    <div class="inline-flex rounded-full border border-[var(--card-border)] bg-[var(--surface-muted)]/40 p-1">
-                        <button
-                            class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition"
-                            :class="createMode === 'persona'
-                                ? 'bg-[var(--bg-card)] text-[var(--accent-color)] shadow-sm'
-                                : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'"
-                            @click="openCreatePanel('persona')"
-                        >
-                            <Plus class="w-4 h-4" /> Persona
-                        </button>
-                        <button
-                            class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition"
-                            :class="createMode === 'institucion'
-                                ? 'bg-[var(--bg-card)] text-[var(--accent-color)] shadow-sm'
-                                : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'"
-                            @click="openCreatePanel('institucion')"
-                        >
-                            <Plus class="w-4 h-4" /> Institución
-                        </button>
-                    </div>
-                </div>
+        <div class="page-toolbar">
+            <div class="segmented" role="tablist" aria-label="Tipo de entidad">
+                <button
+                    type="button"
+                    role="tab"
+                    :aria-selected="activeSection === 'personas'"
+                    :class="{ 'is-active': activeSection === 'personas' }"
+                    @click="activeSection = 'personas'"
+                >
+                    <Users class="w-4 h-4" />
+                    Personas
+                    <span class="text-[11px] px-2 py-0.5 rounded-full bg-black/5 dark:bg-white/10">{{ personasCount }}</span>
+                </button>
+                <button
+                    type="button"
+                    role="tab"
+                    :aria-selected="activeSection === 'instituciones'"
+                    :class="{ 'is-active': activeSection === 'instituciones' }"
+                    @click="activeSection = 'instituciones'"
+                >
+                    <Building2 class="w-4 h-4" />
+                    Instituciones
+                    <span class="text-[11px] px-2 py-0.5 rounded-full bg-black/5 dark:bg-white/10">{{ institucionesCount }}</span>
+                </button>
             </div>
 
-            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mt-6">
-                <div class="inline-flex rounded-full border border-[var(--card-border)] bg-[var(--surface-muted)]/40 p-1">
-                    <button
-                        class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition"
-                        :class="activeSection === 'personas'
-                            ? 'bg-[var(--bg-card)] text-[var(--accent-color)] shadow-sm'
-                            : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'"
-                        @click="activeSection = 'personas'"
-                    >
-                        <Users class="w-4 h-4" />
-                        Personas
-                        <span class="text-[11px] px-2 py-0.5 rounded-full bg-black/5 dark:bg-white/10 text-gray-600 dark:text-gray-200">
-                            {{ personasCount }}
-                        </span>
-                    </button>
-                    <button
-                        class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition"
-                        :class="activeSection === 'instituciones'
-                            ? 'bg-[var(--bg-card)] text-[var(--accent-color)] shadow-sm'
-                            : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'"
-                        @click="activeSection = 'instituciones'"
-                    >
-                        <Building2 class="w-4 h-4" />
-                        Instituciones
-                        <span class="text-[11px] px-2 py-0.5 rounded-full bg-black/5 dark:bg-white/10 text-gray-600 dark:text-gray-200">
-                            {{ institucionesCount }}
-                        </span>
-                    </button>
-                </div>
-
-                <div class="text-xs uppercase tracking-[0.35em] text-gray-400 flex gap-4">
-                    <span>{{ personasCount }} personas</span>
-                    <span>{{ institucionesCount }} instituciones</span>
-                </div>
+            <div class="flex flex-wrap items-center gap-2">
+                <button
+                    v-if="createMode === 'institucion'"
+                    class="btn btn-ghost"
+                    @click="closeCreatePanel"
+                >
+                    Volver a la lista
+                </button>
+                <button class="btn btn-secondary" type="button" @click="openCreatePanel('institucion')">
+                    <Plus class="w-4 h-4" /> Institución
+                </button>
+                <button class="btn btn-primary" type="button" @click="openCreatePanel('persona')">
+                    <Plus class="w-4 h-4" /> Persona
+                </button>
             </div>
-        </section>
+        </div>
 
         <section v-if="activeSection === 'personas'" class="space-y-4">
             <div class="rounded-2xl border border-[var(--card-border)] bg-[var(--bg-card)] p-0 shadow-sm overflow-hidden">
-                <div class="flex flex-col gap-3 border-b border-[var(--card-border)] px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
-                    <div>
-                        <p class="text-xs uppercase tracking-[0.35em] text-[var(--accent-color)]">Personas</p>
-                        <p class="text-sm text-gray-500 dark:text-gray-400">Listado actualizado con vínculo a su gestor</p>
-                    </div>
-                    <div class="grid w-full gap-2 sm:grid-cols-2 lg:w-auto lg:min-w-[520px]">
+                <div class="flex flex-col gap-3 border-b border-[var(--card-border)] px-5 py-3">
+                    <div class="grid w-full gap-2 sm:grid-cols-2">
                         <div class="flex gap-2">
                             <input
                                 v-model="personaSearch"
@@ -678,14 +640,13 @@ onBeforeUnmount(() => {
                     </div>
                 </div>
 
-                <div class="flex flex-col gap-3 border-b border-[var(--card-border)] bg-[var(--accent-color-muted)] px-5 py-3 sm:flex-row sm:items-center sm:justify-between transition-colors">
+                <div v-if="selectedPersonasCount > 0" class="flex flex-col gap-3 border-b border-[var(--card-border)] bg-[var(--accent-color-muted)] px-5 py-3 sm:flex-row sm:items-center sm:justify-between transition-colors">
                     <div class="flex items-center gap-2 text-sm font-semibold text-[var(--text-primary)]">
                         <Tags class="h-4 w-4 text-[var(--accent-color)]" />
-                        <span v-if="selectedPersonasCount > 0">{{ selectedPersonasCount }} persona(s) seleccionada(s)</span>
-                        <span v-else>Selecciona personas para aplicar acciones</span>
+                        <span>{{ selectedPersonasCount }} seleccionada(s)</span>
                     </div>
                     
-                    <div v-if="selectedPersonasCount > 0" class="flex flex-wrap items-center gap-2">
+                    <div class="flex flex-wrap items-center gap-2">
                         <div class="flex items-center gap-2 bg-[var(--bg-card)] rounded-lg p-1 border border-[var(--card-border)]">
                             <select v-model="selectedEtiquetaId" class="compact-control h-8 min-w-[140px] text-xs border-none bg-transparent focus:ring-0">
                                 <option value="">Seleccionar etiqueta...</option>
@@ -875,11 +836,7 @@ onBeforeUnmount(() => {
             </div>
 
             <div class="surface-card p-0 overflow-hidden">
-                <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 px-6 py-5 border-b border-[var(--card-border)]">
-                    <div>
-                        <p class="text-xs uppercase tracking-[0.35em] text-[var(--accent-color)]">Instituciones</p>
-                        <p class="text-sm text-gray-500 dark:text-gray-400">Listado de organizaciones con datos de contacto</p>
-                    </div>
+                <div class="px-5 py-3 border-b border-[var(--card-border)]">
                     <div class="w-full md:w-80">
                         <input
                             v-model="institucionSearch"

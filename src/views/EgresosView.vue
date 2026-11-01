@@ -437,62 +437,53 @@ onMounted(async () => {
             {{ message.text }}
         </div>
 
+        <div v-if="showKindTabs" class="page-toolbar">
+            <div class="segmented" role="tablist" aria-label="Tipo de egreso">
+                <button
+                    type="button"
+                    role="tab"
+                    :aria-selected="form.modo === 'pecuniario'"
+                    :class="{ 'is-active': form.modo === 'pecuniario' }"
+                    @click="form.modo = 'pecuniario'"
+                >
+                    <HandCoins class="w-4 h-4" /> Pecuniario
+                </button>
+                <button
+                    type="button"
+                    role="tab"
+                    :aria-selected="form.modo === 'items'"
+                    :class="{ 'is-active': form.modo === 'items' }"
+                    @click="form.modo = 'items'"
+                >
+                    <Boxes class="w-4 h-4" /> En especie
+                </button>
+            </div>
+        </div>
+
         <div class="form-shell">
-            <div v-if="showKindTabs" class="border-b border-[var(--card-border)] p-2">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+            <div class="form-shell-header flex flex-wrap items-center justify-between gap-3 border-b px-5 py-3">
+                <h3 class="text-base font-semibold text-[var(--text-primary)]">{{ form.modo === 'pecuniario' ? 'Egreso pecuniario' : 'Egreso en especie' }}</h3>
+                <div class="flex flex-wrap items-center gap-3">
+                    <InlineDateControl v-model="form.fecha" />
                     <button
-                        class="w-full rounded-lg px-5 py-3 text-sm font-semibold transition text-left"
-                        :class="form.modo === 'pecuniario' ? 'bg-[var(--accent-color)] text-white shadow-sm' : 'text-[var(--text-muted)] hover:bg-[var(--surface-muted)]'"
-                        @click="form.modo = 'pecuniario'"
+                        type="button"
+                        class="btn-ghost h-9 px-3 text-sm"
+                        @click="resetForm()"
                     >
-                        <span class="inline-flex items-center gap-2">
-                            <HandCoins class="w-4 h-4" /> Egreso Pecuniario
-                        </span>
-                        <p class="text-xs mt-1" :class="form.modo === 'pecuniario' ? 'text-white/85' : 'text-gray-500'">
-                            Cuenta de origen, método de pago y monto.
-                        </p>
-                    </button>
-                    <button
-                        class="w-full rounded-lg px-5 py-3 text-sm font-semibold transition text-left"
-                        :class="form.modo === 'items' ? 'bg-[var(--accent-color)] text-white shadow-sm' : 'text-[var(--text-muted)] hover:bg-[var(--surface-muted)]'"
-                        @click="form.modo = 'items'"
-                    >
-                        <span class="inline-flex items-center gap-2">
-                            <Boxes class="w-4 h-4" /> Egreso en Especie
-                        </span>
-                        <p class="text-xs mt-1" :class="form.modo === 'items' ? 'text-white/85' : 'text-gray-500'">
-                            Catálogo, cantidades y valorización PPP.
-                        </p>
+                        Limpiar
                     </button>
                 </div>
             </div>
 
             <div class="p-5">
                 <div>
-                    <div class="mb-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                        <div>
-                            <h3 class="text-base font-semibold text-gray-900">{{ form.modo === 'pecuniario' ? 'Egreso pecuniario' : 'Egreso en especie' }}</h3>
-                            <p class="text-sm text-gray-500">Completa todos los campos.</p>
-                        </div>
-                        <div class="flex flex-wrap items-start gap-3 sm:justify-end">
-                            <InlineDateControl v-model="form.fecha" />
-                            <button
-                                type="button"
-                                class="btn-secondary h-10 px-4 text-sm"
-                                @click="resetForm()"
-                            >
-                                Limpiar
-                            </button>
-                        </div>
-                    </div>
-
                     <form class="space-y-4" @submit.prevent="submitForm">
                         <section
                             class="grid grid-cols-1 md:grid-cols-2 gap-4"
                             :class="usesItems ? 'form-panel' : ''"
                         >
                             <div v-if="usesItems" class="md:col-span-2">
-                                <h3 class="text-base font-semibold text-gray-900 mb-1">1. Identificar actores</h3>
+                                <h4 class="form-section-title !mb-0">1 · Actores</h4>
                             </div>
                             <div class="md:col-span-2 relative">
                                 <label>Responsable interno <span class="text-red-500">*</span></label>
@@ -645,7 +636,7 @@ onMounted(async () => {
 
                         <template v-if="usesItems">
                             <section class="form-panel space-y-3">
-                                <h3 class="text-sm font-semibold text-gray-900 mb-1">2. Gestión de ítems</h3>
+                                <h4 class="form-section-title">2 · Ítems</h4>
                                 <div class="relative">
                                     <label>Buscar Ítem del Catálogo <span class="text-red-500">*</span></label>
                                     <div v-if="selectedItem" class="selected-card mt-1 flex items-center justify-between p-2.5">
@@ -720,10 +711,10 @@ onMounted(async () => {
                             </section>
 
                             <section v-if="form.detalles.length" class="form-panel space-y-3">
-                                <h3 class="text-sm font-semibold text-gray-900 mb-1">3. Ítems agregados</h3>
-                                <div class="overflow-x-auto rounded-md border border-gray-100">
+                                <h4 class="form-section-title">3 · Agregados</h4>
+                                <div class="overflow-x-auto">
                                     <table class="min-w-full divide-y divide-gray-100">
-                                        <thead class="bg-gray-50">
+                                        <thead class="bg-[var(--surface-muted)]">
                                             <tr>
                                                 <th class="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Ítem</th>
                                                 <th class="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Cantidad</th>
@@ -752,12 +743,10 @@ onMounted(async () => {
                             </section>
                         </template>
 
-                        <div class="form-panel-muted flex items-center justify-between px-4 py-3 text-sm">
-                            <span class="text-gray-600">Monto total del egreso</span>
-                            <strong class="text-gray-900">{{ currency.format(montoCalculado) }}</strong>
-                        </div>
-
-                        <div class="form-actions flex justify-end border-t pt-4">
+                        <div class="form-actions flex flex-col-reverse gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
+                            <p class="text-sm text-[var(--text-muted)]">
+                                Total <strong class="ml-1 text-lg text-[var(--text-primary)]">{{ currency.format(montoCalculado) }}</strong>
+                            </p>
                             <button type="submit" :disabled="submitting || loadingOptions" class="btn-primary h-10 w-full justify-center px-6 md:w-auto">
                                 <Loader2 v-if="submitting" class="w-4 h-4 mr-2 animate-spin" />
                                 {{ submitting ? 'Guardando...' : 'Registrar egreso' }}

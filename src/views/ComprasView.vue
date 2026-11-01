@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { ExternalLink, FileImage, Loader2, Plus, ShoppingCart, Trash2, X } from 'lucide-vue-next';
+import { ExternalLink, FileImage, Loader2, Plus, Trash2, X } from 'lucide-vue-next';
 import { apiService } from '../api/apiService';
 import { formatRutForDisplay } from '../utils/rutFormatter';
 import type { CatalogoItem, CompraBoletaMetadata, CompraIngresoPayload, Cuenta, EntidadResumen } from '../types';
@@ -389,22 +389,15 @@ onBeforeUnmount(clearBoletaPreview);
 
 <template>
     <div class="form-page space-y-4">
-        <header class="form-shell flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-                <p class="eyebrow text-[var(--accent-color)]">Gestionar</p>
-                <h2 class="text-lg font-semibold text-[var(--text-primary)]">Compras</h2>
-                <p class="max-w-3xl text-xs text-[var(--text-muted)]">
-                    Registra compras de inventario, asociando cuenta de origen, documento tributario y detalle valorizado de ítems.
-                </p>
-            </div>
-            <InlineDateControl v-model="fecha" />
-        </header>
-
         <div v-if="message" :class="['message-banner', message.type === 'success' ? 'message-success' : 'message-error']">
             {{ message.text }}
         </div>
 
         <form @submit.prevent="submitCompra" class="form-shell">
+            <div class="form-shell-header flex items-center justify-between gap-3 border-b px-5 py-3">
+                <h3 class="text-base font-semibold text-[var(--text-primary)]">Nueva compra</h3>
+                <InlineDateControl v-model="fecha" />
+            </div>
             <div class="grid grid-cols-1 gap-4 p-5 md:grid-cols-2">
                 <div class="relative">
                     <label class="block text-sm font-medium text-gray-700 mb-1">
@@ -519,19 +512,14 @@ onBeforeUnmount(clearBoletaPreview);
                 </div>
             </div>
 
-            <div class="mx-5 mb-4 space-y-2 rounded-xl border border-[var(--card-border)] p-3">
-                <div class="flex items-center gap-2">
-                    <FileImage class="w-4 h-4 text-[#006d8f]" />
-                    <p class="text-sm font-semibold text-gray-800">Boleta de compra (opcional)</p>
-                </div>
-                <p class="text-xs text-gray-500">
-                    Puedes adjuntar imagen o PDF. En móvil, el sistema permite elegir cámara, galería o archivos según el dispositivo.
-                </p>
+            <div class="form-section border-t border-[var(--card-border)]">
+                <h4 class="form-section-title">Boleta (opcional)</h4>
 
                 <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
                     <button
                         type="button"
-                        class="group relative h-32 w-32 overflow-hidden rounded-[2rem] bg-[var(--surface-muted)] ring-1 ring-[var(--card-border)] shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)]/50"
+                        class="group relative h-24 w-24 shrink-0 overflow-hidden rounded-2xl bg-[var(--surface-muted)] ring-1 ring-[var(--card-border)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)]/50"
+                        aria-label="Adjuntar boleta"
                         @click="openBoletaPicker"
                     >
                         <img
@@ -540,12 +528,9 @@ onBeforeUnmount(clearBoletaPreview);
                             alt="Vista previa boleta"
                             class="h-full w-full object-cover transition duration-200 group-hover:brightness-75"
                         >
-                        <div v-else class="flex h-full w-full flex-col items-center justify-center gap-2 text-gray-400 transition duration-200 group-hover:brightness-75">
-                            <FileImage class="h-9 w-9" />
-                            <span class="px-3 text-center text-xs font-semibold">Boleta o PDF</span>
-                        </div>
-                        <div class="pointer-events-none absolute inset-x-3 bottom-3 translate-y-2 rounded-full bg-black/70 px-3 py-2 text-xs font-semibold text-white opacity-0 shadow-lg transition group-hover:translate-y-0 group-hover:opacity-100">
-                            Adjuntar boleta
+                        <div v-else class="flex h-full w-full flex-col items-center justify-center gap-1 text-[var(--text-muted)] transition duration-200 group-hover:text-[var(--accent-color)]">
+                            <FileImage class="h-7 w-7" />
+                            <span class="text-[0.7rem] font-semibold">Foto o PDF</span>
                         </div>
                     </button>
                     <div class="flex-1 space-y-2">
@@ -556,38 +541,31 @@ onBeforeUnmount(clearBoletaPreview);
                             class="sr-only"
                             @change="onBoletaInputChange"
                         >
+                        <div v-if="boletaFile" class="flex items-center justify-between gap-2">
+                            <div class="min-w-0">
+                                <p class="truncate text-sm font-medium text-[var(--text-primary)]">{{ boletaFile.name }}</p>
+                                <p class="text-xs text-[var(--text-muted)]">{{ (boletaFile.size / 1024 / 1024).toFixed(2) }} MB</p>
+                            </div>
+                            <button type="button" class="inline-flex items-center gap-1 text-xs text-red-600 hover:text-red-700" @click="removeBoleta">
+                                <X class="w-3.5 h-3.5" />
+                                Quitar
+                            </button>
+                        </div>
                         <button
+                            v-else
                             type="button"
-                            class="inline-flex items-center gap-2 rounded-md border border-[#006d8f]/30 px-3 py-2 text-sm font-semibold text-[#006d8f] hover:bg-[#006d8f]/5"
+                            class="btn-ghost h-9 px-3 text-sm"
                             @click="openBoletaPicker"
                         >
                             <FileImage class="w-4 h-4" />
                             Adjuntar boleta
                         </button>
-                        <p class="text-xs text-gray-500">Sin forzar cámara: puedes tomar foto, elegir de fototeca o subir PDF si el dispositivo lo ofrece.</p>
                     </div>
-                </div>
-
-                <div v-if="boletaFile" class="rounded-md border border-gray-200 bg-gray-50 px-3 py-2">
-                    <div class="flex items-center justify-between gap-2">
-                        <div>
-                            <p class="text-sm font-medium text-gray-800">{{ boletaFile.name }}</p>
-                            <p class="text-xs text-gray-500">{{ (boletaFile.size / 1024 / 1024).toFixed(2) }} MB</p>
-                        </div>
-                        <button type="button" class="inline-flex items-center gap-1 text-xs text-red-600 hover:text-red-700" @click="removeBoleta">
-                            <X class="w-3.5 h-3.5" />
-                            Quitar
-                        </button>
-                    </div>
-                    <img v-if="boletaPreviewUrl" :src="boletaPreviewUrl" alt="Preview boleta" class="mt-2 max-h-44 rounded border border-gray-200" />
                 </div>
             </div>
 
-            <div class="mx-5 mb-4 space-y-4 rounded-xl border border-[var(--card-border)] p-4">
-                <div class="flex items-center gap-2">
-                    <ShoppingCart class="w-4 h-4 text-[#006d8f]" />
-                    <p class="text-sm font-semibold text-gray-800">Detalle de ítems</p>
-                </div>
+            <div class="form-section space-y-4">
+                <h4 class="form-section-title !mb-0">Ítems</h4>
 
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                     <div class="md:col-span-2 relative">
@@ -630,9 +608,9 @@ onBeforeUnmount(clearBoletaPreview);
                     </button>
                 </div>
 
-                <div v-if="detalles.length > 0" class="overflow-x-auto border border-gray-100 rounded-md">
-                    <table class="min-w-full divide-y divide-gray-100">
-                        <thead class="bg-gray-50">
+                <div v-if="detalles.length > 0" class="flat-table">
+                    <table class="min-w-full divide-y divide-[var(--card-border)]">
+                        <thead>
                             <tr>
                                 <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Ítem</th>
                                 <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Cantidad</th>
@@ -641,7 +619,7 @@ onBeforeUnmount(clearBoletaPreview);
                                 <th class="px-4 py-2"></th>
                             </tr>
                         </thead>
-                        <tbody class="bg-white divide-y divide-gray-100">
+                        <tbody class="divide-y divide-[var(--card-border)]">
                             <tr v-for="(detalle, index) in detalles" :key="`${detalle.itemCatalogoId}-${index}`">
                                 <td class="px-4 py-3 text-sm text-gray-800">{{ detalle.nombre }}</td>
                                 <td class="px-4 py-3 text-sm text-gray-700">{{ detalle.cantidad }}</td>
@@ -673,18 +651,16 @@ onBeforeUnmount(clearBoletaPreview);
             </div>
         </form>
 
-        <section v-if="ultimaCompraBoleta" class="form-shell p-4">
+        <section v-if="ultimaCompraBoleta" class="px-1">
             <div class="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                    <p class="text-sm font-semibold text-gray-800">Última compra registrada: #{{ ultimaCompraBoleta.idIngreso }}</p>
-                    <p class="text-xs text-gray-500">
-                        {{ ultimaCompraBoleta.tieneBoleta ? 'Boleta disponible' : 'Sin boleta adjunta' }}
-                    </p>
-                </div>
+                <p class="text-sm text-[var(--text-muted)]">
+                    Última compra: <strong class="text-[var(--text-primary)]">#{{ ultimaCompraBoleta.idIngreso }}</strong>
+                    · {{ ultimaCompraBoleta.tieneBoleta ? 'con boleta' : 'sin boleta' }}
+                </p>
                 <button
                     v-if="ultimaCompraBoleta.tieneBoleta"
                     type="button"
-                    class="inline-flex items-center gap-2 rounded-md border border-[#006d8f]/30 text-[#006d8f] px-3 py-2 text-sm hover:bg-[#006d8f]/5"
+                    class="btn-ghost h-9 px-3 text-sm"
                     @click="abrirBoletaUltimaCompra"
                 >
                     <ExternalLink class="w-4 h-4" />

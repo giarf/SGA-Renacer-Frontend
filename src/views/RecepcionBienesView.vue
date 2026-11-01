@@ -354,15 +354,7 @@ loadCurrentResponsible().finally(() => {
 </script>
 
 <template>
-    <div class="form-page space-y-4">
-        <div class="form-shell flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-                <p class="eyebrow text-[var(--accent-color)]">Recepción</p>
-                <h2 class="text-lg font-semibold text-[var(--text-primary)]">Donaciones no pecuniarias</h2>
-                <p class="max-w-3xl text-xs text-[var(--text-muted)]">Identifica actores, detalla el propósito y registra cada ítem valorizado.</p>
-            </div>
-            <InlineDateControl v-model="fechaIngreso" label="Fecha recepción" />
-        </div>
+    <div class="space-y-4">
 
         <div 
             v-if="message" 
@@ -371,9 +363,15 @@ loadCurrentResponsible().finally(() => {
             {{ message.text }}
         </div>
 
+        <div class="form-shell">
+        <div class="form-shell-header flex items-center justify-between gap-3 border-b px-5 py-3">
+            <h3 class="text-base font-semibold text-[var(--text-primary)]">Donación en especie</h3>
+            <InlineDateControl v-model="fechaIngreso" label="Fecha recepción" />
+        </div>
+
         <!-- Section 1: Actores (Donor, Receiver, Purpose) -->
-        <div class="form-shell p-5">
-            <h3 class="mb-3 text-base font-semibold text-[var(--text-primary)]">1. Identificar actores</h3>
+        <section class="form-section">
+            <h4 class="form-section-title">1 · Actores</h4>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <!-- Donor Searcher -->
@@ -553,11 +551,11 @@ loadCurrentResponsible().finally(() => {
                     ></textarea>
                 </div>
             </div>
-        </div>
+        </section>
 
         <!-- Section 2: Item Management -->
-        <div class="form-shell p-5">
-            <h3 class="mb-4 text-base font-semibold text-[var(--text-primary)]">2. Gestión de ítems</h3>
+        <section class="form-section">
+            <h4 class="form-section-title">2 · Ítems</h4>
             
             <!-- Item Searcher -->
             <div class="relative mb-6">
@@ -654,13 +652,13 @@ loadCurrentResponsible().finally(() => {
                     </button>
                 </div>
             </div>
-        </div>
+        </section>
 
         <!-- Section 3: Items Table -->
-        <div v-if="items.length > 0" class="form-shell p-4">
-            <h3 class="mb-3 text-base font-semibold text-[var(--text-primary)]">3. Ítems Agregados</h3>
-            
-            <div class="overflow-x-auto rounded-md border border-[var(--card-border)]">
+        <section v-if="items.length > 0" class="form-section !pb-0">
+            <h4 class="form-section-title">3 · Agregados</h4>
+
+            <div class="flat-table">
                 <table class="min-w-full divide-y divide-[var(--card-border)]">
                     <thead class="bg-[var(--surface-muted)]">
                         <tr>
@@ -706,7 +704,7 @@ loadCurrentResponsible().finally(() => {
                             </td>
                         </tr>
                     </tbody>
-                    <tfoot class="bg-gray-50">
+                    <tfoot class="bg-[var(--surface-muted)]">
                         <tr>
                             <td colspan="3" class="px-4 py-2.5 text-right text-sm font-bold text-gray-900">
                                 Total General:
@@ -719,10 +717,10 @@ loadCurrentResponsible().finally(() => {
                     </tfoot>
                 </table>
             </div>
-        </div>
+        </section>
 
         <!-- Section 4: Submit Button -->
-        <div class="flex justify-end border-t border-[var(--card-border)] pt-4">
+        <div class="form-section flex justify-end">
                 <button 
                     @click="submitDonacion"
                     :disabled="submitting"
@@ -737,6 +735,7 @@ loadCurrentResponsible().finally(() => {
                         Registrar Donación de Bienes
                     </template>
                 </button>
+        </div>
         </div>
     </div>
 

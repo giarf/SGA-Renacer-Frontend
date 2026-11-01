@@ -5,7 +5,7 @@ import type { CatalogoItem } from '../types';
 import { apiService } from '../api/apiService';
 import ModalEditarCatalogo from '../components/ModalEditarCatalogo.vue';
 import ModalRegistroCatalogo from '../components/ModalRegistroCatalogo.vue';
-import { Plus, Pencil, Search, ArrowUpDown, ArrowUp, ArrowDown, PackageSearch } from 'lucide-vue-next';
+import { Plus, Pencil, Search, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-vue-next';
 
 const items = ref<CatalogoItem[]>([]);
 const loading = ref(false);
@@ -111,28 +111,8 @@ onMounted(() => {
 </script>
 
 <template>
-    <div class="px-4 py-8 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full">
-        <!-- Header Section -->
-        <div class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-                <div class="mb-1 flex items-center gap-2">
-                    <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--accent-color)]/10 text-[var(--accent-color)]">
-                        <PackageSearch class="h-5 w-5" />
-                    </div>
-                    <p class="text-xs font-semibold tracking-wider text-[var(--text-muted)] uppercase">Inventario</p>
-                </div>
-                <h1 class="text-2xl font-bold text-[var(--text-primary)]">Catálogo de Ítems</h1>
-                <p class="text-sm text-[var(--text-muted)] mt-1">
-                    Gestiona los artículos, productos y recursos valorizados de la fundación.
-                </p>
-            </div>
-            <button class="btn btn-primary shadow-sm h-10 px-4" @click="abrirModalRegistro">
-                <Plus class="h-4 w-4 mr-2" /> Nuevo ítem
-            </button>
-        </div>
-
-        <!-- Filter & Search Bar -->
-        <div class="mb-6 flex flex-col gap-4 sm:flex-row">
+    <div class="px-4 py-5 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full">
+        <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center">
             <div class="relative flex-1">
                 <Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
                 <input
@@ -142,6 +122,9 @@ onMounted(() => {
                     class="compact-control w-full !pl-10 h-10"
                 />
             </div>
+            <button class="btn btn-primary shadow-sm h-10 px-4" @click="abrirModalRegistro">
+                <Plus class="h-4 w-4" /> Nuevo ítem
+            </button>
         </div>
 
         <!-- Error Message -->

@@ -391,11 +391,86 @@ button {
     border-color: var(--card-border);
 }
 
+/* Secciones dentro de una tarjeta: separadas por una línea, sin cuadro propio. */
 .form-panel {
-    background: var(--bg-card);
+    padding-top: 1.1rem;
+    border-top: 1px solid var(--card-border);
+}
+
+.form-panel:first-child {
+    padding-top: 0;
+    border-top: 0;
+}
+
+.form-section {
+    padding: 1.25rem;
+}
+
+.form-section + .form-section {
+    border-top: 1px solid var(--card-border);
+}
+
+.form-section-title {
+    margin-bottom: 0.85rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+/* Barra superior de una vista: acciones y fecha, sin tarjeta. */
+.page-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+/* Selector segmentado compacto (pestañas). */
+.segmented {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    padding: 0.25rem;
+    border-radius: 999px;
     border: 1px solid var(--card-border);
-    border-radius: 1rem;
-    padding: 1rem;
+    background: var(--surface-muted);
+}
+
+.segmented > button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.45rem 1rem;
+    border-radius: 999px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.segmented > button:hover {
+    color: var(--text-primary);
+}
+
+.segmented > button.is-active {
+    background: var(--bg-card);
+    color: var(--accent-color);
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+}
+
+/* Tabla a todo el ancho de su sección, sin borde extra. */
+.flat-table {
+    overflow-x: auto;
+    margin-left: -1.25rem;
+    margin-right: -1.25rem;
+    border-top: 1px solid var(--card-border);
+}
+
+.flat-table thead {
+    background: var(--surface-muted);
 }
 
 .form-panel-muted,

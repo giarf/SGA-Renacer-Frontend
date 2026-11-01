@@ -167,47 +167,37 @@ onMounted(() => {
 
 <template>
     <div class="px-4 sm:px-6 lg:px-8 py-5 space-y-5">
-        <header class="space-y-3">
-            <p class="eyebrow text-[var(--accent-color)]">Finanzas comunitarias</p>
-            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div class="page-toolbar items-end">
+            <section class="flex flex-wrap gap-x-10 gap-y-3 px-1">
                 <div>
-                    <h2 class="text-3xl font-bold text-[var(--text-primary)]">Cuentas y fondos internos</h2>
-                    <p class="text-[var(--text-muted)]">Administra las cuentas operativas, monitorea saldos y revisa movimientos recientes.</p>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Saldo total</p>
+                    <p class="text-3xl font-bold text-[var(--text-primary)]">{{ currency.format(totalSaldo) }}</p>
                 </div>
-                <div class="flex gap-3">
-                    <button
-                        class="btn btn-primary"
-                        @click="resetForm()"
-                    >
-                        <Plus class="w-4 h-4" /> Nueva cuenta
-                    </button>
-                    <button
-                        class="btn btn-outline"
-                        :disabled="!selectedCuenta"
-                        @click="selectedCuenta && openForm(selectedCuenta)"
-                    >
-                        <Pencil class="w-4 h-4" /> Editar seleccionada
-                    </button>
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Cuentas activas</p>
+                    <p class="text-3xl font-bold text-[var(--text-primary)]">{{ cuentasCount }}</p>
                 </div>
+            </section>
+            <div class="flex gap-2">
+                <button
+                    class="btn btn-secondary"
+                    :disabled="!selectedCuenta"
+                    @click="selectedCuenta && openForm(selectedCuenta)"
+                >
+                    <Pencil class="w-4 h-4" /> Editar
+                </button>
+                <button
+                    class="btn btn-primary"
+                    @click="resetForm()"
+                >
+                    <Plus class="w-4 h-4" /> Nueva cuenta
+                </button>
             </div>
-        </header>
-
-        <div v-if="message" :class="`rounded-md p-4 ${message.type === 'success' ? 'bg-green-50 border border-green-200 text-green-800' : 'bg-red-50 border border-red-200 text-red-800'}`">
-            {{ message.text }}
         </div>
 
-        <section class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div class="surface-card p-4">
-                <p class="text-sm text-[var(--text-muted)]">Saldo total disponible</p>
-                <p class="text-3xl font-bold text-[var(--text-primary)] mt-1">{{ currency.format(totalSaldo) }}</p>
-                <p class="text-xs text-[var(--text-muted)] mt-3">Actualizado en tiempo real desde el backend de Renacer</p>
-            </div>
-            <div class="surface-card p-4">
-                <p class="text-sm uppercase tracking-wide text-[var(--text-muted)]">Cuentas activas</p>
-                <p class="text-3xl font-bold text-[var(--text-primary)] mt-1">{{ cuentasCount }}</p>
-                <p class="text-sm text-[var(--text-muted)] mt-2">Incluye cuentas corrientes, caja chica y fondos especiales.</p>
-            </div>
-        </section>
+        <div v-if="message" :class="['message-banner', message.type === 'success' ? 'message-success' : 'message-error']">
+            {{ message.text }}
+        </div>
 
         <div class="grid grid-cols-1 xl:grid-cols-3 gap-5">
             <section class="xl:col-span-2 surface-card p-0 overflow-hidden">
@@ -240,7 +230,7 @@ onMounted(() => {
                             </tr>
                             <tr v-if="!loading && cuentas.length === 0">
                                 <td colspan="2" class="px-4 py-8 text-center text-sm text-gray-500">
-                                    No hay cuentas registradas aún. Crea la primera para comenzar a trackear saldos.
+                                    No hay cuentas registradas aún.
                                 </td>
                             </tr>
                         </tbody>
@@ -248,9 +238,9 @@ onMounted(() => {
                 </div>
             </section>
 
-            <aside class="space-y-4">
-                <div class="surface-card p-4">
-                    <h3 class="text-lg font-semibold text-[var(--text-primary)] mb-4">Detalle de cuenta</h3>
+            <aside class="surface-card self-start overflow-hidden">
+                <div class="form-section">
+                    <h4 class="form-section-title">Detalle</h4>
                     <div v-if="selectedCuenta" class="space-y-3">
                         <div>
                             <p class="text-sm text-[var(--text-muted)]">Nombre</p>
@@ -262,13 +252,13 @@ onMounted(() => {
                         </div>
                     </div>
                     <div v-else class="text-sm text-[var(--text-muted)]">
-                        Selecciona una cuenta para ver sus detalles y movimientos.
+                        Selecciona una cuenta.
                     </div>
                 </div>
 
-                <div class="surface-card p-5">
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="text-lg font-semibold text-[var(--text-primary)]">Movimientos recientes</h3>
+                <div v-if="selectedCuenta" class="form-section">
+                    <div class="flex items-center justify-between mb-3">
+                        <h4 class="form-section-title !mb-0">Movimientos recientes</h4>
                         <span v-if="movimientosLoading" class="text-xs text-[var(--text-muted)]">Actualizando...</span>
                     </div>
                     <div v-if="selectedCuenta && movimientos">
@@ -301,19 +291,13 @@ onMounted(() => {
                             </div>
                         </div>
                     </div>
-                    <div v-else class="text-sm text-[var(--text-muted)]">
-                        Selecciona una cuenta para visualizar los ingresos y egresos más recientes.
-                    </div>
                 </div>
 
-                <div class="surface-card p-5">
-                    <div class="flex items-center justify-between mb-4">
-                        <div>
-                            <p class="text-xs uppercase tracking-widest text-[var(--accent-color)] font-semibold">Gestión de fondos</p>
-                            <h3 class="text-lg font-semibold text-[var(--text-primary)]">
-                                {{ editingId ? 'Editar cuenta existente' : 'Crear nuevo fondo' }}
-                            </h3>
-                        </div>
+                <div class="form-section">
+                    <div class="flex items-center justify-between mb-3">
+                        <h4 class="form-section-title !mb-0">
+                            {{ editingId ? 'Editar cuenta' : 'Nueva cuenta' }}
+                        </h4>
                         <button
                             type="button"
                             class="text-sm text-[var(--accent-color)] hover:text-[var(--accent-color-hover)]"

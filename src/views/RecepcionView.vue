@@ -265,16 +265,13 @@ onMounted(async () => {
 </script>
 
 <template>
-    <div class="form-page space-y-4">
+    <div class="space-y-4">
         <div v-if="message" :class="['message-banner', message.type === 'success' ? 'message-success' : 'message-error']">
             {{ message.text }}
         </div>
         <div class="form-shell">
-            <div class="form-shell-header flex flex-col gap-3 border-b px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                    <h3 class="text-lg font-semibold text-[var(--text-primary)]">Donación pecuniaria</h3>
-                    <p class="text-xs text-[var(--text-muted)]">Completa donante, responsable, fondo y monto.</p>
-                </div>
+            <div class="form-shell-header flex items-center justify-between gap-3 border-b px-5 py-3">
+                <h3 class="text-base font-semibold text-[var(--text-primary)]">Donación pecuniaria</h3>
                 <InlineDateControl v-model="donationForm.fecha" />
             </div>
 
@@ -447,9 +444,6 @@ onMounted(async () => {
                             No existen fondos disponibles. Dirígete a la sección "Cuentas y fondos" para crear uno nuevo.
                         </div>
                     </template>
-                    <p class="text-xs text-[var(--text-muted)]">
-                        Los fondos se administran en la sección "Cuentas y fondos" del menú lateral.
-                    </p>
                 </div>
 
                 <div class="md:col-span-2">

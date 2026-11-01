@@ -9,44 +9,30 @@ const activeTab = ref<'pecuniaria' | 'bienes'>('pecuniaria');
 
 <template>
     <div class="form-page space-y-4">
-        <div class="form-shell">
-            <div class="border-b border-[var(--card-border)] p-2">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-                <button
-                    class="w-full rounded-lg px-5 py-3 text-sm font-semibold transition text-left"
-                    :class="activeTab === 'pecuniaria' ? 'bg-[var(--accent-color)] text-white shadow-sm' : 'text-[var(--text-muted)] hover:bg-[var(--surface-muted)]'"
-                    @click="activeTab = 'pecuniaria'"
-                >
-                    <span class="inline-flex items-center gap-2">
-                        <HandCoins class="w-4 h-4" /> Donación Pecuniaria
-                    </span>
-                    <p class="text-xs mt-1" :class="activeTab === 'pecuniaria' ? 'text-white/85' : 'text-gray-500'">
-                        Certificados, fondos internos y comentarios.
-                    </p>
-                </button>
-                <button
-                    class="w-full rounded-lg px-5 py-3 text-sm font-semibold transition text-left"
-                    :class="activeTab === 'bienes' ? 'bg-[var(--accent-color)] text-white shadow-sm' : 'text-[var(--text-muted)] hover:bg-[var(--surface-muted)]'"
-                    @click="activeTab = 'bienes'"
-                >
-                    <span class="inline-flex items-center gap-2">
-                        <Boxes class="w-4 h-4" /> Donación en Especie
-                    </span>
-                    <p class="text-xs mt-1" :class="activeTab === 'bienes' ? 'text-white/85' : 'text-gray-500'">
-                        Valorizaciones, catálogo y responsables.
-                    </p>
-                </button>
-                </div>
-            </div>
+        <div class="segmented" role="tablist" aria-label="Tipo de donación">
+            <button
+                type="button"
+                role="tab"
+                :aria-selected="activeTab === 'pecuniaria'"
+                :class="{ 'is-active': activeTab === 'pecuniaria' }"
+                @click="activeTab = 'pecuniaria'"
+            >
+                <HandCoins class="w-4 h-4" /> Pecuniaria
+            </button>
+            <button
+                type="button"
+                role="tab"
+                :aria-selected="activeTab === 'bienes'"
+                :class="{ 'is-active': activeTab === 'bienes' }"
+                @click="activeTab = 'bienes'"
+            >
+                <Boxes class="w-4 h-4" /> En especie
+            </button>
+        </div>
 
-            <div class="animate-fade-in">
-                <template v-if="activeTab === 'pecuniaria'">
-                    <RecepcionView />
-                </template>
-                <template v-else>
-                    <RecepcionBienesView />
-                </template>
-            </div>
+        <div :key="activeTab" class="animate-fade-in">
+            <RecepcionView v-if="activeTab === 'pecuniaria'" />
+            <RecepcionBienesView v-else />
         </div>
     </div>
 </template>

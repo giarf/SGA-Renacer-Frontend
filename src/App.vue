@@ -29,6 +29,7 @@ import {
 } from 'lucide-vue-next';
 import { authService, hasAnyGroup } from './auth/authService';
 import HuelleroEstado from './components/HuelleroEstado.vue';
+import HelpButton from './components/HelpButton.vue';
 import { resolveCurrentResponsible } from './auth/currentResponsible';
 import { ADMIN_GROUPS, DAILY_OPERATION_GROUPS } from './auth/permissions';
 import type { EntidadResumen } from './types';
@@ -625,7 +626,7 @@ const logout = () => {
         </aside>
 
         <div class="min-w-0 flex-1 flex flex-col">
-            <header class="border-b border-white/10 px-6 lg:px-10 py-5 flex flex-col gap-4">
+            <header class="border-b border-white/10 px-6 lg:px-10 py-4 flex flex-col gap-3">
                 <div class="flex items-center justify-between gap-3">
                     <button
                         type="button"
@@ -637,12 +638,9 @@ const logout = () => {
                     </button>
 
                     <div class="hidden min-w-0 lg:block">
-                        <h1 class="text-3xl font-bold" :class="effectiveTheme === 'dark' ? 'text-white' : 'text-slate-900'">
+                        <h1 class="text-2xl font-bold" :class="effectiveTheme === 'dark' ? 'text-white' : 'text-slate-900'">
                             {{ currentViewMeta?.label || route.meta.label || 'SGA Renacer' }}
                         </h1>
-                        <p class="mt-1 text-sm text-[var(--text-muted)]">
-                            {{ currentViewMeta?.helper || 'Accede directo al flujo que necesitas realizar.' }}
-                        </p>
                     </div>
 
                     <div class="ml-auto flex shrink-0 items-center gap-2">
@@ -701,12 +699,9 @@ const logout = () => {
                 </div>
 
                 <div class="min-w-0 lg:hidden">
-                    <h1 class="text-3xl font-bold" :class="effectiveTheme === 'dark' ? 'text-white' : 'text-slate-900'">
+                    <h1 class="text-2xl font-bold" :class="effectiveTheme === 'dark' ? 'text-white' : 'text-slate-900'">
                         {{ currentViewMeta?.label || route.meta.label || 'SGA Renacer' }}
                     </h1>
-                    <p class="mt-1 text-sm text-[var(--text-muted)]">
-                        {{ currentViewMeta?.helper || 'Accede directo al flujo que necesitas realizar.' }}
-                    </p>
                 </div>
             </header>
 
@@ -723,6 +718,7 @@ const logout = () => {
                         </transition>
                     </RouterView>
                 </section>
+                <HelpButton />
             </main>
         </div>
     </div>

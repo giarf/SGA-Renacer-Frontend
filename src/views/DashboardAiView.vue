@@ -269,7 +269,6 @@ onBeforeUnmount(() => {
             <section v-if="!turnos.length" class="hero">
                 <div class="orb" aria-hidden="true"><Sparkles :size="26" /></div>
                 <h2>Pregunta, analiza o pide cambios</h2>
-                <p>Escribe en lenguaje normal. La IA consulta asistencia, campañas, ingresos, egresos, inventario y personas, responde con cifras, tablas y gráficos, y puede crear o modificar registros siempre que tú lo confirmes.</p>
             </section>
 
             <div v-else ref="hilo" class="thread">
@@ -312,7 +311,6 @@ onBeforeUnmount(() => {
                 <div v-if="!turnos.length" class="chips">
                     <button v-for="s in SUGERENCIAS" :key="s" type="button" class="chip" @click="enviar(s)">{{ s }}</button>
                 </div>
-                <p class="privacy">Las consultas se calculan en tu navegador y todo cambio requiere tu confirmación. Al proveedor de IA nunca se envían RUT, teléfonos, correos ni direcciones de las consultas.</p>
             </div>
         </div>
 
@@ -460,7 +458,6 @@ onBeforeUnmount(() => {
 .chips .chip { animation: fade 0.5s ease both; }
 .chips .chip:nth-child(2) { animation-delay: 0.05s; } .chips .chip:nth-child(3) { animation-delay: 0.1s; }
 .chips .chip:nth-child(4) { animation-delay: 0.15s; } .chips .chip:nth-child(5) { animation-delay: 0.2s; } .chips .chip:nth-child(6) { animation-delay: 0.25s; }
-.privacy { text-align: center; font-size: 0.72rem; color: var(--text-muted); margin-top: 0.6rem; }
 
 .overlay { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 1rem; background: rgba(10, 12, 16, 0.45); backdrop-filter: blur(4px); }
 .dialog { width: min(520px, 100%); padding: 1.4rem; display: flex; flex-direction: column; gap: 0.9rem; animation: fade 0.25s ease both; }

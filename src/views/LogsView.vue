@@ -490,16 +490,8 @@ onMounted(fetchHistorial);
 </script>
 
 <template>
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        <header class="space-y-2">
-            <p class="text-xs uppercase tracking-[0.35em] text-[#006d8f] font-semibold">Registros y análisis</p>
-            <h2 class="text-3xl font-bold text-gray-900 dark:text-slate-100">Logs de ingresos y egresos</h2>
-            <p class="text-gray-600 dark:text-slate-300 text-sm max-w-3xl">
-                Centro de historial para auditoría, reportes e impresión de informes. Aquí quedará el flujo para papeleo y filtrado avanzado por programa.
-            </p>
-        </header>
-
-        <section class="bg-white dark:bg-slate-900 rounded-xl border border-gray-100 dark:border-slate-700 shadow p-5 space-y-4 no-print">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-5">
+        <section class="surface-card p-5 space-y-4 no-print">
             <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                 <div class="flex items-center gap-2 text-gray-700 dark:text-slate-200">
                     <Funnel class="w-4 h-4 text-[#006d8f]" />
@@ -563,14 +555,11 @@ onMounted(fetchHistorial);
             </div>
         </section>
 
-        <section class="bg-white dark:bg-slate-900 rounded-xl border border-gray-100 dark:border-slate-700 shadow p-5 space-y-4 print-report">
+        <section class="surface-card p-5 space-y-5 print-report">
             <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-                <div>
-                    <p class="text-sm text-gray-500 dark:text-slate-400">Resultado actual</p>
-                    <p class="text-lg font-semibold text-gray-900 dark:text-slate-100">
-                        {{ historialFiltrado.length }} registros, total valorizado {{ currency.format(totalFiltrado) }}
-                    </p>
-                </div>
+                <p class="text-lg font-semibold text-[var(--text-primary)]">
+                    {{ historialFiltrado.length }} registros · {{ currency.format(totalFiltrado) }}
+                </p>
                 <div class="flex gap-2 no-print">
                     <button
                         type="button"
@@ -592,31 +581,30 @@ onMounted(fetchHistorial);
                 </div>
             </div>
 
-            <div v-if="!loading && !error" class="rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-950/40 p-4 space-y-2">
-                <p class="text-sm font-semibold text-gray-800 dark:text-slate-100">Comparativo global (APIs)</p>
-                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-2 text-sm">
-                    <div class="rounded-md border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2">
-                        <p class="text-gray-500 dark:text-slate-400">Total ingresos</p>
+            <div v-if="!loading && !error" class="border-y border-[var(--card-border)] py-4">
+                <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-x-6 gap-y-3 text-sm">
+                    <div>
+                        <p class="text-[var(--text-muted)]">Total ingresos</p>
                         <p class="font-semibold text-gray-900 dark:text-slate-100">{{ currency.format(totalIngresosGlobal) }}</p>
                     </div>
-                    <div class="rounded-md border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2">
-                        <p class="text-gray-500 dark:text-slate-400">Egresos pecuniarios</p>
+                    <div>
+                        <p class="text-[var(--text-muted)]">Egresos pecuniarios</p>
                         <p class="font-semibold text-gray-900 dark:text-slate-100">{{ currency.format(totalEgresosPecuniarios) }}</p>
                     </div>
-                    <div class="rounded-md border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2">
-                        <p class="text-gray-500 dark:text-slate-400">Egresos no pecuniarios</p>
+                    <div>
+                        <p class="text-[var(--text-muted)]">Egresos no pecuniarios</p>
                         <p class="font-semibold text-gray-900 dark:text-slate-100">{{ currency.format(totalEgresosNoPecuniarios) }}</p>
                     </div>
-                    <div class="rounded-md border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2">
-                        <p class="text-gray-500 dark:text-slate-400">Valor inventario</p>
+                    <div>
+                        <p class="text-[var(--text-muted)]">Valor inventario</p>
                         <p class="font-semibold text-gray-900 dark:text-slate-100">{{ currency.format(totalStockPppGlobal) }}</p>
                     </div>
-                    <div class="rounded-md border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2">
-                        <p class="text-gray-500 dark:text-slate-400">Saldo en fondos</p>
+                    <div>
+                        <p class="text-[var(--text-muted)]">Saldo en fondos</p>
                         <p class="font-semibold text-gray-900 dark:text-slate-100">{{ currency.format(totalFondosGlobal) }}</p>
                     </div>
-                    <div class="rounded-md border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2">
-                        <p class="text-gray-500 dark:text-slate-400">Diferencia</p>
+                    <div title="Ingresos − (egresos pecuniarios + egresos no pecuniarios + valor inventario + saldo en fondos)">
+                        <p class="text-[var(--text-muted)]">Diferencia</p>
                         <p
                             class="font-semibold"
                             :class="Math.abs(diferenciaIngresosVsEgresoStock) < 1 ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'"
@@ -625,9 +613,6 @@ onMounted(fetchHistorial);
                         </p>
                     </div>
                 </div>
-                <p class="text-xs text-gray-500 dark:text-slate-400">
-                    Fórmula: Ingresos - (Egresos pecuniarios + Egresos no pecuniarios + Valor inventario + Saldo en fondos)
-                </p>
             </div>
 
             <div v-if="loading" class="grid gap-3 md:grid-cols-2">
@@ -642,7 +627,7 @@ onMounted(fetchHistorial);
                 No hay registros que coincidan con los filtros actuales.
             </div>
 
-            <div v-else class="overflow-x-auto border border-gray-100 dark:border-slate-700 rounded-lg">
+            <div v-else class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-100 dark:divide-slate-700">
                     <thead class="bg-gray-50 dark:bg-slate-800">
                         <tr>
@@ -712,9 +697,9 @@ onMounted(fetchHistorial);
                 </table>
             </div>
 
-            <div class="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 space-y-3">
+            <div class="border-t border-[var(--card-border)] pt-5 space-y-3">
                 <div class="flex flex-wrap items-center justify-between gap-2">
-                    <p class="text-sm font-semibold text-gray-800 dark:text-slate-100">Compras y boletas</p>
+                    <h4 class="form-section-title !mb-0">Compras y boletas</h4>
                     <p class="text-xs text-gray-500 dark:text-slate-400">{{ comprasOrdenadas.length }} compras</p>
                 </div>
 
@@ -732,7 +717,7 @@ onMounted(fetchHistorial);
                 >
                     No hay compras disponibles.
                 </div>
-                <div v-else class="overflow-x-auto border border-gray-100 dark:border-slate-700 rounded-lg">
+                <div v-else class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-100 dark:divide-slate-700">
                         <thead class="bg-gray-50 dark:bg-slate-800">
                             <tr>

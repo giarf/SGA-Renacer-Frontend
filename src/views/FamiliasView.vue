@@ -228,18 +228,11 @@ onMounted(loadFamilias);
 
 <template>
     <div class="form-page space-y-4">
-        <header class="form-shell px-5 py-4">
-            <p class="eyebrow text-[var(--accent-color)]">Red familiar</p>
-            <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <div>
-                    <h2 class="text-lg font-semibold text-[var(--text-primary)]">Familias y miembros</h2>
-                    <p class="text-xs text-[var(--text-muted)]">Agrupa personas por hogar, registra jefatura y documenta vulnerabilidad con justificación.</p>
-                </div>
-                <button class="btn btn-primary" type="button" @click="nuevaFamilia">
-                    <Plus class="h-4 w-4" /> Nueva familia
-                </button>
-            </div>
-        </header>
+        <div class="page-toolbar justify-end">
+            <button class="btn btn-primary" type="button" @click="nuevaFamilia">
+                <Plus class="h-4 w-4" /> Nueva familia
+            </button>
+        </div>
 
         <div v-if="message" :class="['message-banner', message.type === 'success' ? 'message-success' : 'message-error']">
             {{ message.text }}
@@ -250,28 +243,27 @@ onMounted(loadFamilias);
                 <div class="border-b border-[var(--card-border)] p-4">
                     <input v-model="familiaSearch" class="compact-control" type="search" placeholder="Buscar familia...">
                 </div>
-                <div class="max-h-[70vh] overflow-y-auto p-3 space-y-2">
+                <div class="max-h-[70vh] overflow-y-auto p-2 space-y-0.5">
                     <p v-if="loading" class="px-3 py-4 text-sm text-[var(--text-muted)]">Cargando familias...</p>
                     <button
                         v-for="familia in filteredFamilias"
                         :key="familia.id"
                         type="button"
-                        class="w-full rounded-xl border p-3 text-left transition hover:shadow-sm"
-                        :class="selectedFamilia?.id === familia.id ? 'border-[var(--accent-color)] bg-[var(--accent-color-muted)]' : 'border-[var(--card-border)] bg-[var(--bg-card)]'"
+                        class="w-full rounded-xl px-3 py-2.5 text-left transition"
+                        :class="selectedFamilia?.id === familia.id ? 'bg-[var(--accent-color-muted)]' : 'hover:bg-[var(--surface-muted)]'"
                         @click="selectFamilia(familia)"
                     >
                         <p class="font-semibold text-[var(--text-primary)]">{{ familia.nombreFamilia }}</p>
-                        <p class="mt-1 text-xs text-[var(--text-muted)]">{{ familia.puntosVulnerabilidad }} puntos de vulnerabilidad</p>
+                        <p class="text-xs text-[var(--text-muted)]">{{ familia.puntosVulnerabilidad }} pts. vulnerabilidad</p>
                     </button>
                     <p v-if="!loading && filteredFamilias.length === 0" class="px-3 py-4 text-sm text-[var(--text-muted)]">No hay familias registradas.</p>
                 </div>
             </aside>
 
-            <section class="space-y-5">
-                <div class="form-shell p-5">
+            <section class="form-shell">
+                <div class="form-section">
                     <div class="mb-4 flex items-center justify-between gap-3">
                         <div>
-                            <p class="eyebrow text-[var(--accent-color)]">Ficha familiar</p>
                             <h3 class="text-xl font-semibold text-[var(--text-primary)]">{{ selectedFamilia ? selectedFamilia.nombreFamilia : 'Nueva familia' }}</h3>
                         </div>
                         <button class="btn btn-primary" type="button" @click="guardarFamilia">
@@ -311,17 +303,14 @@ onMounted(loadFamilias);
                         </div>
                         <div class="md:col-span-2">
                             <label class="mb-1 block text-sm font-medium text-[var(--text-primary)]">Justificación de vulnerabilidad</label>
-                            <textarea v-model="formFamilia.justificacionVulnerabilidad" class="compact-control min-h-24" placeholder="Describe brevemente por qué se asigna este puntaje: situación económica, red de apoyo, salud, vivienda, etc."></textarea>
+                            <textarea v-model="formFamilia.justificacionVulnerabilidad" class="compact-control min-h-24" placeholder="Situación económica, red de apoyo, salud, vivienda…"></textarea>
                         </div>
                     </div>
                 </div>
 
-                <div class="form-shell p-5">
-                    <div class="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                        <div>
-                            <h3 class="text-base font-semibold text-[var(--text-primary)]">Miembros de la familia</h3>
-                            <p class="text-sm text-[var(--text-muted)]">El parentesco o rol es opcional.</p>
-                        </div>
+                <div class="form-section">
+                    <div class="mb-4 flex items-center justify-between gap-2">
+                        <h4 class="form-section-title !mb-0">Miembros</h4>
                         <span class="inline-flex items-center gap-2 text-sm text-[var(--text-muted)]"><Users class="h-4 w-4" /> {{ miembros.length }} miembros</span>
                     </div>
 
@@ -351,12 +340,12 @@ onMounted(loadFamilias);
                         <button class="btn btn-primary" type="button" :disabled="!selectedFamilia" @click="agregarMiembro">Agregar</button>
                     </div>
 
-                    <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
-                        <p v-if="miembrosLoading" class="col-span-full text-sm text-[var(--text-muted)]">Cargando miembros...</p>
-                        <article v-for="miembro in miembros" :key="miembro.personaId" class="rounded-xl border border-[var(--card-border)] bg-[var(--bg-card)] p-4">
+                    <div class="divide-y divide-[var(--card-border)]">
+                        <p v-if="miembrosLoading" class="py-3 text-sm text-[var(--text-muted)]">Cargando miembros...</p>
+                        <article v-for="miembro in miembros" :key="miembro.personaId" class="py-3">
                             <div class="flex items-start gap-3">
-                                <img v-if="miembro.fotoUrl" :src="miembro.fotoUrl" :alt="`Foto de ${miembro.nombres}`" class="h-12 w-12 rounded-full object-cover ring-1 ring-[var(--card-border)]">
-                                <div v-else class="grid h-12 w-12 place-items-center rounded-full bg-[var(--surface-muted)] text-sm font-bold text-[var(--text-muted)] ring-1 ring-[var(--card-border)]">
+                                <img v-if="miembro.fotoUrl" :src="miembro.fotoUrl" :alt="`Foto de ${miembro.nombres}`" class="h-10 w-10 rounded-full object-cover ring-1 ring-[var(--card-border)]">
+                                <div v-else class="grid h-10 w-10 place-items-center rounded-full bg-[var(--surface-muted)] text-sm font-bold text-[var(--text-muted)] ring-1 ring-[var(--card-border)]">
                                     {{ miembro.nombres.slice(0, 1).toUpperCase() }}
                                 </div>
                                 <div class="min-w-0 flex-1">
@@ -370,8 +359,8 @@ onMounted(loadFamilias);
                                 </button>
                             </div>
                         </article>
-                        <p v-if="!miembrosLoading && miembros.length === 0" class="col-span-full rounded-xl border border-dashed border-[var(--card-border)] p-6 text-center text-sm text-[var(--text-muted)]">
-                            Esta familia aún no tiene miembros asociados.
+                        <p v-if="!miembrosLoading && miembros.length === 0" class="py-6 text-center text-sm text-[var(--text-muted)]">
+                            Sin miembros todavía.
                         </p>
                     </div>
                 </div>

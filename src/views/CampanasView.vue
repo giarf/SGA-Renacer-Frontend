@@ -174,8 +174,8 @@ async function saveCell(rowId: number, columnId: number, value: GuardarValorCamp
     <main class="campaign-page">
         <RouterLink v-if="id" to="/campanas" class="back-link"><ArrowLeft :size="16" /> Todas las campañas</RouterLink>
         <header class="campaign-header">
-            <div><p class="eyebrow">COMUNIDAD · VÍNCULOS Y SEGUIMIENTO</p><h1>{{ id ? (detalle?.campana.nombre ?? 'Campaña') : 'Campañas' }}</h1>
-                <p class="intro">{{ id ? detalle?.campana.descripcion : 'Cada vínculo, cada entrega, cada agradecimiento. Todo en un mismo lugar.' }}</p>
+            <div><h1 v-if="id">{{ detalle?.campana.nombre ?? 'Campaña' }}</h1>
+                <p v-if="id && detalle?.campana.descripcion" class="intro">{{ detalle.campana.descripcion }}</p>
                 <p v-if="detalle" class="muted">Fecha de referencia: {{ fecha(detalle.campana.fecha) }} <span class="state">{{ detalle.campana.estado }}</span></p>
             </div>
             <div class="actions">
@@ -196,11 +196,11 @@ async function saveCell(rowId: number, columnId: number, value: GuardarValorCamp
             <div v-if="list.length" class="campaign-grid">
                 <RouterLink v-for="c in list" :key="c.id" :to="`/campanas/${c.id}`" class="surface-card campaign-card">
                     <div class="card-top"><HandHeart :size="25" /><span class="state">{{ c.estado }}</span><ArrowUpRight :size="18" /></div>
-                    <p class="muted">{{ fecha(c.fecha) }}</p><h2>{{ c.nombre }}</h2><p class="card-description">{{ c.descripcion || 'Una campaña para conectar personas y acompañar cada entrega.' }}</p>
+                    <p class="muted">{{ fecha(c.fecha) }}</p><h2>{{ c.nombre }}</h2><p v-if="c.descripcion" class="card-description">{{ c.descripcion }}</p>
                     <footer><span><strong>{{ c.totalParticipantes }}</strong> beneficiarios</span><span><strong>{{ c.sinPadrino }}</strong> sin padrino</span></footer>
                 </RouterLink>
             </div>
-            <section v-else-if="!loading && !error" class="surface-card empty"><HandHeart :size="36" /><h2>{{ filtro ? 'No hay coincidencias' : 'El próximo vínculo empieza aquí' }}</h2><p>{{ filtro ? 'Prueba con otro nombre.' : 'Crea una campaña de apadrinamiento o una campaña personalizada.' }}</p><button v-if="!filtro" class="btn btn-primary" @click="open('campana')">Crear primera campaña</button></section>
+            <section v-else-if="!loading && !error" class="surface-card empty"><HandHeart :size="36" /><h2>{{ filtro ? 'No hay coincidencias' : 'El próximo vínculo empieza aquí' }}</h2><button v-if="!filtro" class="btn btn-primary" @click="open('campana')">Crear primera campaña</button></section>
         </template>
 
         <template v-else-if="detalle">
@@ -211,7 +211,7 @@ async function saveCell(rowId: number, columnId: number, value: GuardarValorCamp
                 <div v-if="hasDelivery"><strong>{{ thanks }}</strong><span>Agradecimientos enviados</span></div>
             </section>
             <section class="surface-card tracking">
-                <div class="table-toolbar"><div><h2>Seguimiento de participantes</h2><p class="muted">Una fila por beneficiario. Un mismo padrino puede aparecer en varias filas.</p></div><button class="btn btn-outline" :disabled="cerrada || working || loading" @click="open('columna')"><Columns3 :size="16" /> Agregar columna</button></div>
+                <div class="table-toolbar"><div><h2>Seguimiento de participantes</h2></div><button class="btn btn-outline" :disabled="cerrada || working || loading" @click="open('columna')"><Columns3 :size="16" /> Agregar columna</button></div>
                 <div class="filters"><label class="search-box"><Search :size="17" /><input v-model="filtro" placeholder="Buscar beneficiario o padrino…" aria-label="Buscar participante" /></label><select v-model="pendiente" aria-label="Filtrar pendientes"><option value="todos">Todos los registros</option><option value="sin_padrino">Sin padrino asignado</option><option v-for="c in checkpoints" :key="c.id" :value="String(c.id)">Pendiente: {{ c.nombre }}</option></select><span class="muted">{{ rows.length }} registros</span></div>
                 <p v-if="cerrada" class="closed-note">Campaña cerrada. Cambia su estado a activa para continuar el seguimiento.</p>
                 <div v-if="rows.length" class="table-scroll">
@@ -229,16 +229,15 @@ async function saveCell(rowId: number, columnId: number, value: GuardarValorCamp
                         </tr></tbody>
                     </table>
                 </div>
-                <div v-else class="empty"><h3>{{ detalle.participantes.length ? 'No hay registros para este filtro' : 'Agrega a los primeros beneficiarios' }}</h3><p>Los padrinos se pueden asignar después.</p></div>
-                <footer class="tracking-footer">Los cambios se guardan por casilla. Usa Actualizar para consultar los últimos cambios del equipo.</footer>
+                <div v-else class="empty"><h3>{{ detalle.participantes.length ? 'No hay registros para este filtro' : 'Agrega a los primeros beneficiarios' }}</h3></div>
             </section>
         </template>
 
         <AsistenciaDialog :open="modal !== null" :title="title" :busy="working || loading" @close="modal = null">
             <p v-if="modalError" role="alert" class="feedback error">{{ modalError }}</p>
             <form v-if="modal === 'mensaje' && mensajeColumna" class="dialog-form" @submit.prevent="configurarMensaje(mensajeColumna, mensajeForm)"><label>Mensaje<textarea v-model="mensajeForm" maxlength="2000" rows="8" /></label><p class="muted">{nombre}: destinatario · {beneficiario} · {campana} · {gustos}</p><button class="btn btn-primary" :disabled="working || loading">Guardar para todos</button></form>
-            <form v-if="modal === 'campana'" class="dialog-form" @submit.prevent="create"><label>Nombre<input v-model="form.nombre" required maxlength="120" placeholder="Apadrinamiento Navidad 2026" /></label><label>Fecha de referencia<input v-model="form.fecha" type="date" required /></label><label>Descripción<textarea v-model="form.descripcion" maxlength="2000" rows="3" /></label><label>Plantilla<select v-model="form.plantilla"><option value="apadrinamiento">Apadrinamiento · regalos y agradecimientos</option><option value="personalizada">Personalizada · agregar mis columnas</option></select></label><p class="muted">Ambas permiten relacionar beneficiarios con padrinos y agregar columnas de seguimiento.</p><button class="btn btn-primary" :disabled="working || loading || !form.nombre.trim()">Crear campaña</button></form>
-            <div v-else-if="modal === 'persona' || modal === 'padrino'" class="dialog-form"><p v-if="selected">Beneficiario: <strong>{{ selected.beneficiario.nombreCompleto }}</strong></p><p v-if="modal === 'padrino'" class="muted">Selecciona una persona existente. Puede apoyar a más de un beneficiario.</p><p v-if="modal === 'padrino' && selected?.padrino" class="muted">Al cambiar de padrino, la ficha y el agradecimiento quedan pendientes de enviar al nuevo contacto.</p><label>Buscar persona<input v-model="search" placeholder="Nombre o RUT (mínimo 2 caracteres)" :disabled="working" /></label><p v-if="searching" role="status">Buscando…</p><div v-else class="person-results"><button v-for="p in results" :key="p.id" :disabled="working || loading" @click="choose(p.id)"><strong>{{ p.nombreCompleto }}</strong><span>{{ p.identificador || 'Sin RUT' }}<template v-if="modal === 'padrino'"> · {{ padrinoCount(p.id) }} beneficiario(s)</template></span><Plus :size="16" /></button><p v-if="search.trim().length >= 2 && !results.length" class="muted">No hay coincidencias disponibles. Puedes registrar personas nuevas en Entidades.</p></div><button v-if="modal === 'padrino' && selected?.padrino" class="btn btn-outline" :disabled="working || loading" @click="choose(null)">Quitar padrino y dejar pendiente</button></div>
+            <form v-if="modal === 'campana'" class="dialog-form" @submit.prevent="create"><label>Nombre<input v-model="form.nombre" required maxlength="120" placeholder="Apadrinamiento Navidad 2026" /></label><label>Fecha de referencia<input v-model="form.fecha" type="date" required /></label><label>Descripción<textarea v-model="form.descripcion" maxlength="2000" rows="3" /></label><label>Plantilla<select v-model="form.plantilla"><option value="apadrinamiento">Apadrinamiento · regalos y agradecimientos</option><option value="personalizada">Personalizada · agregar mis columnas</option></select></label><button class="btn btn-primary" :disabled="working || loading || !form.nombre.trim()">Crear campaña</button></form>
+            <div v-else-if="modal === 'persona' || modal === 'padrino'" class="dialog-form"><p v-if="selected">Beneficiario: <strong>{{ selected.beneficiario.nombreCompleto }}</strong></p><p v-if="modal === 'padrino' && selected?.padrino" class="muted">Al cambiar de padrino, la ficha y el agradecimiento quedan pendientes de enviar al nuevo contacto.</p><label>Buscar persona<input v-model="search" placeholder="Nombre o RUT (mínimo 2 caracteres)" :disabled="working" /></label><p v-if="searching" role="status">Buscando…</p><div v-else class="person-results"><button v-for="p in results" :key="p.id" :disabled="working || loading" @click="choose(p.id)"><strong>{{ p.nombreCompleto }}</strong><span>{{ p.identificador || 'Sin RUT' }}<template v-if="modal === 'padrino'"> · {{ padrinoCount(p.id) }} beneficiario(s)</template></span><Plus :size="16" /></button><p v-if="search.trim().length >= 2 && !results.length" class="muted">No hay coincidencias disponibles. Puedes registrar personas nuevas en Entidades.</p></div><button v-if="modal === 'padrino' && selected?.padrino" class="btn btn-outline" :disabled="working || loading" @click="choose(null)">Quitar padrino y dejar pendiente</button></div>
             <form v-else-if="modal === 'columna'" class="dialog-form" @submit.prevent="addColumn"><label>Nombre<input v-model="columna.nombre" required maxlength="120" /></label><label>Tipo<select v-model="columna.tipo"><option value="boolean">Casilla · Sí / No</option><option value="text">Texto</option><option value="number">Número</option><option value="whatsapp">Mensaje de WhatsApp</option></select></label><button class="btn btn-primary" :disabled="working || loading || !columna.nombre.trim()">Agregar columna</button></form>
             <div v-else-if="modal === 'quitar'" class="dialog-form"><p>¿Retirar a <strong>{{ selected?.beneficiario.nombreCompleto }}</strong> de esta campaña? Se eliminará su seguimiento en esta campaña. La persona seguirá registrada en el sistema.</p><button class="btn btn-primary" :disabled="working || loading" @click="remove">Retirar participante</button></div>
         </AsistenciaDialog>
@@ -247,7 +246,7 @@ async function saveCell(rowId: number, columnId: number, value: GuardarValorCamp
 
 <style scoped>
 .campaign-page { max-width: 1600px; margin: 0 auto; padding: 1.5rem; color: var(--text-primary); }
-.campaign-header { display: flex; justify-content: space-between; gap: 1.5rem; align-items: flex-start; margin-bottom: 2rem; }
+.campaign-header { display: flex; justify-content: space-between; gap: 1.5rem; align-items: flex-start; margin-bottom: 1.25rem; }
 .eyebrow { font-size: .65rem; letter-spacing: .16em; font-weight: 800; color: var(--accent-color); margin-bottom: .65rem; }
 h1 { font-size: clamp(1.8rem, 3vw, 2.6rem); font-weight: 800; letter-spacing: -.04em; line-height: 1.15; overflow-wrap: anywhere; }
 h2 { font-size: 1.15rem; font-weight: 750; } h3 { font-weight: 700; }
