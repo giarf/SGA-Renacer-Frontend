@@ -197,16 +197,16 @@ function abrirGrupo(person: EntidadResumen) {
     grupoPersona.value = { id: person.id, nombreCompleto: person.nombreCompleto };
     showResults.value = false;
 }
-// El modo continuo registra sin bloquear la pantalla: agregarAsistente es idempotente.
+// El backend ya registró la asistencia (idempotente); aquí solo se refleja en la lista y se refresca.
 const huellaPausada = computed(() => modal.value !== null || newPersonOpen.value || grupoPersona.value !== null);
-async function registrarPorHuella(id: number, persona: PersonaIdentificada) {
+function registradaPorHuella({ persona, asistenciaId, creada }: { persona: PersonaIdentificada; asistenciaId: number; creada: boolean }) {
     ++revision;
-    try {
-        return await apiService.agregarAsistente(id, persona.id);
-    } finally {
-        ++revision;
-        if (!disposed && !working.value) void refresh();
+    const actual = detalle.value;
+    if (actual && !actual.asistentes.some(p => p.id === asistenciaId || p.personaId === persona.id)) {
+        actual.asistentes.unshift({ id: asistenciaId, personaId: persona.id, nombreCompleto: persona.nombreCompleto, rut: persona.rut ?? null, llegada: new Date().toISOString(), valores: {} });
+        if (creada) actual.evento.totalAsistentes++;
     }
+    if (!disposed && !working.value) void refresh();
 }
 function grupoPorHuella(persona: PersonaIdentificada) {
     abrirGrupo({ id: persona.id, nombreCompleto: persona.nombreCompleto, tipoEntidad: 'PersonaNatural', identificador: persona.rut ?? '' });
@@ -381,7 +381,7 @@ onBeforeUnmount(() => {
                 <button class="btn-secondary" :disabled="working" @click="showResults = false; newPersonOpen = true"><Plus :size="17" /> Nueva persona</button>
             </section>
 
-            <HuellaContinua :key="detalle.evento.id" :evento-id="detalle.evento.id" :pausado="huellaPausada" :procesar="registrarPorHuella" @grupo="grupoPorHuella" />
+            <HuellaContinua :key="detalle.evento.id" :evento-id="detalle.evento.id" :pausado="huellaPausada" @registrada="registradaPorHuella" @grupo="grupoPorHuella" />
 
             <section class="attendance-sheet" aria-labelledby="sheet-title">
                 <div class="sheet-toolbar">

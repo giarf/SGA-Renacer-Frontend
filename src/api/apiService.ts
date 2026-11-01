@@ -8,6 +8,7 @@ import type {
     GuardarValorCampana,
     VinculoApoderado,
     HuellaRegistrada,
+    AsistenciaPorHuella,
     PersonaIdentificada,
     EventoAsistencia,
     DetalleAsistencia,
@@ -831,7 +832,7 @@ export const apiService = {
         return requestJson(`${API_BASE_URL}/personas/${personaId}/huellas`, { cache: 'no-store' });
     },
     registrarHuella(personaId: number, dedo: string): Promise<HuellaRegistrada> {
-        return requestJson(`${API_BASE_URL}/personas/${personaId}/huellas`, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ dedo }), signal: AbortSignal.timeout(70000) });
+        return requestJson(`${API_BASE_URL}/personas/${personaId}/huellas`, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ dedo }), signal: AbortSignal.timeout(150000) });
     },
     eliminarHuella(personaId: number, huellaId: number): Promise<void> {
         return requestJson(`${API_BASE_URL}/personas/${personaId}/huellas/${huellaId}`, { method: 'DELETE' });
@@ -846,6 +847,29 @@ export const apiService = {
             body: JSON.stringify(opciones.timeout ? { timeout: opciones.timeout } : {}),
             signal: opciones.signal ? AbortSignal.any([opciones.signal, espera]) : espera
         });
+    },
+    // Una sola llamada: el backend captura, identifica y registra la asistencia.
+    async registrarAsistenciaPorHuella(eventoId: number, opciones: { timeout?: number; signal?: AbortSignal } = {}): Promise<AsistenciaPorHuella> {
+        const espera = AbortSignal.timeout(((opciones.timeout ?? 40) + 30) * 1000);
+        const data = await requestJson<any>(`${API_BASE_URL}/asistencia/eventos/${eventoId}/huella`, {
+            method: 'POST', headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify(opciones.timeout ? { timeout: opciones.timeout } : {}),
+            signal: opciones.signal ? AbortSignal.any([opciones.signal, espera]) : espera
+        });
+        const root = data?.data ?? data ?? {};
+        const p = root.persona ?? {};
+        const t = root.tiempos;
+        const nombre = p.nombreCompleto ?? p.nombre_completo ?? buildNombreCompleto(p.nombres, p.apellidos);
+        return {
+            persona: { id: Number(p.id ?? p.personaId ?? p.persona_id), nombreCompleto: nombre, rut: p.rut ?? undefined, dedo: p.dedo ?? '' },
+            asistenciaId: Number(root.asistenciaId ?? root.asistencia_id ?? root.id),
+            creada: Boolean(root.creada),
+            puntaje: typeof root.puntaje === 'number' ? root.puntaje : undefined,
+            tiempos: t ? {
+                capturaMs: t.capturaMs ?? t.captura_ms, envioMs: t.envioMs ?? t.envio_ms, extraccionMs: t.extraccionMs ?? t.extraccion_ms,
+                comparacionMs: t.comparacionMs ?? t.comparacion_ms, registroMs: t.registroMs ?? t.registro_ms, totalMs: t.totalMs ?? t.total_ms
+            } : undefined
+        };
     },
     async getRoles(tipo: 'beneficiarios' | 'colaboradores' | 'trabajadores' | 'directivos'): Promise<RolPersona[]> {
         return await requestJson<RolPersona[]>(`${API_BASE_URL}/${tipo}`);

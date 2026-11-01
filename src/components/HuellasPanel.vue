@@ -19,6 +19,9 @@ const error = ref('');
 const mensaje = ref('');
 const reemplaza = computed(() => huellas.value.some(h => h.dedo === dedo.value));
 const nombreDedo = (value: string) => NOMBRES[value] ?? value;
+// Orden recomendado para el lector: índices primero (uno de cada mano), luego medios.
+const PREFERIDOS = ['indice_derecho', 'indice_izquierdo', 'medio_derecho', 'medio_izquierdo'];
+const siguienteDedo = () => [...PREFERIDOS, ...dedos.value].find(d => dedos.value.includes(d) && !huellas.value.some(h => h.dedo === d)) ?? dedo.value;
 const fecha = (value: string) => new Date(value).toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: 'numeric' });
 let generation = 0;
 
@@ -31,6 +34,7 @@ async function cargar() {
         if (version !== generation) return;
         huellas.value = data.huellas;
         if (data.dedos.length) dedos.value = data.dedos;
+        dedo.value = siguienteDedo();
     } catch (e) {
         if (version === generation) error.value = e instanceof Error ? e.message : 'No se pudieron cargar las huellas.';
     } finally {
@@ -55,8 +59,10 @@ async function registrar() {
         }
         huellas.value = [...huellas.value.filter(h => h.dedo !== huella.dedo), huella];
         mensaje.value = `${nombreDedo(huella.dedo)} registrado.`;
+        dedo.value = siguienteDedo();
     } catch (e) {
-        error.value = e instanceof Error && e.name !== 'TimeoutError' ? e.message : 'El huellero no respondió a tiempo. Intenta nuevamente.';
+        error.value = e instanceof ApiError && e.codigo === 'calidad_baja' ? 'La huella salió poco clara. Limpia el dedo y el lector, apóyalo completo y vuelve a intentar.'
+            : e instanceof Error && e.name !== 'TimeoutError' ? e.message : 'El huellero no respondió a tiempo. Intenta nuevamente.';
     } finally {
         leyendo.value = false;
     }
@@ -90,11 +96,13 @@ async function quitar(huella: HuellaRegistrada) {
         <p v-if="mensaje" role="status" class="fingerprints-ok">{{ mensaje }}</p>
         <ul v-if="huellas.length" class="fingerprints-list">
             <li v-for="h in huellas" :key="h.id">
-                <span><strong>{{ nombreDedo(h.dedo) }}</strong><small>Registrada el {{ fecha(h.registrada) }}<template v-if="h.calidad != null"> · Calidad {{ h.calidad }}</template></small></span>
+                <span><strong>{{ nombreDedo(h.dedo) }}</strong><small>Registrada el {{ fecha(h.registrada) }}<template v-if="h.calidad != null"> · {{ h.calidad }} puntos de detalle</template></small></span>
                 <button type="button" class="btn-ghost !p-2" :aria-label="`Eliminar huella ${nombreDedo(h.dedo)}`" :disabled="ocupado" @click="quitar(h)"><Trash2 :size="16" /></button>
             </li>
         </ul>
         <p v-else-if="!cargando" class="fingerprints-empty">Sin huellas registradas.</p>
+        <p v-if="huellas.length === 1" class="fingerprints-empty">Recomendado: registra también {{ nombreDedo(dedo).toLowerCase() }} para que el lector la reconozca con más seguridad.</p>
+        <p class="fingerprints-empty">Pon el mismo dedo 3 veces, levantándolo entre cada toque. Apoya la yema completa, plana y centrada (no la punta).</p>
         <div class="fingerprints-actions">
             <label class="sr-only" for="fingerprint-finger">Dedo</label>
             <select id="fingerprint-finger" v-model="dedo" :disabled="ocupado">
@@ -103,7 +111,7 @@ async function quitar(huella: HuellaRegistrada) {
             <button type="button" class="btn-primary" :disabled="ocupado" @click="registrar">
                 <LoaderCircle v-if="leyendo" :size="18" class="animate-spin" aria-hidden="true" />
                 <FingerprintPattern v-else :size="18" aria-hidden="true" />
-                {{ leyendo ? 'Pon y retira el dedo 5 veces…' : reemplaza ? 'Volver a registrar' : 'Registrar huella' }}
+                {{ leyendo ? 'Pon el mismo dedo 3 veces…' : reemplaza ? 'Volver a registrar' : 'Registrar huella' }}
             </button>
         </div>
     </section>

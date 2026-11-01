@@ -646,3 +646,20 @@ export interface PersonaIdentificada {
     rut?: string;
     dedo: string;
 }
+
+export interface TiemposHuella {
+    capturaMs?: number;
+    envioMs?: number;
+    extraccionMs?: number;
+    comparacionMs?: number;
+    registroMs?: number;
+    totalMs?: number;
+}
+
+export interface AsistenciaPorHuella {
+    persona: PersonaIdentificada;
+    asistenciaId: number;
+    creada: boolean;
+    puntaje?: number;
+    tiempos?: TiemposHuella;
+}

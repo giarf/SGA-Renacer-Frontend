@@ -2,21 +2,20 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { FingerprintPattern, Users } from 'lucide-vue-next';
 import { ApiError, apiService } from '../api/apiService';
-import type { PersonaIdentificada } from '../types';
+import type { AsistenciaPorHuella, PersonaIdentificada } from '../types';
 
-const props = defineProps<{
-    eventoId: number;
-    pausado: boolean;
-    procesar: (eventoId: number, persona: PersonaIdentificada) => Promise<{ creada: boolean }>;
+const props = defineProps<{ eventoId: number; pausado: boolean }>();
+const emit = defineEmits<{
+    grupo: [persona: PersonaIdentificada];
+    registrada: [resultado: Pick<AsistenciaPorHuella, 'persona' | 'asistenciaId' | 'creada'>];
 }>();
-const emit = defineEmits<{ grupo: [persona: PersonaIdentificada] }>();
 
 // Cada vuelta deja el lector ocupado como máximo estos segundos, para liberarlo pronto al pausar.
 const ESPERA_POR_VUELTA = 10;
 const SESION = 'asistencia-huella-continua';
 
 const activo = ref(false);
-const estado = ref<'esperando' | 'pausado' | 'procesando' | 'reintentando'>('esperando');
+const estado = ref<'esperando' | 'pausado' | 'reintentando'>('esperando');
 const aviso = ref<{ tipo: 'ok' | 'info' | 'error'; texto: string } | null>(null);
 const recientes = ref<{ clave: number; persona: PersonaIdentificada; hora: string; creada: boolean }[]>([]);
 let controller: AbortController | null = null;
@@ -25,7 +24,6 @@ let contador = 0;
 
 const titulo = computed(() => !activo.value ? 'Lectura con huella'
     : props.pausado || estado.value === 'pausado' ? 'Lectura en pausa'
-    : estado.value === 'procesando' ? 'Registrando llegada…'
     : estado.value === 'reintentando' ? 'Reconectando con el huellero…'
     : 'Esperando huella…');
 const subtitulo = computed(() => !activo.value ? 'Actívala para registrar llegadas con solo poner el dedo.'
@@ -60,9 +58,9 @@ async function ciclo(signal: AbortSignal) {
     while (!signal.aborted) {
         if (props.pausado) { estado.value = 'pausado'; await esperar(400, signal); continue; }
         estado.value = 'esperando';
-        let persona: PersonaIdentificada;
+        let resultado: AsistenciaPorHuella;
         try {
-            persona = await apiService.identificarHuella({ timeout: ESPERA_POR_VUELTA, signal });
+            resultado = await apiService.registrarAsistenciaPorHuella(props.eventoId, { timeout: ESPERA_POR_VUELTA, signal });
         } catch (e) {
             if (signal.aborted) return;
             const codigo = e instanceof ApiError ? e.codigo : undefined;
@@ -83,6 +81,11 @@ async function ciclo(signal: AbortSignal) {
                 detener();
                 return;
             }
+            if (codigo === 'calidad_baja') {
+                fallos = 0;
+                aviso.value = { tipo: 'info', texto: `${hora()} · Huella poco clara, vuelve a poner el dedo.` };
+                continue;
+            }
             if (e instanceof ApiError && e.status === 422) {
                 aviso.value = { tipo: 'info', texto: `${hora()} · ${e.message} Vuelve a poner el dedo.` };
                 await esperar(800, signal);
@@ -96,16 +99,11 @@ async function ciclo(signal: AbortSignal) {
         }
         if (signal.aborted) return;
         fallos = 0;
-        estado.value = 'procesando';
-        try {
-            const { creada } = await props.procesar(props.eventoId, persona);
-            recientes.value = [{ clave: ++contador, persona, hora: hora(), creada }, ...recientes.value].slice(0, 4);
-            aviso.value = { tipo: 'ok', texto: creada ? `${persona.nombreCompleto}: llegada registrada.` : `${persona.nombreCompleto} ya estaba en la lista.` };
-            tono(true);
-        } catch (e) {
-            aviso.value = { tipo: 'error', texto: `${persona.nombreCompleto}: no se pudo registrar (${mensaje(e)}). Agrégala por nombre.` };
-            tono(false);
-        }
+        const { persona, asistenciaId, creada } = resultado;
+        recientes.value = [{ clave: ++contador, persona, hora: hora(), creada }, ...recientes.value].slice(0, 4);
+        aviso.value = { tipo: 'ok', texto: creada ? `${persona.nombreCompleto}: llegada registrada.` : `${persona.nombreCompleto} ya estaba en la lista.` };
+        tono(true);
+        emit('registrada', { persona, asistenciaId, creada });
     }
 }
 
