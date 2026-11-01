@@ -53,7 +53,7 @@ const filteredItems = computed(() => {
     // Filter
     if (searchQuery.value) {
         result = result.filter(item => 
-            matchesSearch(searchQuery.value, item.nombre, item.categoria)
+            matchesSearch(searchQuery.value, item.nombre, item.categoria, item.codigoBarras)
         );
     }
     
@@ -76,6 +76,11 @@ const filteredItems = computed(() => {
     
     return result;
 });
+
+const formatFecha = (iso: string) => {
+    const [y, m, d] = iso.slice(0, 10).split('-');
+    return y && m && d ? `${d}-${m}-${y}` : iso;
+};
 
 const abrirModalEditar = (item: CatalogoItem) => {
     selectedItem.value = item;
@@ -118,7 +123,7 @@ onMounted(() => {
                 <input
                     v-model="searchQuery"
                     type="text"
-                    placeholder="Buscar por nombre o categoría..."
+                    placeholder="Buscar por nombre, categoría o código..."
                     class="compact-control w-full !pl-10 h-10"
                 />
             </div>
@@ -207,6 +212,7 @@ onMounted(() => {
                         <tr v-for="item in filteredItems" :key="item.id" class="hover:bg-[var(--surface-hover)] transition-colors duration-150">
                             <td class="px-5 py-3">
                                 <div class="font-medium text-[var(--text-primary)]">{{ item.nombre }}</div>
+                                <div v-if="item.codigoBarras" class="font-mono text-xs text-[var(--text-muted)]">{{ item.codigoBarras }}</div>
                             </td>
                             <td class="px-5 py-3">
                                 <span class="px-2.5 py-1 inline-flex text-xs font-semibold rounded-full bg-[var(--accent-color)]/10 text-[var(--accent-color)]">
@@ -223,6 +229,7 @@ onMounted(() => {
                             </td>
                             <td class="px-5 py-3 text-[var(--text-primary)] text-right">
                                 ${{ item.precioReferencia.toLocaleString('es-CL') }}
+                                <div v-if="item.precioReferenciaFecha" class="text-xs text-[var(--text-muted)]">{{ formatFecha(item.precioReferenciaFecha) }}</div>
                             </td>
                             <td class="px-5 py-3 text-[var(--text-muted)] text-right">
                                 ${{ item.precioPromedioPonderado.toLocaleString('es-CL') }}

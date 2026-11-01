@@ -346,6 +346,39 @@ export interface CatalogoItem {
     valorTotalStock: number;
     precioPromedioPonderado: number;
     precioReferencia: number;
+    /** EAN-8 / EAN-13 / UPC-A, solo dígitos, único en el catálogo. */
+    codigoBarras?: string | null;
+    /** "manual" | "openfoodfacts" | "compra" | "donacion" */
+    origenDatos?: string | null;
+    /** ISO yyyy-mm-dd: cuándo se calculó/fijó el precio de referencia. */
+    precioReferenciaFecha?: string | null;
+}
+
+// Contract for GET /api/catalogo/codigo/:codigo
+export interface SugerenciaCodigoBarras {
+    codigoBarras: string;
+    nombre: string;
+    marca: string | null;
+    cantidad: string | null;
+    categoria: string | null;
+    imagenUrl: string | null;
+}
+
+export type BusquedaCodigoBarras =
+    | { fuente: 'catalogo'; item: CatalogoItem; sugerencia: null }
+    | { fuente: 'openfoodfacts'; item: null; sugerencia: SugerenciaCodigoBarras }
+    /** 404 del backend (no existe en ninguna parte o Open Food Facts no respondió a tiempo). */
+    | { fuente: 'no-encontrado'; item: null; sugerencia: null; codigoBarras: string };
+
+/** Línea que entrega el escáner al formulario (compra o donación). */
+export interface LineaEscaneada {
+    itemCatalogoId?: number;
+    codigoBarras: string;
+    nombre: string;
+    categoria: string;
+    unidad: string;
+    cantidad: number;
+    precio: number;
 }
 
 export interface ItemDonacionBienes {
@@ -355,6 +388,7 @@ export interface ItemDonacionBienes {
     cantidad: number;
     precio: number;
     itemCatalogoId?: number;
+    codigoBarras?: string;
 }
 
 // Contract for POST /api/ingresos/donacion-bienes
@@ -377,9 +411,14 @@ export interface DonacionBienesPayload {
 
 // Contract for POST /api/ingresos/compra
 export interface CompraDetallePayload {
-    itemCatalogoId: number;
+    /** Si falta, el backend busca por codigoBarras y luego por nombre, o crea el ítem. */
+    itemCatalogoId?: number;
     cantidad: number;
     precioUnitarioIngreso: number;
+    codigoBarras?: string;
+    nombre?: string;
+    categoria?: string;
+    unidad?: string;
 }
 
 export interface CompraIngresoPayload {
@@ -429,6 +468,7 @@ export interface RegistrarCatalogoPayload {
     categoria: string;
     unidadMedidaEstandar: string;
     precioReferencia: number;
+    codigoBarras?: string | null;
 }
 
 export interface ActualizarCatalogoPayload {
@@ -437,6 +477,7 @@ export interface ActualizarCatalogoPayload {
     categoria?: string;  // Optional on update
     unidadMedidaEstandar?: string;  // Optional on update
     precioReferencia: number;
+    codigoBarras?: string | null;
 }
 
 // Cuenta corriente / fondos internos

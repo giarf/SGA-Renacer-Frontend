@@ -9,6 +9,7 @@
     "build": "vue-tsc -b && vite build",
     "test:search": "node --experimental-strip-types --test tests/search.test.mjs",
     "test:responsible": "node --experimental-strip-types --test tests/responsibleMatching.test.mjs",
+    "test:barcode": "node --experimental-strip-types --test tests/barcode.test.mjs",
     "preview": "vite preview",
     "start": "node server.mjs"
   },
@@ -17,6 +18,8 @@
   },
   "dependencies": {
     "@tailwindcss/postcss": "^4.1.18",
+    "@zxing/browser": "0.2.1",
+    "@zxing/library": "0.23.0",
     "lucide-vue-next": "^0.575.0",
     "markdown-it": "^14.3.3",
     "oidc-client-ts": "^3.5.0",

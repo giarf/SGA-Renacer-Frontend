@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import type { EntidadResumen, CatalogoItem, DonacionBienesPayload } from '../types';
+import type { EntidadResumen, CatalogoItem, DonacionBienesPayload, LineaEscaneada } from '../types';
 import { apiService } from '../api/apiService';
 import { formatRutForDisplay } from '../utils/rutFormatter';
 import ModalRegistroCatalogo from '../components/ModalRegistroCatalogo.vue';
-import { Trash2, ClipboardList, Loader2, Plus } from 'lucide-vue-next';
+import EscanerCodigos from '../components/EscanerCodigos.vue';
+import { Trash2, ClipboardList, Loader2, Plus, ScanBarcode } from 'lucide-vue-next';
+import { fusionarLinea } from '../utils/barcode';
 import { canChangeResponsible, resolveCurrentResponsible } from '../auth/currentResponsible';
 import { clearFormDraft, loadFormDraft, saveFormDraft } from '../utils/formDraft';
 import { integerFromInput } from '../utils/integerInput';
@@ -61,6 +63,7 @@ const itemPrecio = ref<number>(0);
 
 // State for catalog modal
 const showModalRegistroCatalogo = ref(false);
+const showEscaner = ref(false);
 
 // Local items list (before submission)
 interface LocalItem {
@@ -70,6 +73,7 @@ interface LocalItem {
     unidad: string;
     cantidad: number;
     precio: number;
+    codigoBarras?: string;
 }
 const items = ref<LocalItem[]>([]);
 
@@ -256,13 +260,20 @@ const addItemToList = () => {
         precio: itemPrecio.value,
         nombre: selectedItem.value.nombre,
         categoria: selectedItem.value.categoria || 'Sin categoría',
-        unidad: selectedItem.value.unidadMedidaEstandar || 'unidad'
+        unidad: selectedItem.value.unidadMedidaEstandar || 'unidad',
+        codigoBarras: selectedItem.value.codigoBarras || undefined
     });
 
     // Reset item form
     selectedItem.value = null;
     itemCantidad.value = 1;
     itemPrecio.value = 0;
+    message.value = null;
+};
+
+// Lectura del escáner: entra a la misma lista; si el código ya está, suma cantidad.
+const agregarEscaneado = (linea: LineaEscaneada) => {
+    items.value = fusionarLinea(items.value, { ...linea }).lista;
     message.value = null;
 };
 
@@ -310,7 +321,8 @@ const submitDonacion = async () => {
             categoria: item.categoria,
             unidad: item.unidad,
             cantidad: item.cantidad,
-            precio: item.precio
+            precio: item.precio,
+            codigoBarras: item.codigoBarras || undefined
         }))
     };
 
@@ -576,14 +588,19 @@ loadCurrentResponsible().finally(() => {
                 </div>
 
                 <div v-else>
-                    <input 
-                        type="text" 
-                        v-model="itemQuery"
-                        @input="searchItems(itemQuery)"
-                        @focus="showItemDropdown = true"
-                        placeholder="Buscar por nombre o categoría..."
-                        class="compact-control"
-                    />
+                    <div class="flex gap-2">
+                        <input 
+                            type="text" 
+                            v-model="itemQuery"
+                            @input="searchItems(itemQuery)"
+                            @focus="showItemDropdown = true"
+                            placeholder="Buscar por nombre o categoría..."
+                            class="compact-control flex-1"
+                        />
+                        <button type="button" class="btn-secondary h-10 shrink-0 px-3" @click="showItemDropdown = false; showEscaner = true">
+                            <ScanBarcode class="h-4 w-4" /> Escanear
+                        </button>
+                    </div>
                     
                     <!-- Dropdown -->
                     <div v-if="showItemDropdown && itemQuery.length >= 2" class="dropdown-panel absolute z-20 mt-1 max-h-60 w-full overflow-auto">
@@ -683,7 +700,7 @@ loadCurrentResponsible().finally(() => {
                         <tr v-for="(item, index) in items" :key="index">
                             <td class="px-4 py-2.5 whitespace-nowrap">
                                 <div class="text-sm font-medium text-gray-900">{{ item.nombre }}</div>
-                                <div class="text-xs text-gray-500">{{ item.categoria }} • {{ item.unidad }}</div>
+                                <div class="text-xs text-gray-500">{{ item.categoria }} • {{ item.unidad }}<span v-if="item.codigoBarras" class="font-mono"> • {{ item.codigoBarras }}</span></div>
                             </td>
                             <td class="px-4 py-2.5 whitespace-nowrap text-sm text-gray-900">
                                 {{ item.cantidad }}
@@ -738,6 +755,12 @@ loadCurrentResponsible().finally(() => {
         </div>
         </div>
     </div>
+
+    <EscanerCodigos
+        v-if="showEscaner"
+        @agregar="agregarEscaneado"
+        @close="showEscaner = false"
+    />
 
     <ModalRegistroCatalogo 
         v-if="showModalRegistroCatalogo"

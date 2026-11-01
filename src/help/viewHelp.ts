@@ -22,7 +22,9 @@ export const viewHelp: Record<string, ViewHelp> = {
         tips: [
             'La fecha es hoy por defecto; tócala para cambiarla.',
             'Los fondos se administran en “Cuentas”.',
-            'Si un ítem no existe en el catálogo puedes crearlo desde el buscador.'
+            'Si un ítem no existe en el catálogo puedes crearlo desde el buscador.',
+            'Con “Escanear” apuntas la cámara al código de barras: confirma cantidad y precio y presiona Enter o “Agregar”; la cámara sigue abierta para el siguiente producto. Si el código ya está en la lista se suma la cantidad. Toca “Terminar” al acabar.',
+            'Si un producto escaneado no está en el catálogo se sugiere su nombre (Open Food Facts) o lo escribes tú; se crea al registrar.'
         ]
     },
     compras: {
@@ -35,7 +37,11 @@ export const viewHelp: Record<string, ViewHelp> = {
             'Agrega cada ítem con su cantidad y precio unitario.',
             'Presiona “Registrar compra”.'
         ],
-        tips: ['Puedes ver la boleta de la última compra justo bajo el formulario, o todas en “Logs”.']
+        tips: [
+            'Puedes ver la boleta de la última compra justo bajo el formulario, o todas en “Logs”.',
+            'Con “Escanear” apuntas la cámara al código de barras: confirma cantidad y precio y presiona Enter o “Agregar”; la cámara sigue abierta para el siguiente producto. Si el código ya está en la lista se suma la cantidad. Toca “Terminar” al acabar.',
+            'La cámara necesita permiso del navegador; si no funciona, usa el ícono del teclado para escribir el código.'
+        ]
     },
     ayudaSocial: {
         title: 'Entregar ayuda social',
@@ -141,7 +147,9 @@ export const viewHelp: Record<string, ViewHelp> = {
         tips: [
             'Haz clic en el encabezado de una columna para ordenar.',
             'PPM es el precio promedio ponderado; el valor total es stock × PPM.',
-            'Usa el lápiz para editar un ítem.'
+            'Usa el lápiz para editar un ítem.',
+            'Puedes asignar o escanear el código de barras de cada ítem al crearlo o editarlo; el buscador también encuentra por código.',
+            'El precio de referencia se recalcula con la mediana de las compras de los últimos 180 días; la fecha indica cuándo se actualizó.'
         ]
     },
     cuentas: {

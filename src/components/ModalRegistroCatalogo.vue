@@ -3,8 +3,16 @@ import { matchesSearch } from '../utils/search';
 import { ref, onMounted, computed } from 'vue';
 import type { RegistrarCatalogoPayload } from '../types';
 import { apiService } from '../api/apiService';
-import { X, Info, CheckCircle2 } from 'lucide-vue-next';
+import { X, Info, CheckCircle2, ScanBarcode } from 'lucide-vue-next';
+import EscanerCodigos from './EscanerCodigos.vue';
+import { esCodigoValido } from '../utils/barcode';
 import { integerFromInput } from '../utils/integerInput';
+
+const props = withDefaults(defineProps<{
+    /** Prellenado opcional (por ejemplo desde un código escaneado). */
+    codigoInicial?: string;
+    nombreInicial?: string;
+}>(), { codigoInicial: '', nombreInicial: '' });
 
 const emit = defineEmits<{
     (e: 'close'): void
@@ -18,10 +26,18 @@ const showSuggestions = ref(false);
 
 
 const formData = ref<RegistrarCatalogoPayload>({
-    nombre: '',
+    nombre: props.nombreInicial,
     categoria: '',
     unidadMedidaEstandar: '',
     precioReferencia: 0
+});
+
+const codigoBarras = ref(props.codigoInicial);
+
+const showEscaner = ref(false);
+const codigoError = computed(() => {
+    const codigo = codigoBarras.value.trim();
+    return codigo && !esCodigoValido(codigo) ? 'Código inválido: revisa los dígitos (8, 12 o 13 con verificador correcto).' : null;
 });
 
 const submitting = ref(false);
@@ -67,12 +83,14 @@ const onCategoriaBlur = () => {
 };
 
 const submitForm = async () => {
+    if (codigoError.value) return;
     submitting.value = true;
     error.value = null;
     success.value = false;
     
     try {
-        await apiService.registrarItemCatalogo(formData.value);
+        const codigo = codigoBarras.value.trim();
+        await apiService.registrarItemCatalogo({ ...formData.value, ...(codigo ? { codigoBarras: codigo } : {}) });
         success.value = true;
         
         // Wait a bit to show success message, then emit
@@ -94,10 +112,10 @@ onMounted(() => {
 </script>
 
 <template>
-    <div class="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-[1100] p-4">
-        <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    <div class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[1100] p-4">
+        <div class="bg-[var(--bg-card)] text-[var(--text-primary)] rounded-2xl border border-[var(--card-border)] shadow-[var(--shadow-soft)] max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <!-- Header -->
-            <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center sticky top-0 bg-white">
+            <div class="px-6 py-4 border-b border-[var(--card-border)] flex justify-between items-center sticky top-0 z-10 bg-[var(--bg-card)]">
                 <h3 class="text-xl font-semibold text-gray-900">Registrar Nuevo Item al Catálogo</h3>
                 <button @click="emit('close')" class="text-gray-400 hover:text-gray-600">
                     <X class="w-6 h-6" />
@@ -137,6 +155,28 @@ onMounted(() => {
                         placeholder="Ej: Arroz Grano Largo"
                         class="block w-full shadow-sm focus:ring-institutional-blue focus:border-institutional-blue sm:text-sm border-gray-300 rounded-md p-2 border"
                     />
+                </div>
+
+                <!-- Código de barras -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1" for="catalogo-codigo">Código de barras</label>
+                    <div class="flex gap-2">
+                        <input
+                            id="catalogo-codigo"
+                            v-model="codigoBarras"
+                            type="text"
+                            inputmode="numeric"
+                            pattern="[0-9]*"
+                            maxlength="13"
+                            autocomplete="off"
+                            placeholder="EAN-13, EAN-8 o UPC-A (opcional)"
+                            class="compact-control flex-1 font-mono"
+                        />
+                        <button type="button" class="btn-secondary h-10 shrink-0 px-3" @click="showEscaner = true">
+                            <ScanBarcode class="h-4 w-4" /> Escanear
+                        </button>
+                    </div>
+                    <p v-if="codigoError" class="mt-1 text-xs text-red-600">{{ codigoError }}</p>
                 </div>
 
                 <!-- Categoría -->
@@ -226,4 +266,5 @@ onMounted(() => {
             </form>
         </div>
     </div>
+    <EscanerCodigos v-if="showEscaner" modo="unico" titulo="Escanear código del ítem" @codigo="codigoBarras = $event" @close="showEscaner = false" />
 </template>

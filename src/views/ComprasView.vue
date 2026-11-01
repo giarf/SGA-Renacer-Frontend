@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { ExternalLink, FileImage, Loader2, Plus, Trash2, X } from 'lucide-vue-next';
+import { ExternalLink, FileImage, Loader2, Plus, ScanBarcode, Trash2, X } from 'lucide-vue-next';
 import { apiService } from '../api/apiService';
 import { formatRutForDisplay } from '../utils/rutFormatter';
-import type { CatalogoItem, CompraBoletaMetadata, CompraIngresoPayload, Cuenta, EntidadResumen } from '../types';
+import type { CatalogoItem, CompraBoletaMetadata, CompraIngresoPayload, Cuenta, EntidadResumen, LineaEscaneada } from '../types';
 import { canChangeResponsible, resolveCurrentResponsible } from '../auth/currentResponsible';
 import { clearFormDraft, loadFormDraft, saveFormDraft } from '../utils/formDraft';
 import { integerFromInput } from '../utils/integerInput';
 import InlineDateControl from '../components/InlineDateControl.vue';
+import EscanerCodigos from '../components/EscanerCodigos.vue';
+import { fusionarLinea } from '../utils/barcode';
 
 const today = new Date().toISOString().split('T')[0] ?? '';
 
@@ -46,11 +48,17 @@ const boletaInputRef = ref<HTMLInputElement | null>(null);
 const ultimaCompraBoleta = ref<CompraBoletaMetadata | null>(null);
 
 type CompraDetalleLocal = {
-    itemCatalogoId: number;
+    /** Falta en productos nuevos escaneados: el backend lo busca por código/nombre o lo crea. */
+    itemCatalogoId?: number;
     nombre: string;
     cantidad: number;
     precioUnitarioIngreso: number;
+    codigoBarras?: string;
+    categoria?: string;
+    unidad?: string;
 };
+
+const showEscaner = ref(false);
 
 const detalles = ref<CompraDetalleLocal[]>([]);
 const submitting = ref(false);
@@ -230,12 +238,27 @@ const addDetalle = () => {
         itemCatalogoId: selectedItem.value.id,
         nombre: selectedItem.value.nombre,
         cantidad: itemCantidad.value,
-        precioUnitarioIngreso: itemPrecio.value
+        precioUnitarioIngreso: itemPrecio.value,
+        codigoBarras: selectedItem.value.codigoBarras || undefined
     });
     selectedItem.value = null;
     itemQuery.value = '';
     itemCantidad.value = 1;
     itemPrecio.value = 0;
+    message.value = null;
+};
+
+// Lectura del escáner: entra a la misma lista; si el código ya está, suma cantidad.
+const agregarEscaneado = (linea: LineaEscaneada) => {
+    detalles.value = fusionarLinea(detalles.value, {
+        itemCatalogoId: linea.itemCatalogoId,
+        nombre: linea.nombre,
+        cantidad: linea.cantidad,
+        precioUnitarioIngreso: linea.precio,
+        codigoBarras: linea.codigoBarras,
+        categoria: linea.categoria,
+        unidad: linea.unidad
+    }).lista;
     message.value = null;
 };
 
@@ -347,7 +370,10 @@ const submitCompra = async () => {
         detalles: detalles.value.map(item => ({
             itemCatalogoId: item.itemCatalogoId,
             cantidad: item.cantidad,
-            precioUnitarioIngreso: item.precioUnitarioIngreso
+            precioUnitarioIngreso: item.precioUnitarioIngreso,
+            codigoBarras: item.codigoBarras || undefined,
+            // Solo para ítems nuevos (sin itemCatalogoId): datos para crearlos en el catálogo.
+            ...(item.itemCatalogoId ? {} : { nombre: item.nombre, categoria: item.categoria, unidad: item.unidad })
         }))
     };
 
@@ -570,15 +596,20 @@ onBeforeUnmount(clearBoletaPreview);
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                     <div class="md:col-span-2 relative">
                         <label class="block text-xs uppercase tracking-wide text-gray-500 mb-1">Ítem catálogo</label>
-                        <input
-                            v-model="itemQuery"
-                            type="text"
-                            placeholder="Buscar ítem..."
-                            class="compact-control"
-                            @input="searchItems(itemQuery)"
-                            @focus="showItemDropdown = true"
-                            @blur="closeItemsDropdownDelayed"
-                        />
+                        <div class="flex gap-2">
+                            <input
+                                v-model="itemQuery"
+                                type="text"
+                                placeholder="Buscar ítem..."
+                                class="compact-control flex-1"
+                                @input="searchItems(itemQuery)"
+                                @focus="showItemDropdown = true"
+                                @blur="closeItemsDropdownDelayed"
+                            />
+                            <button type="button" class="btn-secondary h-10 shrink-0 px-3" @click="showEscaner = true">
+                                <ScanBarcode class="h-4 w-4" /> Escanear
+                            </button>
+                        </div>
                         <ul v-if="showItemDropdown && itemResults.length > 0" class="dropdown-panel absolute z-20 mt-1 max-h-56 w-full overflow-auto">
                             <li
                                 v-for="item in itemResults"
@@ -620,8 +651,11 @@ onBeforeUnmount(clearBoletaPreview);
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-[var(--card-border)]">
-                            <tr v-for="(detalle, index) in detalles" :key="`${detalle.itemCatalogoId}-${index}`">
-                                <td class="px-4 py-3 text-sm text-gray-800">{{ detalle.nombre }}</td>
+                            <tr v-for="(detalle, index) in detalles" :key="`${detalle.itemCatalogoId ?? detalle.codigoBarras}-${index}`">
+                                <td class="px-4 py-3 text-sm text-gray-800">
+                                    {{ detalle.nombre }}
+                                    <span v-if="detalle.codigoBarras" class="block font-mono text-xs text-gray-500">{{ detalle.codigoBarras }}<template v-if="!detalle.itemCatalogoId"> · nuevo</template></span>
+                                </td>
                                 <td class="px-4 py-3 text-sm text-gray-700">{{ detalle.cantidad }}</td>
                                 <td class="px-4 py-3 text-sm text-gray-700">{{ currency.format(detalle.precioUnitarioIngreso) }}</td>
                                 <td class="px-4 py-3 text-sm font-semibold text-right text-gray-900">
@@ -668,5 +702,11 @@ onBeforeUnmount(clearBoletaPreview);
                 </button>
             </div>
         </section>
+
+        <EscanerCodigos
+            v-if="showEscaner"
+            @agregar="agregarEscaneado"
+            @close="showEscaner = false"
+        />
     </div>
 </template>

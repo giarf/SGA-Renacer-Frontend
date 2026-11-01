@@ -21,6 +21,7 @@ import type {
     RegistrarPersonaPayload,
     DonacionPayload,
     CatalogoItem,
+    BusquedaCodigoBarras,
     DonacionBienesPayload,
     RegistrarCatalogoPayload,
     ActualizarCatalogoPayload,
@@ -466,6 +467,22 @@ export const apiService = {
         url.searchParams.append('q', query);
 
         return await requestJson<CatalogoItem[]>(url.toString());
+    },
+
+    /**
+     * Busca un código de barras en el catálogo local y, si no está, en Open Food Facts.
+     * 404 se devuelve como `fuente: 'no-encontrado'` (carga manual); 400 lanza ApiError con status 400.
+     */
+    async buscarPorCodigoBarras(codigo: string): Promise<BusquedaCodigoBarras> {
+        try {
+            const data = await requestJson<any>(`${API_BASE_URL}/catalogo/codigo/${encodeURIComponent(codigo)}`);
+            if (data?.fuente === 'catalogo' && data.item) return { fuente: 'catalogo', item: data.item, sugerencia: null };
+            if (data?.fuente === 'openfoodfacts' && data.sugerencia) return { fuente: 'openfoodfacts', item: null, sugerencia: data.sugerencia };
+            return { fuente: 'no-encontrado', item: null, sugerencia: null, codigoBarras: codigo };
+        } catch (e) {
+            if (e instanceof ApiError && e.status === 404) return { fuente: 'no-encontrado', item: null, sugerencia: null, codigoBarras: codigo };
+            throw e;
+        }
     },
 
     async registrarDonacionBienes(datos: DonacionBienesPayload): Promise<{ id_ingreso: number }> {
