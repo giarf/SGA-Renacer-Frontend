@@ -61,6 +61,12 @@ router.beforeEach(async to => {
 
     const user = await authService.initialize();
     if (!user) {
+        // Si la sesión venció en este navegador, se vuelve directo a Authentik: con su sesión de 30 días
+        // regresa sin pedir contraseña. Solo quien nunca entró (o cerró sesión) ve la pantalla de login.
+        if (authService.state.sessionExpired) {
+            await authService.login(to.fullPath);
+            return false;
+        }
         return { path: '/login', query: { returnTo: to.fullPath } };
     }
 

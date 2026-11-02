@@ -7,12 +7,15 @@ type AuthState = {
     user: User | null;
     isLoading: boolean;
     isConfigured: boolean;
+    /** Hubo una sesión en este navegador que venció y no se pudo renovar: se vuelve a Authentik sin pedir clic. */
+    sessionExpired: boolean;
 };
 
 const state = reactive<AuthState>({
     user: null,
     isLoading: false,
-    isConfigured: isAuthConfigured()
+    isConfigured: isAuthConfigured(),
+    sessionExpired: false
 });
 
 const userManager = new UserManager(oidcSettings);
@@ -53,9 +56,30 @@ export const authService = {
         if (initializePromise) return initializePromise;
         state.isLoading = true;
         initializePromise = userManager.getUser()
-            .then(user => {
-                state.user = user && !user.expired ? user : null;
-                return state.user;
+            .then(async user => {
+                if (user && !user.expired) {
+                    state.user = user;
+                    return user;
+                }
+                // Token vencido: se renueva con el refresh token (offline_access). Authentik entrega uno
+                // nuevo por 30 días en cada renovación, así que la sesión dura mientras se use el SGA.
+                if (user?.refresh_token) {
+                    try {
+                        const renewed = await userManager.signinSilent();
+                        if (renewed && !renewed.expired) {
+                            state.user = renewed;
+                            return renewed;
+                        }
+                    } catch {
+                        // Refresh token vencido o revocado: se cae al login.
+                    }
+                }
+                if (user) {
+                    await userManager.removeUser().catch(() => undefined);
+                    state.sessionExpired = true;
+                }
+                state.user = null;
+                return null;
             })
             .finally(() => {
                 state.isLoading = false;
@@ -70,11 +94,13 @@ export const authService = {
     async completeLogin() {
         const user = await userManager.signinRedirectCallback();
         state.user = user;
+        state.sessionExpired = false;
         const appState = user.state as { returnTo?: string } | undefined;
         return appState?.returnTo || '/donaciones';
     },
     async logout() {
         state.user = null;
+        state.sessionExpired = false;
         await userManager.signoutRedirect();
     }
 };
