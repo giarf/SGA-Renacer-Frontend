@@ -70,6 +70,12 @@ const montoTotal = computed(() => {
     return totalFormulario > 0 ? totalFormulario : montoDetalles.value;
 });
 
+// El inventario sube por la suma de las líneas: si el neto + IVA no coincide, el balance de logs descuadra.
+const diferenciaMontoDetalles = computed(() =>
+    detalles.value.length > 0 ? montoTotal.value - montoDetalles.value : 0
+);
+const montoNoCuadra = computed(() => Math.abs(diferenciaMontoDetalles.value) >= 1);
+
 const currency = new Intl.NumberFormat('es-CL', {
     style: 'currency',
     currency: 'CLP',
@@ -296,6 +302,10 @@ const submitCompra = async () => {
         message.value = { type: 'error', text: 'El monto total debe ser mayor a cero.' };
         return;
     }
+    if (montoNoCuadra.value) {
+        message.value = { type: 'error', text: `El neto + IVA (${currency.format(montoTotal.value)}) no coincide con la suma de los ítems (${currency.format(montoDetalles.value)}). Corrige los precios o el neto/IVA.` };
+        return;
+    }
 
     const payload: CompraIngresoPayload = {
         ingreso: {
@@ -417,7 +427,10 @@ onBeforeUnmount(clearBoletaPreview);
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Monto total ingreso</label>
-                    <input :value="currency.format(montoTotal)" type="text" class="compact-control bg-[var(--surface-muted)] text-[var(--text-muted)]" readonly />
+                    <input :value="currency.format(montoTotal)" type="text" class="compact-control bg-[var(--surface-muted)] text-[var(--text-muted)]" :class="{ '!border-red-400': montoNoCuadra }" readonly />
+                    <p v-if="montoNoCuadra" class="mt-1 text-xs text-red-600">
+                        Los ítems suman {{ currency.format(montoDetalles) }}: {{ diferenciaMontoDetalles > 0 ? 'faltan' : 'sobran' }} {{ currency.format(Math.abs(diferenciaMontoDetalles)) }} en las líneas.
+                    </p>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Factura/Boleta</label>
@@ -577,7 +590,7 @@ onBeforeUnmount(clearBoletaPreview);
             <div class="form-actions flex justify-end border-t px-5 py-4">
                 <button
                     type="submit"
-                    :disabled="submitting"
+                    :disabled="submitting || montoNoCuadra"
                     class="btn-primary h-10 px-5 disabled:opacity-60"
                 >
                     <Loader2 v-if="submitting" class="w-4 h-4 animate-spin" />
