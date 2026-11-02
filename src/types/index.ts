@@ -609,6 +609,18 @@ export interface EgresoRecurso {
     detalleEgresoRecurso: EgresoDetalleRecurso[];
 }
 
+export interface AjusteIngresoPayload {
+    ingreso: {
+        fecha: string;
+        responsableInternoId: number;
+        origenEntidadId?: number;
+        anotaciones: string;
+        montoTotal?: number;
+    };
+    items?: { itemCatalogoId: number; cantidad: number }[];
+    pecuniario?: { cuentaDestinoId: number; metodoTransferencia?: string };
+}
+
 export interface EgresoPayload {
     egreso: {
         fecha: string;
@@ -648,6 +660,25 @@ export interface SolicitudPayload {
         autorizadorId: number | null;
     };
     items: SolicitudItemPayload[];
+}
+
+export interface SolicitudRegistrada {
+    id: number;
+    solicitanteId: number | null;
+    programa: string | null;
+    fechaSolicitud: string | null;
+    estado: 'Pendiente' | 'Entregada' | 'Cancelada' | string | null;
+    autorizadorId: number | null;
+    items: SolicitudItemPayload[];
+    /** Consumos internos vigentes generados al entregar. */
+    egresoIds: number[];
+}
+
+export interface EntregarSolicitudPayload {
+    fecha: string;
+    responsableInternoId: number;
+    anotaciones?: string;
+    items: { itemCatalogoId: number; cantidad: number }[];
 }
 
 // Rol-based directory responses

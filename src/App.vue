@@ -102,7 +102,7 @@ const navigationGroups: { title: string; items: NavigationItem[] }[] = [
             { key: 'campanas', to: '/campanas', label: 'Campañas', helper: 'Apadrinamientos y seguimiento de entregas', icon: HandHeart, requiredGroups: DAILY_OPERATION_GROUPS },
             { key: 'entidades', to: '/entidades', label: 'Entidades', helper: 'Personas e instituciones', icon: Users, requiredGroups: ADMIN_GROUPS },
             { key: 'familias', to: '/familias', label: 'Familias', helper: 'Grupos familiares y beneficiarios', icon: Home, requiredGroups: ADMIN_GROUPS },
-            { key: 'solicitudes', to: '/solicitudes', label: 'Solicitudes', helper: 'Requerimientos de programas', icon: ClipboardList, requiredGroups: ADMIN_GROUPS }
+            { key: 'solicitudes', to: '/solicitudes', label: 'Solicitudes', helper: 'Requerimientos de programas', icon: ClipboardList, requiredGroups: DAILY_OPERATION_GROUPS }
         ]
     },
     {

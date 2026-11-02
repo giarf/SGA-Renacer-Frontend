@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { matchesSearch } from '../utils/search';
 import { computed, onMounted, ref } from 'vue';
-import { Ban, Clock3, Pencil, Plus, RefreshCw, Printer, FileSpreadsheet, Funnel, Save, X } from 'lucide-vue-next';
+import { Ban, Clock3, Pencil, Plus, RefreshCw, Printer, FileSpreadsheet, Funnel, Save, ScanBarcode, X } from 'lucide-vue-next';
 import { apiService } from '../api/apiService';
 import { hasAnyGroup } from '../auth/authService';
 import { ADMIN_GROUPS } from '../auth/permissions';
-import type { CatalogoItem, CompraBoletaMetadata, CompraResumen, Cuenta, EgresoPayload, EgresoRecurso, EntidadResumen, IngresoDetalleResponse, IngresoResumen } from '../types';
+import type { CatalogoItem, CompraBoletaMetadata, CompraResumen, Cuenta, EgresoPayload, EgresoRecurso, EntidadResumen, IngresoDetalleResponse, IngresoResumen, LineaEscaneada } from '../types';
 import EntidadSelector from '../components/EntidadSelector.vue';
+import EscanerCodigos from '../components/EscanerCodigos.vue';
 import { canChangeResponsible } from '../auth/currentResponsible';
 
 type LogRegistro = {
@@ -28,7 +29,7 @@ type EditDetalle = {
 };
 
 // Variante del registro: decide qué campos se muestran, igual que en su formulario de registro.
-type EditVariante = 'donacion-dinero' | 'donacion-especie' | 'compra' | 'subvencion' | 'ingreso' | 'egreso';
+type EditVariante = 'donacion-dinero' | 'donacion-especie' | 'compra' | 'subvencion' | 'ajuste' | 'ingreso' | 'egreso';
 
 type EditForm = {
     movimiento: 'ingreso' | 'egreso';
@@ -65,6 +66,7 @@ const editLoadingKey = ref<string | null>(null);
 const editSaving = ref(false);
 const editForm = ref<EditForm | null>(null);
 const editErrores = ref<string[]>([]);
+const showEscanerEdit = ref(false);
 const entidadesPorId = ref<Map<number, EntidadResumen> | null>(null);
 const boletaStatus = ref<{ type: 'success' | 'error'; text: string } | null>(null);
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? 'https://api.familiarenacer.cl/api').replace(/\/$/, '');
@@ -106,7 +108,9 @@ const tipoLabels: Record<string, string> = {
     DonacionPecuniaria: 'Donación pecuniaria',
     'Ayuda Social': 'Egreso ayuda social',
     'Consumo Interno': 'Egreso consumo interno',
-    Ajuste: 'Egreso ajuste'
+    Ajuste: 'Ajuste (salida)',
+    AjusteBienes: 'Ajuste de bienes (entrada)',
+    AjustePecuniario: 'Ajuste pecuniario (entrada)'
 };
 
 const mapIngresoToLog = (item: IngresoResumen): LogRegistro => ({
@@ -308,6 +312,7 @@ const entidadDesdeId = (mapa: Map<number, EntidadResumen>, id?: number | null): 
 };
 
 const varianteIngreso = (detalle: IngresoDetalleResponse): EditVariante => {
+    if ((detalle.ingreso.tipoTransaccion || '').toLowerCase() === 'ajuste') return 'ajuste';
     if (detalle.compra) return 'compra';
     if (detalle.subvencion) return 'subvencion';
     if (detalle.donacion) return detalle.pecuniario || detalle.detalles.length === 0 ? 'donacion-dinero' : 'donacion-especie';
@@ -319,6 +324,7 @@ const varianteLabels: Record<EditVariante, string> = {
     'donacion-especie': 'Donación en especie',
     compra: 'Compra',
     subvencion: 'Subvención',
+    ajuste: 'Ajuste de entrada',
     ingreso: 'Ingreso',
     egreso: 'Egreso'
 };
@@ -334,6 +340,7 @@ const entidadLabel = (form: EditForm) => {
         case 'donacion-especie': return 'Donador';
         case 'compra': return 'Proveedor';
         case 'subvencion': return 'Entidad financiadora';
+        case 'ajuste': return 'Entidad relacionada';
         case 'egreso': return 'Destinatario';
         default: return 'Origen';
     }
@@ -420,12 +427,22 @@ const cerrarEditarRegistro = () => {
     editErrores.value = [];
 };
 
+const esEdicionAjuste = (form: EditForm) => form.variante === 'ajuste' || (form.movimiento === 'egreso' && form.tipo === 'Ajuste');
+
+// Los ajustes no tienen contraparte obligatoria; un egreso la exige solo si ya la tenía.
+const entidadRequerida = (form: EditForm) => {
+    if (form.variante === 'ajuste') return false;
+    if (form.movimiento === 'egreso') return Boolean(form.rawEgreso?.destinoEntidadId) && (form.tipo || '') !== 'Ajuste';
+    return true;
+};
+
 // Mismas reglas que al registrar: si algo falta, no se envía.
 const validarEdicion = (form: EditForm): string[] => {
     const errores: string[] = [];
     if (!form.fecha) errores.push('La fecha es obligatoria.');
+    if (esEdicionAjuste(form) && !textoOpcional(form.anotaciones)) errores.push('Indica el motivo del ajuste.');
     if (!form.responsable) errores.push('Selecciona el responsable interno.');
-    const entidadObligatoria = form.movimiento === 'ingreso' || Boolean(form.rawEgreso?.destinoEntidadId);
+    const entidadObligatoria = entidadRequerida(form);
     if (entidadObligatoria && !form.entidad) errores.push(`Selecciona el ${entidadLabel(form).toLowerCase()}.`);
     if (form.detalles.length === 0 && !(Number(form.montoTotal) > 0)) errores.push('El monto total debe ser mayor a cero.');
     form.detalles.forEach((detalle, index) => {
@@ -442,6 +459,29 @@ const textoOpcional = (valor?: string) => (valor ?? '').trim();
 const agregarDetalleEdit = () => {
     if (!editForm.value) return;
     editForm.value.detalles.push({ itemCatalogoId: catalogo.value[0]?.id || 0, cantidad: 1, precio: 0 });
+    recalcularMontoEdit();
+};
+
+// Se escanea en todo registro con ítems; los pecuniarios (dinero) no tienen ítems que escanear.
+const puedeEscanearEdit = computed(() => {
+    const form = editForm.value;
+    if (!form) return false;
+    if (form.movimiento === 'egreso') return !form.rawEgreso?.egresoPecuniario;
+    return form.variante === 'donacion-especie' || form.variante === 'compra' || form.detalles.length > 0;
+});
+
+const agregarEscaneadoEdit = async (linea: LineaEscaneada) => {
+    const form = editForm.value;
+    if (!form || !linea.itemCatalogoId) return;
+    if (!catalogoById.value.has(linea.itemCatalogoId)) {
+        try { catalogo.value = await apiService.getCatalogoItems(); } catch { /* se muestra con su ID */ }
+    }
+    const precio = form.movimiento === 'egreso'
+        ? Math.round(Number(catalogoById.value.get(linea.itemCatalogoId)?.precioPromedioPonderado || 0))
+        : linea.precio;
+    const existente = form.detalles.find(detalle => detalle.itemCatalogoId === linea.itemCatalogoId);
+    if (existente) existente.cantidad = Math.round((Number(existente.cantidad || 0) + linea.cantidad) * 1000) / 1000;
+    else form.detalles.push({ itemCatalogoId: linea.itemCatalogoId, cantidad: linea.cantidad, precio });
     recalcularMontoEdit();
 };
 
@@ -891,7 +931,7 @@ onMounted(fetchHistorial);
                     <EntidadSelector
                         v-model="editForm.entidad"
                         :label="entidadLabel(editForm)"
-                        :required="editForm.movimiento === 'ingreso' || Boolean(editForm.rawEgreso?.destinoEntidadId)"
+                        :required="entidadRequerida(editForm)"
                     />
                     <EntidadSelector
                         v-model="editForm.responsable"
@@ -906,8 +946,8 @@ onMounted(fetchHistorial);
                         v-model="editForm.gestor"
                         label="Gestor / responsable (opcional)"
                     />
-                    <div v-if="editForm.variante === 'donacion-dinero'" class="text-sm font-medium text-gray-700 dark:text-slate-200">
-                        Fondo destino
+                    <div v-if="editForm.variante === 'donacion-dinero' || (editForm.variante === 'ajuste' && editForm.rawIngreso?.pecuniario)" class="text-sm font-medium text-gray-700 dark:text-slate-200">
+                        {{ editForm.variante === 'ajuste' ? 'Cuenta del ajuste' : 'Fondo destino' }}
                         <p class="mt-1 flex h-10 items-center rounded-md border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
                             {{ cuentaNombre(editForm.cuentaId) }}
                         </p>
@@ -928,12 +968,12 @@ onMounted(fetchHistorial);
                         <input v-model.number="editForm.montoTotal" type="number" min="0" step="1" class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm read-only:bg-gray-50 dark:border-slate-600 dark:bg-slate-950" :readonly="editForm.detalles.length > 0">
                         <span v-if="editForm.detalles.length > 0" class="mt-1 block text-xs font-normal text-gray-500 dark:text-slate-400">Se calcula con los ítems.</span>
                     </label>
-                    <label v-if="editForm.variante !== 'compra'" class="text-sm font-medium text-gray-700 dark:text-slate-200 md:col-span-2">
+                    <label v-if="editForm.variante !== 'compra' && editForm.variante !== 'ajuste' && editForm.tipo !== 'Ajuste'" class="text-sm font-medium text-gray-700 dark:text-slate-200 md:col-span-2">
                         {{ propositoLabel(editForm) }}
                         <input v-model="editForm.proposito" type="text" placeholder="Opcional" class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-950">
                     </label>
                     <label class="text-sm font-medium text-gray-700 dark:text-slate-200 md:col-span-2">
-                        Anotaciones internas
+                        {{ esEdicionAjuste(editForm) ? 'Motivo del ajuste' : 'Anotaciones internas' }} <span v-if="esEdicionAjuste(editForm)" class="text-red-500">*</span>
                         <textarea v-model="editForm.anotaciones" rows="3" placeholder="Opcional" class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-950"></textarea>
                     </label>
                 </div>
@@ -946,9 +986,14 @@ onMounted(fetchHistorial);
                                 Ingresos: bloquea si hay egresos posteriores. Egresos: bloquea si hay ingresos posteriores.
                             </p>
                         </div>
-                        <button type="button" class="inline-flex items-center gap-2 rounded-md border border-gray-200 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-slate-600 dark:text-slate-200" @click="agregarDetalleEdit">
-                            <Plus class="h-3.5 w-3.5" /> Agregar ítem
-                        </button>
+                        <div class="flex flex-wrap gap-2">
+                            <button v-if="puedeEscanearEdit" type="button" class="inline-flex items-center gap-2 rounded-md border border-gray-200 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-slate-600 dark:text-slate-200" @click="showEscanerEdit = true">
+                                <ScanBarcode class="h-3.5 w-3.5" /> Escanear
+                            </button>
+                            <button type="button" class="inline-flex items-center gap-2 rounded-md border border-gray-200 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-slate-600 dark:text-slate-200" @click="agregarDetalleEdit">
+                                <Plus class="h-3.5 w-3.5" /> Agregar ítem
+                            </button>
+                        </div>
                     </div>
 
                     <div v-if="editForm.detalles.length === 0" class="rounded-lg border border-dashed border-gray-200 px-4 py-6 text-center text-sm text-gray-500 dark:border-slate-700 dark:text-slate-400">
@@ -996,6 +1041,14 @@ onMounted(fetchHistorial);
                     </div>
                 </div>
 
+                <EscanerCodigos
+                    v-if="showEscanerEdit"
+                    solo-catalogo
+                    :con-precio="editForm.movimiento === 'ingreso'"
+                    titulo="Escanear ítems del registro"
+                    @agregar="agregarEscaneadoEdit"
+                    @close="showEscanerEdit = false"
+                />
                 <div v-if="editErrores.length > 0" class="mx-5 mb-1 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
                     <p class="font-semibold">Revisa antes de guardar:</p>
                     <ul class="mt-1 list-disc pl-5">

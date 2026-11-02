@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
-import { Boxes, HandCoins, Loader2, Plus, Trash2 } from 'lucide-vue-next';
+import { Boxes, HandCoins, Loader2, Plus, ScanBarcode, Trash2 } from 'lucide-vue-next';
 import { apiService } from '../api/apiService';
-import type { CatalogoItem, Cuenta, EgresoPayload, EntidadResumen, MetodoTransferencia } from '../types';
+import type { CatalogoItem, Cuenta, EgresoPayload, EntidadResumen, LineaEscaneada, MetodoTransferencia } from '../types';
+import EscanerCodigos from '../components/EscanerCodigos.vue';
 import { formatRutForDisplay } from '../utils/rutFormatter';
 import { canChangeResponsible, resolveCurrentResponsible } from '../auth/currentResponsible';
 import { clearFormDraft, loadFormDraft, saveFormDraft } from '../utils/formDraft';
@@ -65,6 +66,7 @@ const itemLoading = ref(false);
 const showItemDropdown = ref(false);
 const selectedItem = ref<CatalogoItem | null>(null);
 const itemCantidad = ref(1);
+const showEscaner = ref(false);
 
 let responsableTimer: ReturnType<typeof setTimeout> | null = null;
 let destinoTimer: ReturnType<typeof setTimeout> | null = null;
@@ -109,8 +111,21 @@ const anotacionesLabel = computed(() =>
 );
 
 const showProposito = computed(() => normalizeTipo(form.value.tipoEgreso) === 'Consumo Interno');
-const showAjusteSentido = computed(() => props.mode === 'ajusteBienes');
-const entidadLabel = computed(() => (props.mode === 'ajusteBienes' || props.mode === 'ajustePecuniario' ? 'Entidad' : 'Entidad destino'));
+const esAjuste = computed(() => props.mode === 'ajusteBienes' || props.mode === 'ajustePecuniario');
+// Ambos ajustes eligen sentido: "Egreso" (falta) se registra como egreso; "Ingreso" (sobra) como ingreso de ajuste.
+const showAjusteSentido = esAjuste;
+const esAjusteEntrada = computed(() => esAjuste.value && form.value.sentidoAjuste === 'Ingreso');
+// Un ajuste es una corrección interna: no hay contraparte obligatoria.
+const entidadObligatoria = computed(() => !esAjuste.value);
+const entidadLabel = computed(() => (esAjuste.value ? 'Entidad relacionada (opcional)' : 'Entidad destino'));
+const tituloFormulario = computed(() => {
+    if (esAjuste.value) {
+        const base = props.mode === 'ajusteBienes' ? 'Ajuste de bienes' : 'Ajuste pecuniario';
+        return `${base} · ${esAjusteEntrada.value ? 'entrada (sobra)' : 'salida (falta)'}`;
+    }
+    return form.value.modo === 'pecuniario' ? 'Egreso pecuniario' : 'Egreso en especie';
+});
+const cuentaLabel = computed(() => (esAjusteEntrada.value ? 'Cuenta que recibe el ajuste' : 'Cuenta origen'));
 const usesItems = computed(() => form.value.modo === 'items');
 const usesPecuniario = computed(() => form.value.modo === 'pecuniario');
 
@@ -308,6 +323,33 @@ const selectItem = (item: CatalogoItem) => {
     itemCantidad.value = 1;
 };
 
+// Un ajuste de entrada suma stock; todo lo demás lo descuenta y no puede pasar del disponible.
+const descuentaStock = computed(() => !esAjusteEntrada.value);
+
+const validarEscaneado = (linea: LineaEscaneada): string | null => {
+    if (!descuentaStock.value || !linea.itemCatalogoId) return null;
+    const item = catalogoById.value.get(linea.itemCatalogoId);
+    if (!item) return null;
+    const enLista = form.value.detalles
+        .filter(detalle => detalle.itemCatalogoId === linea.itemCatalogoId)
+        .reduce((sum, detalle) => sum + Number(detalle.cantidad || 0), 0);
+    const disponible = Number(item.stockActual || 0) - enLista;
+    return linea.cantidad > disponible
+        ? `Stock insuficiente: quedan ${Math.max(0, disponible)} ${unitLabel(item)}.`
+        : null;
+};
+
+// Lectura del escáner: misma lista de ítems; si ya está, suma la cantidad.
+const agregarEscaneado = async (linea: LineaEscaneada) => {
+    if (!linea.itemCatalogoId) return;
+    if (!catalogoById.value.has(linea.itemCatalogoId)) {
+        try { catalogo.value = await apiService.getCatalogoItems(); } catch { /* el nombre se muestra con su ID */ }
+    }
+    const existente = form.value.detalles.find(detalle => detalle.itemCatalogoId === linea.itemCatalogoId);
+    if (existente) existente.cantidad = Math.round((Number(existente.cantidad || 0) + linea.cantidad) * 1000) / 1000;
+    else form.value.detalles.push({ itemCatalogoId: linea.itemCatalogoId, cantidad: linea.cantidad });
+};
+
 const removeDetalle = (index: number) => {
     form.value.detalles.splice(index, 1);
 };
@@ -321,8 +363,12 @@ const getPayload = (): EgresoPayload | null => {
         setMessage('error', 'Debes seleccionar una persona responsable.');
         return null;
     }
-    if (!selectedDestino.value) {
+    if (entidadObligatoria.value && !selectedDestino.value) {
         setMessage('error', 'Debes seleccionar una entidad destino.');
+        return null;
+    }
+    if (esAjuste.value && !form.value.anotaciones.trim()) {
+        setMessage('error', 'Indica el motivo del ajuste.');
         return null;
     }
 
@@ -343,7 +389,7 @@ const getPayload = (): EgresoPayload | null => {
             setMessage('error', 'Debes seleccionar una cuenta de origen.');
             return null;
         }
-        if (!form.value.metodoTransferencia) {
+        if (!esAjuste.value && !form.value.metodoTransferencia) {
             setMessage('error', 'Debes seleccionar un método de transferencia.');
             return null;
         }
@@ -353,10 +399,7 @@ const getPayload = (): EgresoPayload | null => {
         }
     }
 
-    const anotacionesTexto = form.value.anotaciones.trim();
-    const anotacionesFinales = showAjusteSentido.value
-        ? `[Ajuste ${form.value.sentidoAjuste}]${anotacionesTexto ? ` ${anotacionesTexto}` : ''}`
-        : anotacionesTexto;
+    const anotacionesFinales = form.value.anotaciones.trim();
 
     const payload: EgresoPayload = {
         egreso: {
@@ -364,7 +407,7 @@ const getPayload = (): EgresoPayload | null => {
             tipoEgreso: normalizeTipo(lockedTipo.value || form.value.tipoEgreso || 'Ayuda Social'),
             montoTotal: usesItems.value ? totalItems.value : Number(form.value.montoManual || 0),
             responsableInternoId: selectedResponsable.value.id,
-            destinoEntidadId: selectedDestino.value.id,
+            destinoEntidadId: selectedDestino.value?.id,
             anotaciones: anotacionesFinales || undefined,
             propositoEspecifico: showProposito.value ? form.value.propositoEspecifico.trim() || undefined : undefined
         }
@@ -388,8 +431,29 @@ const submitForm = async () => {
 
     submitting.value = true;
     try {
+        if (esAjusteEntrada.value) {
+            // Sobra: entra como ingreso de ajuste (suma stock o saldo), no como egreso.
+            const response = await apiService.registrarAjusteIngreso({
+                ingreso: {
+                    fecha: payload.egreso.fecha,
+                    responsableInternoId: payload.egreso.responsableInternoId,
+                    origenEntidadId: payload.egreso.destinoEntidadId,
+                    anotaciones: payload.egreso.anotaciones || '',
+                    montoTotal: usesPecuniario.value ? payload.egreso.montoTotal : undefined
+                },
+                items: usesItems.value
+                    ? payload.detalles?.map(d => ({ itemCatalogoId: Number(d.itemCatalogoId), cantidad: Number(d.cantidad) }))
+                    : undefined,
+                pecuniario: usesPecuniario.value && payload.pecuniario
+                    ? { cuentaDestinoId: Number(payload.pecuniario.cuentaOrigenId), metodoTransferencia: payload.pecuniario.metodoTransferencia || undefined }
+                    : undefined
+            });
+            setMessage('success', `Ajuste de entrada registrado (ingreso ID ${response.id_ingreso}).`);
+            resetForm();
+            return;
+        }
         const response = await apiService.crearEgreso(payload);
-        setMessage('success', `Egreso registrado correctamente (ID ${response.id}).`);
+        setMessage('success', `${esAjuste.value ? 'Ajuste de salida' : 'Egreso'} registrado correctamente (ID ${response.id}).`);
         resetForm();
     } catch (error: any) {
         setMessage('error', error.message || 'No se pudo registrar el egreso.');
@@ -462,7 +526,7 @@ onMounted(async () => {
 
         <div class="form-shell">
             <div class="form-shell-header flex flex-wrap items-center justify-between gap-3 border-b px-5 py-3">
-                <h3 class="text-base font-semibold text-[var(--text-primary)]">{{ form.modo === 'pecuniario' ? 'Egreso pecuniario' : 'Egreso en especie' }}</h3>
+                <h3 class="text-base font-semibold text-[var(--text-primary)]">{{ tituloFormulario }}</h3>
                 <div class="flex flex-wrap items-center gap-3">
                     <InlineDateControl v-model="form.fecha" />
                     <button
@@ -528,7 +592,7 @@ onMounted(async () => {
                             </div>
 
                             <div class="md:col-span-2 relative">
-                                <label>{{ entidadLabel }} <span class="text-red-500">*</span></label>
+                                <label>{{ entidadLabel }} <span v-if="entidadObligatoria" class="text-red-500">*</span></label>
                                 <div v-if="selectedDestino" class="selected-card mt-1 flex items-center justify-between p-3">
                                     <div>
                                         <p class="font-semibold text-gray-900">{{ selectedDestino.nombreCompleto }}</p>
@@ -568,8 +632,8 @@ onMounted(async () => {
                                     v-model="form.sentidoAjuste"
                                     class="mt-1 compact-control"
                                 >
-                                    <option value="Egreso">Egreso</option>
-                                    <option value="Ingreso">Ingreso</option>
+                                    <option value="Egreso">Egreso · falta (descuenta {{ mode === 'ajusteBienes' ? 'stock' : 'saldo' }})</option>
+                                    <option value="Ingreso">Ingreso · sobra (suma {{ mode === 'ajusteBienes' ? 'stock' : 'saldo' }})</option>
                                 </select>
                             </div>
 
@@ -584,11 +648,11 @@ onMounted(async () => {
                             </div>
 
                             <div class="md:col-span-2">
-                                <label>{{ anotacionesLabel }}</label>
+                                <label>{{ esAjuste ? 'Motivo del ajuste' : anotacionesLabel }} <span v-if="esAjuste" class="text-red-500">*</span></label>
                                 <textarea
                                     v-model="form.anotaciones"
                                     rows="2"
-                                    placeholder="Describe el contexto del egreso..."
+                                    :placeholder="esAjuste ? 'Ej: conteo físico del 01-11, faltan 3 kg de arroz' : 'Describe el contexto del egreso...'"
                                     class="mt-1 compact-control"
                                 ></textarea>
                             </div>
@@ -609,7 +673,7 @@ onMounted(async () => {
                                     </div>
                                 </div>
                                 <div>
-                                    <label>Cuenta origen <span class="text-red-500">*</span></label>
+                                    <label>{{ cuentaLabel }} <span class="text-red-500">*</span></label>
                                     <select
                                         v-model.number="form.cuentaOrigenId"
                                         required
@@ -621,7 +685,7 @@ onMounted(async () => {
                                         </option>
                                     </select>
                                 </div>
-                                <div>
+                                <div v-if="!esAjuste">
                                     <label>Método de transferencia <span class="text-red-500">*</span></label>
                                     <select
                                         v-model="form.metodoTransferencia"
@@ -652,15 +716,20 @@ onMounted(async () => {
                                         </button>
                                     </div>
                                     <div v-else class="relative mt-1">
-                                        <input
-                                            v-model="itemQuery"
-                                            type="text"
-                                            placeholder="Buscar ítem por nombre..."
-                                            class="compact-control"
-                                            @input="searchItems(itemQuery)"
-                                            @focus="showItemDropdown = true"
-                                            @blur="closeItemDropdownDelayed"
-                                        />
+                                        <div class="flex gap-2">
+                                            <input
+                                                v-model="itemQuery"
+                                                type="text"
+                                                placeholder="Buscar ítem por nombre..."
+                                                class="compact-control flex-1"
+                                                @input="searchItems(itemQuery)"
+                                                @focus="showItemDropdown = true"
+                                                @blur="closeItemDropdownDelayed"
+                                            />
+                                            <button type="button" class="btn-secondary h-10 shrink-0 px-3" @click="showItemDropdown = false; showEscaner = true">
+                                                <ScanBarcode class="h-4 w-4" /> Escanear
+                                            </button>
+                                        </div>
                                         <div v-if="itemLoading" class="absolute right-3 top-2.5 text-xs text-gray-400">Buscando...</div>
                                         <ul v-if="showItemDropdown && itemResults.length > 0" class="dropdown-panel absolute z-20 mt-1 max-h-56 w-full overflow-auto">
                                             <li
@@ -749,7 +818,7 @@ onMounted(async () => {
                             </p>
                             <button type="submit" :disabled="submitting || loadingOptions" class="btn-primary h-10 w-full justify-center px-6 md:w-auto">
                                 <Loader2 v-if="submitting" class="w-4 h-4 mr-2 animate-spin" />
-                                {{ submitting ? 'Guardando...' : 'Registrar egreso' }}
+                                {{ submitting ? 'Guardando...' : (esAjuste ? 'Registrar ajuste' : 'Registrar egreso') }}
                             </button>
                         </div>
                     </form>
@@ -757,4 +826,13 @@ onMounted(async () => {
             </div>
         </div>
     </div>
+    <EscanerCodigos
+        v-if="showEscaner"
+        solo-catalogo
+        :con-precio="false"
+        :validar="validarEscaneado"
+        titulo="Escanear ítems del egreso"
+        @agregar="agregarEscaneado"
+        @close="showEscaner = false"
+    />
 </template>

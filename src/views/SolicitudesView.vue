@@ -1,11 +1,24 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import type { EntidadResumen, CatalogoItem, SolicitudPayload } from '../types';
+import { onMounted, ref } from 'vue';
+import { canChangeResponsible, resolveCurrentResponsible } from '../auth/currentResponsible';
+import type { EntidadResumen, CatalogoItem, LineaEscaneada, SolicitudPayload } from '../types';
 import { apiService } from '../api/apiService';
 import { formatRutForDisplay } from '../utils/rutFormatter';
 import ModalCrearPersona from '../components/ModalCrearPersona.vue';
 import ModalRegistroCatalogo from '../components/ModalRegistroCatalogo.vue';
-import { Plus, Trash2, Send } from 'lucide-vue-next';
+import { Plus, Trash2, Send, ScanBarcode } from 'lucide-vue-next';
+import EscanerCodigos from '../components/EscanerCodigos.vue';
+import SolicitudesLista from '../components/SolicitudesLista.vue';
+
+// Miembros piden (a su nombre) y ven lo suyo; administradores ven todo y entregan.
+const esAdmin = canChangeResponsible;
+const yo = ref<EntidadResumen | null>(null);
+const resolviendoYo = ref(true);
+const errorYo = ref<string | null>(null);
+
+// "nueva": pedir; "registradas": entregar o cancelar lo pedido.
+const vista = ref<'nueva' | 'registradas'>('registradas');
+const showEscaner = ref(false);
 
 type DraftItem = {
     id: number;
@@ -146,6 +159,23 @@ const addManualItem = () => {
     cantidadManual.value = 1;
 };
 
+// Lectura del escáner: si el ítem ya está en la solicitud, suma la cantidad.
+const agregarEscaneado = (linea: LineaEscaneada) => {
+    if (!linea.itemCatalogoId) return;
+    const existente = items.value.find(item => item.itemCatalogoId === linea.itemCatalogoId);
+    if (existente) {
+        existente.cantidadRequerida = Math.round((existente.cantidadRequerida + linea.cantidad) * 1000) / 1000;
+        return;
+    }
+    items.value.push({
+        id: Date.now() + Math.random(),
+        itemCatalogoId: linea.itemCatalogoId,
+        nombre: linea.nombre,
+        descripcionManual: null,
+        cantidadRequerida: linea.cantidad
+    });
+};
+
 const removeItem = (id: number) => {
     items.value = items.value.filter(item => item.id !== id);
 };
@@ -195,15 +225,26 @@ const submitSolicitud = async () => {
     };
 
     try {
-        await apiService.crearSolicitud(payload);
-        showToast('success', 'Solicitud ingresada correctamente.');
-        solicitante.value = null;
+        const respuesta = await apiService.crearSolicitud(payload);
+        showToast('success', `Solicitud #${respuesta.id} registrada. Queda pendiente de entrega.`);
+        solicitante.value = esAdmin.value ? null : yo.value;
         programa.value = '';
         items.value = [];
     } catch (e: any) {
         showToast('error', e.message || 'No se pudo crear la solicitud.');
     }
 };
+
+onMounted(async () => {
+    try {
+        yo.value = await resolveCurrentResponsible();
+        if (!esAdmin.value) solicitante.value = yo.value;
+    } catch (e: any) {
+        errorYo.value = e.message || 'No se pudo identificar tu persona en el sistema.';
+    } finally {
+        resolviendoYo.value = false;
+    }
+});
 </script>
 
 <template>
@@ -212,7 +253,36 @@ const submitSolicitud = async () => {
             {{ message.text }}
         </div>
 
-        <div class="form-shell">
+        <div class="flex gap-1" role="tablist">
+            <button
+                type="button"
+                role="tab"
+                :aria-selected="vista === 'registradas'"
+                class="rounded-full border px-4 py-1.5 text-sm"
+                :class="vista === 'registradas' ? 'border-[var(--accent-color)] bg-[var(--accent-color)] text-white' : 'border-[var(--card-border)] text-[var(--text-primary)] hover:bg-[var(--surface-muted)]'"
+                @click="vista = 'registradas'"
+            >
+                {{ esAdmin ? 'Solicitudes' : 'Mis solicitudes' }}
+            </button>
+            <button
+                type="button"
+                role="tab"
+                :aria-selected="vista === 'nueva'"
+                class="rounded-full border px-4 py-1.5 text-sm"
+                :class="vista === 'nueva' ? 'border-[var(--accent-color)] bg-[var(--accent-color)] text-white' : 'border-[var(--card-border)] text-[var(--text-primary)] hover:bg-[var(--surface-muted)]'"
+                @click="vista = 'nueva'"
+            >
+                <Plus class="inline h-4 w-4" /> Nueva solicitud
+            </button>
+        </div>
+
+        <SolicitudesLista
+            v-if="vista === 'registradas'"
+            :puede-entregar="esAdmin"
+            :solicitante-id="esAdmin ? null : (yo?.id ?? -1)"
+        />
+
+        <div v-else class="form-shell">
             <div class="grid grid-cols-1 gap-4 p-5 md:grid-cols-2">
                 <div class="relative">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Solicitante *</label>
@@ -221,7 +291,14 @@ const submitSolicitud = async () => {
                             <p class="font-semibold text-sky-700">{{ solicitante.nombreCompleto }}</p>
                             <p class="text-sm text-gray-600">{{ formatRutForDisplay(solicitante.identificador) }}</p>
                         </div>
-                        <button class="text-xs text-[var(--accent-color)] underline hover:text-[var(--accent-color-hover)]" @click="solicitante = null">Cambiar</button>
+                        <button v-if="esAdmin" class="text-xs text-[var(--accent-color)] underline hover:text-[var(--accent-color-hover)]" @click="solicitante = null">Cambiar</button>
+                        <span v-else class="text-xs text-[var(--text-muted)]">Tú</span>
+                    </div>
+                    <div v-else-if="resolviendoYo && !esAdmin" class="form-panel-muted p-3 text-sm text-[var(--text-muted)]">
+                        Identificando tu persona...
+                    </div>
+                    <div v-else-if="!esAdmin" class="message-banner message-error">
+                        {{ errorYo || 'No se encontró tu persona en el sistema.' }} Pide a un administrador que revise tu ficha.
                     </div>
                     <div v-else>
                         <input
@@ -296,14 +373,19 @@ const submitSolicitud = async () => {
                 <div class="space-y-3">
                     <h4 class="form-section-title !mb-0">Desde catálogo</h4>
                     <div class="relative">
-                        <input
-                            v-model="catalogQuery"
-                            type="text"
-                            placeholder="Buscar ítem del catálogo..."
-                            class="compact-control"
-                            @input="searchCatalogo(catalogQuery)"
-                            @focus="showCatalogDropdown = true"
-                        />
+                        <div class="flex gap-2">
+                            <input
+                                v-model="catalogQuery"
+                                type="text"
+                                placeholder="Buscar ítem del catálogo..."
+                                class="compact-control flex-1"
+                                @input="searchCatalogo(catalogQuery)"
+                                @focus="showCatalogDropdown = true"
+                            />
+                            <button type="button" class="btn-secondary h-10 shrink-0 px-3" @click="showCatalogDropdown = false; showEscaner = true">
+                                <ScanBarcode class="h-4 w-4" /> Escanear
+                            </button>
+                        </div>
                         <div
                             v-if="showCatalogDropdown && catalogQuery.length >= 2"
                             class="dropdown-panel absolute z-10 mt-1 max-h-56 w-full overflow-y-auto"
@@ -321,7 +403,9 @@ const submitSolicitud = async () => {
                                 </button>
                                 <div v-if="catalogResults.length === 0" class="p-3 text-center text-sm text-gray-500 space-y-2">
                                     <p>Sin resultados para "{{ catalogQuery }}".</p>
+                                    <p v-if="!esAdmin" class="text-xs">Si no está, agrégalo en “Manual”.</p>
                                     <button
+                                        v-else
                                         type="button"
                                         class="btn btn-primary text-xs"
                                         @click="showCatalogoModal = true"
@@ -429,5 +513,13 @@ const submitSolicitud = async () => {
         v-if="showCatalogoModal"
         @close="showCatalogoModal = false"
         @created="handleCatalogoCreado"
+    />
+    <EscanerCodigos
+        v-if="showEscaner"
+        solo-catalogo
+        :con-precio="false"
+        titulo="Escanear lo que se pide"
+        @agregar="agregarEscaneado"
+        @close="showEscaner = false"
     />
 </template>

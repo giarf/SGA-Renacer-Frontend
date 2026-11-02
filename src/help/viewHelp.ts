@@ -68,18 +68,18 @@ export const viewHelp: Record<string, ViewHelp> = {
         title: 'Ajuste de bienes',
         intro: 'Corrige el stock físico cuando el inventario no coincide con lo registrado.',
         steps: [
-            'Elige si el ajuste es un egreso (faltan unidades) o un ingreso (sobran).',
-            'Agrega los ítems y la cantidad a ajustar.',
-            'Explica el motivo en las anotaciones y registra.'
+            'Elige el tipo: Egreso si faltan unidades (descuenta stock) o Ingreso si sobran (suma stock al costo promedio).',
+            'Agrega los ítems (o escanéalos) y la cantidad a ajustar.',
+            'Escribe el motivo, que es obligatorio. La entidad es opcional: un ajuste es una corrección interna.'
         ]
     },
     ajustePecuniario: {
         title: 'Ajuste pecuniario',
         intro: 'Corrige el saldo de una cuenta o fondo cuando no coincide con la realidad.',
         steps: [
-            'Elige si el ajuste es un egreso o un ingreso.',
-            'Indica monto y cuenta, y explica el motivo en las anotaciones.',
-            'Presiona “Registrar egreso”.'
+            'Elige el tipo: Egreso si falta dinero (descuenta saldo) o Ingreso si sobra (suma saldo).',
+            'Indica monto y cuenta, y escribe el motivo, que es obligatorio.',
+            'Presiona “Registrar ajuste”.'
         ]
     },
     entidades: {
@@ -134,11 +134,17 @@ export const viewHelp: Record<string, ViewHelp> = {
     },
     solicitudes: {
         title: 'Solicitudes',
-        intro: 'Registra necesidades de insumos de programas y talleres, vinculadas a un solicitante.',
+        intro: 'Lo que piden los programas y talleres, y lo que se les entregó. Pedir → Entregar.',
         steps: [
-            'Busca al solicitante e indica el programa o actividad, la fecha y la hora.',
-            'Agrega ítems desde el catálogo o escríbelos manualmente si no existen.',
-            'Revisa el resumen y presiona “Registrar solicitud”.'
+            'En “Nueva solicitud” busca al solicitante, indica el programa y agrega ítems (catálogo, escáner o a mano).',
+            'En “Solicitudes”, toca “Entregar”: ajusta cantidades, agrega o quita ítems según lo que sale de verdad.',
+            'La entrega crea un consumo interno ligado a la solicitud y descuenta stock. Si no alcanza, registra una compra y vuelve a entregar.',
+            'Si anulas ese consumo interno en Logs, la solicitud vuelve a quedar pendiente.'
+        ],
+        tips: [
+            'Solo registra la entrega de lo que se gasta (papa, lápices, papel).',
+            'Lo que sigue siendo de la fundación (olla del comedor, refrigerador de la cocina) no es consumo interno: queda en stock.',
+            'Lo que se echa a perder o se pierde es un ajuste de bienes de salida, no consumo interno.'
         ]
     },
     catalogo: {

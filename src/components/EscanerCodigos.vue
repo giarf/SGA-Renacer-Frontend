@@ -10,7 +10,13 @@ const props = withDefaults(defineProps<{
     /** "multiple": flujo ágil con hoja de cantidad/precio. "unico": devuelve el primer código válido y cierra. */
     modo?: 'multiple' | 'unico';
     titulo?: string;
-}>(), { modo: 'multiple', titulo: '' });
+    /** Solo acepta productos que ya están en el catálogo (egresos, ajustes, edición de registros). */
+    soloCatalogo?: boolean;
+    /** Pide precio unitario. En egresos el valor sale del PPP y no se pregunta. */
+    conPrecio?: boolean;
+    /** Validación extra de la vista (p. ej. stock); devuelve el mensaje de error o null. */
+    validar?: (linea: LineaEscaneada) => string | null;
+}>(), { modo: 'multiple', titulo: '', soloCatalogo: false, conPrecio: true, validar: undefined });
 
 const emit = defineEmits<{
     (e: 'close'): void;
@@ -250,6 +256,12 @@ const manejarCodigo = async (codigo: string) => {
         const resultado = await apiService.buscarPorCodigoBarras(codigo);
         if (consulta !== consultaActual || !hoja.value) return;
         const base: Hoja = { ...hoja.value, estado: 'listo', resultado };
+        if (props.soloCatalogo && resultado.fuente !== 'catalogo') {
+            hoja.value = null;
+            feedback(false);
+            mostrarAviso('error', 'No está en el catálogo');
+            return;
+        }
         if (resultado.fuente === 'catalogo') {
             const item = resultado.item;
             Object.assign(base, {
@@ -276,7 +288,10 @@ const manejarCodigo = async (codigo: string) => {
     } catch (e: any) {
         if (consulta !== consultaActual) return;
         hoja.value = null;
-        if (e instanceof ApiError && e.status === 400) {
+        if (props.soloCatalogo && e instanceof ApiError && e.status === 404) {
+            feedback(false);
+            mostrarAviso('error', 'No está en el catálogo');
+        } else if (e instanceof ApiError && e.status === 400) {
             feedback(false);
             mostrarAviso('error', 'Código inválido');
         } else {
@@ -305,17 +320,21 @@ const agregar = () => {
     if (!nombre) { hojaError.value = 'Escribe el nombre del producto.'; nombreRef.value?.focus(); return; }
     const cantidad = cantidadValor.value;
     if (!Number.isFinite(cantidad) || cantidad <= 0) { hojaError.value = 'La cantidad debe ser mayor a cero.'; cantidadRef.value?.focus(); return; }
-    if (precio.value <= 0) { hojaError.value = 'Indica el precio unitario.'; return; }
+    if (props.conPrecio && precio.value <= 0) { hojaError.value = 'Indica el precio unitario.'; return; }
 
-    emit('agregar', {
+    const linea: LineaEscaneada = {
         itemCatalogoId: h.resultado.fuente === 'catalogo' ? h.resultado.item.id : undefined,
         codigoBarras: h.codigo,
         nombre,
         categoria: h.categoria.trim() || 'Sin categoría',
         unidad: h.unidad.trim() || 'unidad',
         cantidad,
-        precio: precio.value
-    });
+        precio: props.conPrecio ? precio.value : 0
+    };
+    const errorVista = props.validar?.(linea) ?? null;
+    if (errorVista) { hojaError.value = errorVista; cantidadRef.value?.focus(); return; }
+
+    emit('agregar', linea);
     escaneados.value++;
     mostrarAviso('ok', `${nombre} agregado`);
     hoja.value = null;
@@ -475,7 +494,7 @@ onBeforeUnmount(() => {
                             <datalist id="escaner-unidades"><option v-for="u in unidades" :key="u" :value="u" /></datalist>
                         </div>
 
-                        <div class="grid grid-cols-[1fr_1fr] gap-3">
+                        <div class="grid gap-3" :class="conPrecio ? 'grid-cols-[1fr_1fr]' : 'grid-cols-1'">
                             <div>
                                 <label class="mb-1 block text-xs font-medium text-[var(--text-muted)]" for="escaner-cantidad">Cantidad ({{ hoja.unidad || 'unidad' }})</label>
                                 <div class="flex items-center gap-1">
@@ -484,7 +503,7 @@ onBeforeUnmount(() => {
                                     <button type="button" class="btn-secondary h-10 w-10 shrink-0 !px-0" aria-label="Sumar uno" @click="cambiarCantidad(1)"><Plus class="h-4 w-4" /></button>
                                 </div>
                             </div>
-                            <div>
+                            <div v-if="conPrecio">
                                 <label class="mb-1 block text-xs font-medium text-[var(--text-muted)]" for="escaner-precio">Precio unitario</label>
                                 <input id="escaner-precio" :value="precio" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" class="compact-control text-base" @input="precio = integerFromInput($event)" @focus="($event.target as HTMLInputElement).select()" />
                             </div>

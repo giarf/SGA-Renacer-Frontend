@@ -43,7 +43,7 @@ export const router = createRouter({
         { path: '/familias', name: 'familias', component: FamiliasView, meta: { label: 'Familias', requiredGroups: ADMIN_GROUPS } },
         { path: '/asistencia/:eventoId?', name: 'asistencia', component: () => import('./views/AsistenciaView.vue'), meta: { label: 'Asistencia', requiredGroups: DAILY_OPERATION_GROUPS } },
         { path: '/campanas/:campanaId?', name: 'campanas', component: () => import('./views/CampanasView.vue'), meta: { label: 'Campañas', requiredGroups: DAILY_OPERATION_GROUPS } },
-        { path: '/solicitudes', name: 'solicitudes', component: SolicitudesView, meta: { label: 'Solicitudes', requiredGroups: ADMIN_GROUPS } },
+        { path: '/solicitudes', name: 'solicitudes', component: SolicitudesView, meta: { label: 'Solicitudes', requiredGroups: DAILY_OPERATION_GROUPS } },
         { path: '/catalogo', name: 'catalogo', component: CatalogoView, meta: { label: 'Catálogo', requiredGroups: ADMIN_GROUPS } },
         { path: '/cuentas', name: 'cuentas', component: CuentasView, meta: { label: 'Cuentas', requiredGroups: ADMIN_GROUPS } },
         { path: '/usuarios', name: 'usuarios', component: UsuariosView, meta: { label: 'Usuarios', requiredGroups: ADMIN_GROUPS } },

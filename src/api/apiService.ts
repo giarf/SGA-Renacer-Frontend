@@ -1,4 +1,4 @@
-import type {
+import type { AjusteIngresoPayload,
     Campana,
     CrearCampana,
     DetalleCampana,
@@ -38,6 +38,8 @@ import type {
     EgresoRecurso,
     IngresoDetalleResponse,
     SolicitudPayload,
+    SolicitudRegistrada,
+    EntregarSolicitudPayload,
     RolPersona,
     IngresoResumen,
     CompraIngresoPayload,
@@ -791,6 +793,15 @@ export const apiService = {
         return mapEgreso(data);
     },
 
+    /** Ajuste de entrada: sobran bienes (suma stock al PPP) o dinero (suma al saldo de la cuenta). */
+    async registrarAjusteIngreso(payload: AjusteIngresoPayload): Promise<{ id_ingreso: number; mensaje?: string }> {
+        return await requestJson<{ id_ingreso: number; mensaje?: string }>(`${API_BASE_URL}/ingresos/ajuste`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+    },
+
     async crearEgreso(payload: EgresoPayload): Promise<{ id: number; mensaje?: string }> {
         return await requestJson<{ id: number; mensaje?: string }>(`${API_BASE_URL}/egresos`, {
             method: 'POST',
@@ -831,6 +842,23 @@ export const apiService = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
+    },
+
+    async getSolicitudes(): Promise<SolicitudRegistrada[]> {
+        return await requestJson<SolicitudRegistrada[]>(`${API_BASE_URL}/solicitudes`);
+    },
+
+    /** Entrega de una vez: crea el consumo interno con lo que salió y cierra la solicitud. */
+    async entregarSolicitud(id: number, payload: EntregarSolicitudPayload): Promise<{ egresoId: number; mensaje?: string }> {
+        return await requestJson<{ egresoId: number; mensaje?: string }>(`${API_BASE_URL}/solicitudes/${id}/entregar`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+    },
+
+    async cancelarSolicitud(id: number): Promise<{ mensaje?: string }> {
+        return await requestJson<{ mensaje?: string }>(`${API_BASE_URL}/solicitudes/${id}/cancelar`, { method: 'POST' });
     },
 
     async getApoderados(id: number): Promise<VinculoApoderado[]> {
