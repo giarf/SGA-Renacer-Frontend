@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { matchesSearch } from '../utils/search';
 import { computed, onMounted, reactive, ref } from 'vue';
-import { DoorOpen, Edit3, KeyRound, Loader2, Plus, RefreshCw, Shield, ShieldCheck, UserCheck, UserX, X } from 'lucide-vue-next';
+import { DoorOpen, Edit3, KeyRound, Loader2, Plus, RefreshCw, Shield, ShieldCheck, Trash2, UserCheck, UserX, X } from 'lucide-vue-next';
 import { authentikAdminService, type ManagedAuthentikUser } from '../api/authentikAdminService';
 import { apiService } from '../api/apiService';
 import type { EntidadResumen } from '../types';
@@ -298,6 +298,20 @@ const toggleGateAdmin = async (user: ManagedAuthentikUser) => {
     }
 };
 
+const deleteUser = async (user: ManagedAuthentikUser) => {
+    if (!window.confirm(`¿Eliminar a ${user.name || user.username}? Perderá el acceso a todas las apps y no se puede deshacer.\nSi solo quieres quitarle el acceso por un tiempo, usa Desactivar.`)) return;
+    busyId.value = user.id;
+    try {
+        await authentikAdminService.deleteUser(user.id);
+        setMessage('success', 'Usuario eliminado.');
+        await loadUsers();
+    } catch (error: any) {
+        setMessage('error', error.message || 'No se pudo eliminar el usuario.');
+    } finally {
+        busyId.value = null;
+    }
+};
+
 const openPassword = (user: ManagedAuthentikUser) => {
     selectedUser.value = user;
     passwordForm.password = '';
@@ -433,6 +447,9 @@ onMounted(loadUsers);
                                     </button>
                                     <button type="button" :class="`rounded-lg p-2 transition ${user.isGateAdmin ? 'text-cyan-600 hover:bg-cyan-50' : 'text-[var(--text-muted)] hover:bg-cyan-50 hover:text-cyan-600'}`" :title="user.isGateAdmin ? 'Quitar admin puerta' : 'Hacer admin puerta'" :disabled="busyId === user.id" @click="toggleGateAdmin(user)">
                                         <DoorOpen class="h-4 w-4" />
+                                    </button>
+                                    <button type="button" class="rounded-lg p-2 text-[var(--text-muted)] transition hover:bg-red-50 hover:text-red-600" title="Eliminar usuario" :disabled="busyId === user.id" @click="deleteUser(user)">
+                                        <Trash2 class="h-4 w-4" />
                                     </button>
                                 </div>
                             </td>

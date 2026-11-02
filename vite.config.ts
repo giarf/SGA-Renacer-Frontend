@@ -12,12 +12,6 @@ export default defineConfig({
       '/api': {
         target: process.env.SGA_LOCAL_API_TARGET || 'http://127.0.0.1:8080',
         changeOrigin: true
-      },
-      '/authentik-api': {
-        target: 'https://auth.slaksis.com',
-        changeOrigin: true,
-        secure: true,
-        rewrite: (path) => path.replace(/^\/authentik-api/, '')
       }
     }
   }

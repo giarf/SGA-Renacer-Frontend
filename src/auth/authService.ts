@@ -20,6 +20,7 @@ const state = reactive<AuthState>({
 
 const userManager = new UserManager(oidcSettings);
 let initializePromise: Promise<User | null> | null = null;
+let renewPromise: Promise<User | null> | null = null;
 
 const asStringArray = (value: unknown): string[] => {
     if (Array.isArray(value)) return value.filter((item): item is string => typeof item === 'string');
@@ -86,6 +87,29 @@ export const authService = {
                 initializePromise = null;
             });
         return initializePromise;
+    },
+    /** Token de acceso vigente para la API (Authorization: Bearer). */
+    get accessToken() {
+        return state.user && !state.user.expired ? state.user.access_token : undefined;
+    },
+    /** Renueva con el refresh token; las llamadas simultáneas comparten una sola renovación. */
+    async renew() {
+        if (!state.user?.refresh_token) return null;
+        renewPromise ??= userManager.signinSilent()
+            .then(user => {
+                state.user = user && !user.expired ? user : null;
+                return state.user;
+            })
+            .catch(() => null)
+            .finally(() => { renewPromise = null; });
+        return renewPromise;
+    },
+    /** La API rechazó la sesión y no se pudo renovar: vuelve a Authentik y regresa a esta página. */
+    async expireSession() {
+        state.sessionExpired = true;
+        state.user = null;
+        await userManager.removeUser().catch(() => undefined);
+        await this.login(window.location.pathname + window.location.search);
     },
     async login(returnTo?: string) {
         if (!state.isConfigured) return;

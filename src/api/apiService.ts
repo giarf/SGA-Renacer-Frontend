@@ -1,3 +1,4 @@
+import { authService } from '../auth/authService';
 import type { AjusteIngresoPayload,
     Campana,
     CrearCampana,
@@ -64,8 +65,24 @@ const buildErrorMessage = (data: any, fallback: string) => {
     return data?.mensaje || data?.error || fallback;
 };
 
-const requestJson = async <T>(input: RequestInfo | URL, init?: RequestInit): Promise<T> => {
-    const response = await fetch(input, init);
+const withToken = (init?: RequestInit): RequestInit => {
+    const headers = new Headers(init?.headers);
+    const token = authService.accessToken;
+    if (token && !headers.has('Authorization')) headers.set('Authorization', `Bearer ${token}`);
+    return { ...init, headers };
+};
+
+/** Toda llamada a la API lleva el token de Authentik; si la API responde 401, renueva una vez y reintenta. */
+export const requestJson = async <T>(input: RequestInfo | URL, init?: RequestInit): Promise<T> => {
+    let response = await fetch(input, withToken(init));
+    if (response.status === 401 && authService.state.user) {
+        const renewed = await authService.renew();
+        if (renewed) response = await fetch(input, withToken(init));
+        if (response.status === 401) {
+            void authService.expireSession();
+            throw new ApiError('Tu sesión venció. Volviendo a iniciar sesión...', 401);
+        }
+    }
     const raw = await response.text();
     let data: any = null;
 

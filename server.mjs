@@ -7,16 +7,10 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const distDir = path.join(__dirname, 'dist');
 const port = Number(process.env.PORT || 4173);
-const authentikBaseUrl = (process.env.AUTHENTIK_PROXY_TARGET || 'https://auth.slaksis.com').replace(/\/+$/, '');
 
 const server = createServer(async (req, res) => {
     try {
         const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
-
-        if (url.pathname.startsWith('/authentik-api/')) {
-            await proxyAuthentik(req, res, url);
-            return;
-        }
 
         await serveStatic(req, res, url);
     } catch (error) {
@@ -29,57 +23,6 @@ const server = createServer(async (req, res) => {
 server.listen(port, '0.0.0.0', () => {
     console.log(`SGA Renacer disponible en http://0.0.0.0:${port}`);
 });
-
-async function proxyAuthentik(req, res, url) {
-    const targetPath = url.pathname.replace(/^\/authentik-api/, '') || '/';
-    const targetUrl = new URL(`${targetPath}${url.search}`, authentikBaseUrl);
-    const headers = new Headers();
-
-    for (const [key, value] of Object.entries(req.headers)) {
-        if (!value || ['host', 'connection', 'content-length'].includes(key.toLowerCase())) continue;
-        headers.set(key, Array.isArray(value) ? value.join(', ') : value);
-    }
-
-    const body = ['GET', 'HEAD'].includes(req.method || 'GET') ? undefined : await readRequestBody(req);
-    if (body) headers.set('content-length', String(body.length));
-
-    const response = await fetch(targetUrl, {
-        method: req.method,
-        headers,
-        body
-    });
-
-    const responseHeaders = Object.fromEntries(response.headers.entries());
-    delete responseHeaders['content-encoding'];
-    delete responseHeaders['content-length'];
-
-    res.writeHead(response.status, responseHeaders);
-    if (req.method === 'HEAD') {
-        res.end();
-        return;
-    }
-
-    if (!response.body) {
-        res.end();
-        return;
-    }
-
-    const reader = response.body.getReader();
-    while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        res.write(value);
-    }
-    res.end();
-}
-
-async function readRequestBody(req) {
-    const chunks = [];
-    for await (const chunk of req) {
-        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-    }
-    return chunks.length ? Buffer.concat(chunks) : undefined;
-}
 
 async function serveStatic(req, res, url) {
     if (!['GET', 'HEAD'].includes(req.method || 'GET')) {
