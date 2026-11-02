@@ -1,4 +1,5 @@
 import { apiService } from '../api/apiService';
+import { buscarCoherente } from '../components/EntidadSelector.vue';
 import { NOMBRES_ACCIONES, catalogoAccionesPrompt, construirVista, ejecutarOperacion, validarOperaciones, type Confirmacion, type OperacionPropuesta } from './aiActions';
 import type { AiSettings } from './aiSettings';
 import { DATASETS, buscarDataset, cargarDataset, limpiarCacheDatasets } from './datasets';
@@ -273,7 +274,8 @@ const buscar = async (args: { tipo: string; texto?: string; id?: number }) => {
     if (tipo === 'entidades' || tipo === 'personas' || tipo === 'instituciones') {
         if (!texto || texto.trim().length < 2) throw new Error('Indica al menos 2 caracteres para buscar.');
         const filtro = tipo === 'personas' ? 'PersonaNatural' : tipo === 'instituciones' ? 'Institucion' : undefined;
-        const resultados = await apiService.buscarEntidades(texto.trim(), filtro);
+        // Misma búsqueda que los buscadores de la app.
+        const resultados = await buscarCoherente(texto.trim(), filtro);
         return resultados.slice(0, 25).map(e => ({ id: e.id, nombre: e.nombreCompleto, tipo: e.tipoEntidad, comuna: e.comuna ?? null }));
     }
     if (tipo === 'catalogo') return (await apiService.getCatalogoItems()).filter(c => coincide(c.nombre, texto) || coincide(c.categoria, texto)).slice(0, 40).map(c => ({ id: c.id, nombre: c.nombre, categoria: c.categoria, unidad: c.unidadMedidaEstandar, stock: c.stockActual, precioReferencia: c.precioReferencia }));

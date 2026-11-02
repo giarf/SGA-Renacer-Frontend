@@ -7,6 +7,7 @@ import { ApiError, apiService } from '../api/apiService';
 import AsistenciaCelda from '../components/AsistenciaCelda.vue';
 import AsistenciaDialog from '../components/AsistenciaDialog.vue';
 import ModalCrearPersona from '../components/ModalCrearPersona.vue';
+import { buscarCoherente } from '../components/EntidadSelector.vue';
 import GrupoAsistencia from '../components/GrupoAsistencia.vue';
 import HuellaContinua from '../components/HuellaContinua.vue';
 import type { PersonaGrupo } from '../utils/grupoAsistencia';
@@ -108,7 +109,8 @@ watch(search, query => {
     if (!showResults.value) return;
     searchTimer = setTimeout(async () => {
         try {
-            const data = await apiService.buscarEntidades(query.trim(), 'PersonaNatural');
+            // Misma búsqueda que EntidadSelector (nombre/apellido en cualquier orden, sin tildes, RUT con o sin formato).
+            const data = await buscarCoherente(query.trim(), 'PersonaNatural');
             if (sequence === searchSequence && !disposed) results.value = data.filter(p => p.tipoEntidad === 'PersonaNatural').slice(0, 20);
         } catch (e) {
             if (sequence === searchSequence && !disposed) searchError.value = errorText(e);

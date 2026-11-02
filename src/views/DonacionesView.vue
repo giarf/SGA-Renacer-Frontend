@@ -1,10 +1,55 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
+import { useRoute } from 'vue-router';
 import { HandCoins, Boxes } from 'lucide-vue-next';
 import RecepcionView from './RecepcionView.vue';
 import RecepcionBienesView from './RecepcionBienesView.vue';
 
-const activeTab = ref<'pecuniaria' | 'bienes'>('pecuniaria');
+type DonacionTab = 'pecuniaria' | 'bienes';
+
+const STORAGE_KEY = 'sga.donaciones.activeTab';
+const DEFAULT_TAB: DonacionTab = 'pecuniaria';
+
+const isTab = (value: unknown): value is DonacionTab => value === 'pecuniaria' || value === 'bienes';
+
+const firstValue = (value: unknown): unknown => (Array.isArray(value) ? value[0] : value);
+
+const readStoredTab = (): DonacionTab | null => {
+    try {
+        const value = localStorage.getItem(STORAGE_KEY);
+        return isTab(value) ? value : null;
+    } catch {
+        return null;
+    }
+};
+
+const writeStoredTab = (tab: DonacionTab) => {
+    try {
+        localStorage.setItem(STORAGE_KEY, tab);
+    } catch {
+        // Sin almacenamiento disponible (modo privado, bloqueado): se ignora.
+    }
+};
+
+const route = useRoute();
+
+// Prioridad: parámetro de ruta o query (?tab=bienes) > última pestaña guardada > Pecuniaria.
+const tabFromRoute = (): DonacionTab | null => {
+    const value = firstValue(route.params.tab) ?? firstValue(route.query.tab);
+    return isTab(value) ? value : null;
+};
+
+const activeTab = ref<DonacionTab>(tabFromRoute() ?? readStoredTab() ?? DEFAULT_TAB);
+
+watch(activeTab, writeStoredTab);
+
+watch(
+    () => [route.params.tab, route.query.tab],
+    () => {
+        const tab = tabFromRoute();
+        if (tab) activeTab.value = tab;
+    }
+);
 </script>
 
 <template>

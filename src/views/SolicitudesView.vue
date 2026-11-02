@@ -3,8 +3,7 @@ import { onMounted, ref } from 'vue';
 import { canChangeResponsible, resolveCurrentResponsible } from '../auth/currentResponsible';
 import type { EntidadResumen, CatalogoItem, LineaEscaneada, SolicitudPayload } from '../types';
 import { apiService } from '../api/apiService';
-import { formatRutForDisplay } from '../utils/rutFormatter';
-import ModalCrearPersona from '../components/ModalCrearPersona.vue';
+import EntidadSelector from '../components/EntidadSelector.vue';
 import ModalRegistroCatalogo from '../components/ModalRegistroCatalogo.vue';
 import { Plus, Trash2, Send, ScanBarcode } from 'lucide-vue-next';
 import EscanerCodigos from '../components/EscanerCodigos.vue';
@@ -31,10 +30,6 @@ type DraftItem = {
 const today = new Date().toISOString().split('T')[0];
 
 const solicitante = ref<EntidadResumen | null>(null);
-const solicitanteQuery = ref('');
-const solicitanteResults = ref<EntidadResumen[]>([]);
-const solicitanteLoading = ref(false);
-const showSolicitanteDropdown = ref(false);
 
 const programa = ref('');
 const fechaSolicitud = ref(today);
@@ -53,7 +48,6 @@ const manualDescripcion = ref('');
 const cantidadManual = ref(1);
 
 const message = ref<{ type: 'success' | 'error'; text: string } | null>(null);
-const showCrearPersonaModal = ref(false);
 const showCatalogoModal = ref(false);
 
 const debounce = (fn: (...args: any[]) => void, delay = 300) => {
@@ -73,49 +67,12 @@ const showToast = (type: 'success' | 'error', text: string) => {
     }, 4000);
 };
 
-const handlePersonaCreada = async (rut: string, _id?: number, entidad?: EntidadResumen) => {
-    showCrearPersonaModal.value = false;
-    if (entidad) {
-        solicitante.value = entidad;
-        solicitanteQuery.value = '';
-        showToast('success', 'Persona registrada y seleccionada.');
-        return;
-    }
-    try {
-        const resultados = await apiService.buscarEntidades(rut);
-        const encontrada = resultados.find(e => e.identificador === rut);
-        if (encontrada) {
-            solicitante.value = encontrada;
-            showToast('success', 'Persona registrada y seleccionada.');
-        } else {
-            showToast('error', 'Persona creada pero no encontrada automáticamente, búscala nuevamente.');
-        }
-    } catch (e: any) {
-        showToast('error', e.message || 'Error al buscar la nueva persona.');
-    }
-};
-
 const handleCatalogoCreado = () => {
     showCatalogoModal.value = false;
     if (catalogQuery.value.length >= 2) {
         searchCatalogo(catalogQuery.value);
     }
 };
-
-const searchSolicitantes = debounce(async (query: string) => {
-    if (!query || query.trim().length < 2) {
-        solicitanteResults.value = [];
-        return;
-    }
-    solicitanteLoading.value = true;
-    try {
-        solicitanteResults.value = await apiService.buscarEntidades(query);
-    } catch (e: any) {
-        showToast('error', e.message || 'No se pudieron buscar solicitantes.');
-    } finally {
-        solicitanteLoading.value = false;
-    }
-});
 
 const searchCatalogo = debounce(async (query: string) => {
     if (!query || query.trim().length < 2) {
@@ -184,11 +141,6 @@ const agregarEscaneado = (linea: LineaEscaneada) => {
 
 const removeItem = (id: number) => {
     items.value = items.value.filter(item => item.id !== id);
-};
-
-const selectSolicitante = (entidad: EntidadResumen) => {
-    solicitante.value = entidad;
-    showSolicitanteDropdown.value = false;
 };
 
 const selectCatalogResult = (item: CatalogoItem) => {
@@ -291,60 +243,20 @@ onMounted(async () => {
 
         <div v-else class="form-shell">
             <div class="grid grid-cols-1 gap-4 p-5 md:grid-cols-2">
-                <div class="relative">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Solicitante *</label>
-                    <div v-if="solicitante" class="selected-card flex items-center justify-between px-3 py-3">
-                        <div>
-                            <p class="font-semibold text-sky-700">{{ solicitante.nombreCompleto }}</p>
-                            <p class="text-sm text-gray-600">{{ formatRutForDisplay(solicitante.identificador) }}</p>
-                        </div>
-                        <button v-if="esAdmin" class="text-xs text-[var(--accent-color)] underline hover:text-[var(--accent-color-hover)]" @click="solicitante = null">Cambiar</button>
-                        <span v-else class="text-xs text-[var(--text-muted)]">Tú</span>
-                    </div>
-                    <div v-else-if="resolviendoYo && !esAdmin" class="form-panel-muted p-3 text-sm text-[var(--text-muted)]">
-                        Identificando tu persona...
-                    </div>
-                    <div v-else-if="!esAdmin" class="message-banner message-error">
-                        {{ errorYo || 'No se encontró tu persona en el sistema.' }} Pide a un administrador que revise tu ficha.
-                    </div>
-                    <div v-else>
-                        <input
-                            v-model="solicitanteQuery"
-                            type="text"
-                            placeholder="Buscar por nombre o RUT"
-                            class="compact-control"
-                            @input="searchSolicitantes(solicitanteQuery)"
-                            @focus="showSolicitanteDropdown = true"
-                        />
-                        <div
-                            v-if="showSolicitanteDropdown && solicitanteQuery.length >= 2"
-                            class="dropdown-panel absolute z-10 mt-1 max-h-64 w-full overflow-y-auto"
-                        >
-                            <div v-if="solicitanteLoading" class="p-3 text-sm text-gray-500">Buscando...</div>
-                            <template v-else>
-                                <button
-                                    v-for="entidad in solicitanteResults"
-                                    :key="entidad.id"
-                                    type="button"
-                                    @click="selectSolicitante(entidad)"
-                                >
-                                    <p class="font-medium text-gray-900">{{ entidad.nombreCompleto }}</p>
-                                    <p class="text-xs text-gray-500">{{ formatRutForDisplay(entidad.identificador) }}</p>
-                                </button>
-                                <div v-if="solicitanteResults.length === 0" class="p-3 text-center text-sm text-gray-500 space-y-2">
-                                    <p>Sin resultados para "{{ solicitanteQuery }}".</p>
-                                    <button
-                                        type="button"
-                                        class="inline-flex items-center px-3 py-1.5 rounded-md bg-green-600 text-white text-xs font-semibold hover:bg-green-700"
-                                        @click="showCrearPersonaModal = true"
-                                    >
-                                        + Registrar persona
-                                    </button>
-                                </div>
-                            </template>
-                        </div>
-                    </div>
-                </div>
+                <EntidadSelector
+                    v-model="solicitante"
+                    label="Solicitante"
+                    required
+                    :locked="!esAdmin"
+                    locked-hint="Tú"
+                    crear-persona
+                    @creada="showToast('success', 'Persona registrada y seleccionada.')"
+                >
+                    <template #locked-empty>
+                        <span v-if="resolviendoYo">Identificando tu persona...</span>
+                        <span v-else class="text-red-600">{{ errorYo || 'No se encontró tu persona en el sistema.' }} Pide a un administrador que revise tu ficha.</span>
+                    </template>
+                </EntidadSelector>
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Programa o actividad *</label>
@@ -509,13 +421,6 @@ onMounted(async () => {
             </div>
         </div>
     </div>
-
-    <ModalCrearPersona
-        :isOpen="showCrearPersonaModal"
-        :initial-search="solicitanteQuery"
-        @close="showCrearPersonaModal = false"
-        @created="handlePersonaCreada"
-    />
 
     <ModalRegistroCatalogo
         v-if="showCatalogoModal"

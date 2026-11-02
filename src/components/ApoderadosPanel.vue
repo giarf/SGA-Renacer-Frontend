@@ -2,11 +2,10 @@
 import { ref, watch } from 'vue';
 import { apiService } from '../api/apiService';
 import type { EntidadResumen, VinculoApoderado } from '../types';
+import EntidadSelector from './EntidadSelector.vue';
 const props = defineProps<{ personaId: number }>();
 const apoderados = ref<VinculoApoderado[]>([]);
 const cargo = ref<VinculoApoderado[]>([]);
-const resultados = ref<EntidadResumen[]>([]);
-const busqueda = ref('');
 const seleccionado = ref<EntidadResumen | null>(null);
 const parentesco = ref('Otro');
 const principal = ref(false);
@@ -16,7 +15,8 @@ const ocupado = ref(false);
 const error = ref('');
 const mensaje = ref('');
 let generation = 0;
-let searchGeneration = 0;
+// Nadie puede ser su propio apoderado.
+const noEsLaMisma = (p: EntidadResumen) => p.id !== props.personaId;
 async function cargar() {
     const version = ++generation;
     try {
@@ -24,18 +24,9 @@ async function cargar() {
         if (version === generation) { apoderados.value = a; cargo.value = b; }
     } catch (e) { if (version === generation) error.value = e instanceof Error ? e.message : 'No se pudieron cargar los vínculos.'; }
 }
-function limpiar() { seleccionado.value = null; resultados.value = []; busqueda.value = ''; parentesco.value = 'Otro'; principal.value = false; observaciones.value = ''; searchGeneration++; }
+function limpiar() { seleccionado.value = null; parentesco.value = 'Otro'; principal.value = false; observaciones.value = ''; }
 watch(() => props.personaId, () => { limpiar(); error.value = ''; mensaje.value = ''; apoderados.value = []; cargo.value = []; void cargar(); }, { immediate: true });
 watch(inverso, limpiar);
-async function buscar() {
-    const version = ++searchGeneration;
-    error.value = '';
-    if (busqueda.value.trim().length < 2) { resultados.value = []; return; }
-    try {
-        const found = await apiService.buscarEntidades(busqueda.value.trim(), 'PersonaNatural');
-        if (version === searchGeneration) resultados.value = found.filter(p => p.id !== props.personaId).slice(0, 15);
-    } catch (e) { if (version === searchGeneration) error.value = e instanceof Error ? e.message : 'Error al buscar.'; }
-}
 function editar(v: VinculoApoderado, reverse: boolean) {
     inverso.value = reverse;
     // El formulario se completa tras el cambio de dirección.
@@ -84,9 +75,14 @@ async function quitar(v: VinculoApoderado) {
             <label class="block text-sm">Relación
                 <select v-model="inverso" class="block w-full border rounded p-2 bg-transparent"><option :value="false">Agregar apoderado a esta persona</option><option :value="true">Esta persona será apoderada de…</option></select>
             </label>
-            <div class="flex gap-2"><input v-model="busqueda" aria-label="Buscar persona existente" placeholder="Nombre o RUT de una persona existente" class="border rounded p-2 w-full bg-transparent" @keydown.enter.prevent="buscar" /><button type="button" class="btn-secondary" @click="buscar">Buscar</button></div>
-            <button v-for="p in resultados" :key="p.id" type="button" class="block text-left w-full border rounded p-2" @click="seleccionado = p; resultados = []">{{ p.nombreCompleto }} · {{ p.identificador }}</button>
-            <p v-if="seleccionado" class="font-medium">Seleccionado: {{ seleccionado.nombreCompleto }}</p>
+            <EntidadSelector
+                v-model="seleccionado"
+                label="Persona existente"
+                tipo="PersonaNatural"
+                placeholder="Nombre o RUT de una persona existente"
+                :filtro="noEsLaMisma"
+                :disabled="ocupado"
+            />
             <label class="block text-sm">Parentesco del apoderado con la persona a cargo<select v-model="parentesco" class="block w-full border rounded p-2 bg-transparent"><option v-for="p in ['Madre','Padre','Abuela','Abuelo','Tutor/a','Otro']" :key="p">{{ p }}</option></select></label>
             <label class="flex gap-2 text-sm"><input v-model="principal" type="checkbox" /> Contacto principal (reemplaza al principal anterior)</label>
             <label class="block text-sm">Observaciones<textarea v-model="observaciones" maxlength="2000" class="block w-full border rounded p-2 bg-transparent" /></label>

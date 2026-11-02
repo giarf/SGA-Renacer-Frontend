@@ -4,7 +4,7 @@ import { computed, onMounted, ref } from 'vue';
 import type { BeneficiarioFamilia, EntidadResumen, Familia } from '../types';
 import { apiService } from '../api/apiService';
 import { formatRutForDisplay } from '../utils/rutFormatter';
-import ModalCrearPersona from '../components/ModalCrearPersona.vue';
+import EntidadSelector from '../components/EntidadSelector.vue';
 import { Plus, Save, Trash2, Users } from 'lucide-vue-next';
 
 const familias = ref<Familia[]>([]);
@@ -15,18 +15,11 @@ const miembrosLoading = ref(false);
 const message = ref<{ type: 'success' | 'error'; text: string } | null>(null);
 
 const familiaSearch = ref('');
-const showCrearPersonaModal = ref(false);
-const personaModalContext = ref<'jefe' | 'miembro' | null>(null);
 
 const jefeSeleccionado = ref<EntidadResumen | null>(null);
-const jefeQuery = ref('');
-const jefeResults = ref<EntidadResumen[]>([]);
-const showJefeDropdown = ref(false);
-
 const miembroSeleccionado = ref<EntidadResumen | null>(null);
-const miembroQuery = ref('');
-const miembroResults = ref<EntidadResumen[]>([]);
-const showMiembroDropdown = ref(false);
+// Quien ya es miembro no se vuelve a ofrecer en el buscador.
+const noEsMiembro = (persona: EntidadResumen) => !miembros.value.some(m => m.personaId === persona.id);
 const nuevoRol = ref('');
 const nuevaObservacion = ref('');
 
@@ -35,14 +28,6 @@ const formFamilia = ref({
     puntosVulnerabilidad: 75,
     justificacionVulnerabilidad: ''
 });
-
-const debounce = (fn: (...args: any[]) => void, delay = 300) => {
-    let timer: ReturnType<typeof setTimeout>;
-    return (...args: any[]) => {
-        clearTimeout(timer);
-        timer = setTimeout(() => fn(...args), delay);
-    };
-};
 
 const showToast = (type: 'success' | 'error', text: string) => {
     message.value = { type, text };
@@ -104,35 +89,7 @@ const selectFamilia = async (familia: Familia) => {
         justificacionVulnerabilidad: familia.justificacionVulnerabilidad || ''
     };
     jefeSeleccionado.value = null;
-    jefeQuery.value = familia.jefeHogarNombre || '';
     await loadMiembros(familia.id);
-};
-
-const searchPersonas = debounce(async (query: string, target: 'jefe' | 'miembro') => {
-    if (query.trim().length < 2) {
-        if (target === 'jefe') jefeResults.value = [];
-        else miembroResults.value = [];
-        return;
-    }
-    try {
-        const results = (await apiService.buscarEntidades(query)).filter(e => e.tipoEntidad === 'PersonaNatural');
-        if (target === 'jefe') jefeResults.value = results;
-        else miembroResults.value = results;
-    } catch (e: any) {
-        showToast('error', e.message || 'No se pudieron buscar personas.');
-    }
-});
-
-const selectJefe = (persona: EntidadResumen) => {
-    jefeSeleccionado.value = persona;
-    jefeQuery.value = persona.nombreCompleto;
-    showJefeDropdown.value = false;
-};
-
-const selectMiembro = (persona: EntidadResumen) => {
-    miembroSeleccionado.value = persona;
-    miembroQuery.value = persona.nombreCompleto;
-    showMiembroDropdown.value = false;
 };
 
 const guardarFamilia = async () => {
@@ -168,7 +125,6 @@ const nuevaFamilia = () => {
     selectedFamilia.value = null;
     miembros.value = [];
     jefeSeleccionado.value = null;
-    jefeQuery.value = '';
     formFamilia.value = { nombreFamilia: '', puntosVulnerabilidad: 75, justificacionVulnerabilidad: '' };
 };
 
@@ -183,7 +139,6 @@ const agregarMiembro = async () => {
             nuevaObservacion.value.trim() || undefined
         );
         miembroSeleccionado.value = null;
-        miembroQuery.value = '';
         nuevoRol.value = '';
         nuevaObservacion.value = '';
         await loadMiembros(selectedFamilia.value.id);
@@ -201,25 +156,6 @@ const quitarMiembro = async (miembro: BeneficiarioFamilia) => {
         showToast('success', 'Miembro removido.');
     } catch (e: any) {
         showToast('error', e.message || 'No se pudo remover el miembro.');
-    }
-};
-
-const abrirModalPersona = (contexto: 'jefe' | 'miembro') => {
-    personaModalContext.value = contexto;
-    showCrearPersonaModal.value = true;
-};
-
-const handlePersonaCreada = async (rut: string) => {
-    showCrearPersonaModal.value = false;
-    try {
-        const encontrada = (await apiService.buscarEntidades(rut)).find(e => e.identificador === rut || e.rut === rut);
-        if (!encontrada) return showToast('error', 'Persona creada, pero no fue posible seleccionarla automáticamente.');
-        if (personaModalContext.value === 'jefe') selectJefe(encontrada);
-        if (personaModalContext.value === 'miembro') selectMiembro(encontrada);
-    } catch (e: any) {
-        showToast('error', e.message || 'No se pudo buscar la nueva persona.');
-    } finally {
-        personaModalContext.value = null;
     }
 };
 
@@ -280,26 +216,15 @@ onMounted(loadFamilias);
                             <label class="mb-1 block text-sm font-medium text-[var(--text-primary)]">Puntos de vulnerabilidad</label>
                             <input v-model.number="formFamilia.puntosVulnerabilidad" class="compact-control" type="number" min="0" max="100">
                         </div>
-                        <div class="relative md:col-span-2">
-                            <label class="mb-1 block text-sm font-medium text-[var(--text-primary)]">Jefe/a de hogar *</label>
-                            <input
-                                v-model="jefeQuery"
-                                class="compact-control"
-                                :placeholder="jefeNombre"
-                                @input="searchPersonas(jefeQuery, 'jefe')"
-                                @focus="showJefeDropdown = true"
-                            >
-                            <div v-if="showJefeDropdown && jefeQuery.length >= 2" class="dropdown-panel absolute z-20 mt-1 max-h-56 w-full overflow-y-auto">
-                                <button v-for="persona in jefeResults" :key="persona.id" type="button" @click="selectJefe(persona)">
-                                    <p class="font-medium text-gray-900">{{ persona.nombreCompleto }}</p>
-                                    <p class="text-xs text-gray-500">{{ formatRutForDisplay(persona.identificador) }}</p>
-                                </button>
-                                <div v-if="jefeResults.length === 0" class="p-3 text-center text-sm text-gray-500">
-                                    <p>Sin resultados.</p>
-                                    <button class="mt-2 rounded-md bg-green-600 px-3 py-1.5 text-xs font-semibold text-white" type="button" @click="abrirModalPersona('jefe')">+ Registrar persona</button>
-                                </div>
-                            </div>
-                            <p class="mt-1 text-xs text-[var(--text-muted)]">Actual: {{ jefeNombre }}</p>
+                        <div class="md:col-span-2">
+                            <EntidadSelector
+                                v-model="jefeSeleccionado"
+                                label="Jefe/a de hogar"
+                                required
+                                tipo="PersonaNatural"
+                                crear-persona
+                            />
+                            <p v-if="!jefeSeleccionado && selectedFamilia?.jefeHogarId" class="mt-1 text-xs text-[var(--text-muted)]">Actual: {{ jefeNombre }}</p>
                         </div>
                         <div class="md:col-span-2">
                             <label class="mb-1 block text-sm font-medium text-[var(--text-primary)]">Justificación de vulnerabilidad</label>
@@ -315,26 +240,14 @@ onMounted(loadFamilias);
                     </div>
 
                     <div class="mb-5 grid grid-cols-1 gap-3 md:grid-cols-[1fr_180px_1fr_auto]">
-                        <div class="relative">
-                            <input
-                                v-model="miembroQuery"
-                                class="compact-control"
-                                placeholder="Buscar persona por nombre o RUT"
-                                :disabled="!selectedFamilia"
-                                @input="searchPersonas(miembroQuery, 'miembro')"
-                                @focus="showMiembroDropdown = true"
-                            >
-                            <div v-if="showMiembroDropdown && miembroQuery.length >= 2" class="dropdown-panel absolute z-20 mt-1 max-h-56 w-full overflow-y-auto">
-                                <button v-for="persona in miembroResults" :key="persona.id" type="button" @click="selectMiembro(persona)">
-                                    <p class="font-medium text-gray-900">{{ persona.nombreCompleto }}</p>
-                                    <p class="text-xs text-gray-500">{{ formatRutForDisplay(persona.identificador) }}</p>
-                                </button>
-                                <div v-if="miembroResults.length === 0" class="p-3 text-center text-sm text-gray-500">
-                                    <p>Sin resultados.</p>
-                                    <button class="mt-2 rounded-md bg-green-600 px-3 py-1.5 text-xs font-semibold text-white" type="button" @click="abrirModalPersona('miembro')">+ Registrar persona</button>
-                                </div>
-                            </div>
-                        </div>
+                        <EntidadSelector
+                            v-model="miembroSeleccionado"
+                            tipo="PersonaNatural"
+                            placeholder="Buscar persona por nombre o RUT"
+                            :disabled="!selectedFamilia"
+                            :filtro="noEsMiembro"
+                            crear-persona
+                        />
                         <input v-model="nuevoRol" class="compact-control" :disabled="!selectedFamilia" placeholder="Rol opcional">
                         <input v-model="nuevaObservacion" class="compact-control" :disabled="!selectedFamilia" placeholder="Observación opcional">
                         <button class="btn btn-primary" type="button" :disabled="!selectedFamilia" @click="agregarMiembro">Agregar</button>
@@ -367,6 +280,5 @@ onMounted(loadFamilias);
             </section>
         </div>
 
-        <ModalCrearPersona :isOpen="showCrearPersonaModal" @close="showCrearPersonaModal = false" @created="handlePersonaCreada" />
     </div>
 </template>

@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import ModalCrearPersona from '../components/ModalCrearPersona.vue';
-import AgregarPersonaRapida from '../components/AgregarPersonaRapida.vue';
+import EntidadSelector from '../components/EntidadSelector.vue';
 import { ref, computed, watch } from 'vue';
 import type { EntidadResumen, CatalogoItem, DonacionBienesPayload, LineaEscaneada } from '../types';
 import { apiService } from '../api/apiService';
-import { formatRutForDisplay } from '../utils/rutFormatter';
 import ModalRegistroCatalogo from '../components/ModalRegistroCatalogo.vue';
 import EscanerCodigos from '../components/EscanerCodigos.vue';
 import { Trash2, ClipboardList, Loader2, Plus, ScanBarcode } from 'lucide-vue-next';
@@ -13,6 +11,8 @@ import { canChangeResponsible, resolveCurrentResponsible } from '../auth/current
 import { clearFormDraft, loadFormDraft, saveFormDraft } from '../utils/formDraft';
 import { integerFromInput } from '../utils/integerInput';
 import InlineDateControl from '../components/InlineDateControl.vue';
+import CantidadStepper from '../components/CantidadStepper.vue';
+import { errorCantidad } from '../utils/cantidad';
 
 // Debounce utility
 const today = new Date().toISOString().split('T')[0] ?? '';
@@ -25,19 +25,9 @@ const debounce = (fn: Function, delay: number) => {
     };
 };
 
-// State for donor search
-const donadorQuery = ref('');
-const donadorResults = ref<EntidadResumen[]>([]);
-const loadingDonador = ref(false);
-const showDonadorDropdown = ref(false);
+// Personas del formulario (los buscadores viven en EntidadSelector)
 const selectedDonador = ref<EntidadResumen | null>(null);
-
-// State for receiver search
-const receptorQuery = ref('');
-const receptorResults = ref<EntidadResumen[]>([]);
-const loadingReceptor = ref(false);
 const resolvingReceptor = ref(false);
-const showReceptorDropdown = ref(false);
 const selectedReceptor = ref<EntidadResumen | null>(null);
 
 // State for purpose / notes
@@ -45,12 +35,7 @@ const proposito = ref('');
 const anotaciones = ref('');
 const fechaIngreso = ref(today);
 
-// State for gestor (optional)
-const gestorQuery = ref('');
-const gestorResults = ref<EntidadResumen[]>([]);
-const showGestorDropdown = ref(false);
 const selectedGestor = ref<EntidadResumen | null>(null);
-const loadingGestor = ref(false);
 
 // State for catalog item search
 const itemQuery = ref('');
@@ -91,38 +76,6 @@ const montoTotal = computed(() => {
 });
 
 // Search methods
-const searchDonador = debounce(async (query: string) => {
-    if (!query || query.trim().length < 1) {
-        donadorResults.value = [];
-        return;
-    }
-    loadingDonador.value = true;
-    try {
-        donadorResults.value = await apiService.buscarEntidades(query);
-    } catch (e) {
-        console.error('Error searching donor:', e);
-        donadorResults.value = [];
-    } finally {
-        loadingDonador.value = false;
-    }
-}, 300);
-
-const searchReceptor = debounce(async (query: string) => {
-    if (!query || query.trim().length < 1) {
-        receptorResults.value = [];
-        return;
-    }
-    loadingReceptor.value = true;
-    try {
-        receptorResults.value = await apiService.buscarEntidades(query);
-    } catch (e) {
-        console.error('Error searching receiver:', e);
-        receptorResults.value = [];
-    } finally {
-        loadingReceptor.value = false;
-    }
-}, 300);
-
 const loadCurrentResponsible = async () => {
     selectedReceptor.value = null;
     resolvingReceptor.value = true;
@@ -151,46 +104,6 @@ const searchItems = debounce(async (query: string) => {
     }
 }, 300);
 
-const searchGestor = debounce(async (query: string) => {
-    if (!query || query.trim().length < 2) {
-        gestorResults.value = [];
-        showGestorDropdown.value = false;
-        return;
-    }
-    loadingGestor.value = true;
-    try {
-        gestorResults.value = await apiService.buscarEntidades(query);
-        showGestorDropdown.value = true;
-    } catch (error) {
-        console.error('Error buscando gestores', error);
-        gestorResults.value = [];
-    } finally {
-        loadingGestor.value = false;
-    }
-}, 300);
-
-// Selection methods
-const selectDonador = (entidad: EntidadResumen) => {
-    selectedDonador.value = entidad;
-    donadorQuery.value = '';
-    showDonadorDropdown.value = false;
-};
-
-// Persona no encontrada en el buscador: alta rápida y queda seleccionada.
-const crearPersona = ref({ abierto: false, busqueda: '' });
-const abrirCrearPersona = (busqueda: string) => {
-    crearPersona.value = { abierto: true, busqueda };
-};
-const personaCreada = (_rut: string, _id?: number, entidad?: EntidadResumen) => {
-    if (entidad) selectDonador(entidad);
-};
-
-const selectReceptor = (entidad: EntidadResumen) => {
-    selectedReceptor.value = entidad;
-    receptorQuery.value = '';
-    showReceptorDropdown.value = false;
-};
-
 const selectItem = (item: CatalogoItem) => {
     selectedItem.value = item;
     // Auto-fill with reference price (editable)
@@ -199,18 +112,6 @@ const selectItem = (item: CatalogoItem) => {
     showItemDropdown.value = false;
     itemQuery.value = '';
     showItemDropdown.value = false;
-};
-
-const selectGestor = (entidad: EntidadResumen) => {
-    selectedGestor.value = entidad;
-    gestorQuery.value = '';
-    showGestorDropdown.value = false;
-};
-
-const clearGestor = () => {
-    selectedGestor.value = null;
-    gestorQuery.value = '';
-    showGestorDropdown.value = false;
 };
 
 type DonationItemsDraft = {
@@ -260,8 +161,9 @@ const openCatalogoModal = () => {
 
 // Add item to local list
 const addItemToList = () => {
-    if (!selectedItem.value || itemCantidad.value <= 0 || itemPrecio.value <= 0) {
-        message.value = { type: 'error', text: 'Debe seleccionar un ítem y especificar cantidad y precio válidos.' };
+    const errorItem = selectedItem.value ? errorCantidad(itemCantidad.value, selectedItem.value.unidadMedidaEstandar) : null;
+    if (!selectedItem.value || errorItem || itemPrecio.value <= 0) {
+        message.value = { type: 'error', text: errorItem || 'Debe seleccionar un ítem y especificar cantidad y precio válidos.' };
         return;
     }
 
@@ -308,6 +210,11 @@ const submitDonacion = async () => {
         message.value = { type: 'error', text: 'Debe agregar al menos un ítem.' };
         return;
     }
+    const lineaInvalida = items.value.find(item => errorCantidad(item.cantidad, item.unidad) || !(item.precio > 0));
+    if (lineaInvalida) {
+        message.value = { type: 'error', text: `${lineaInvalida.nombre}: ${errorCantidad(lineaInvalida.cantidad, lineaInvalida.unidad) || 'el precio debe ser mayor a cero.'}` };
+        return;
+    }
 
     submitting.value = true;
     message.value = null;
@@ -337,9 +244,6 @@ const submitDonacion = async () => {
         }))
     };
 
-    // Debug: Ver exactamente qué se está enviando
-    console.log("Datos a enviar al backend:", JSON.stringify(payload, null, 2));
-
     try {
         const result = await apiService.registrarDonacionBienes(payload);
         message.value = { 
@@ -354,8 +258,6 @@ const submitDonacion = async () => {
         proposito.value = '';
         anotaciones.value = '';
         selectedGestor.value = null;
-        gestorQuery.value = '';
-        gestorResults.value = [];
         fechaIngreso.value = today;
         items.value = [];
         
@@ -397,107 +299,20 @@ loadCurrentResponsible().finally(() => {
             <h4 class="form-section-title">1 · Actores</h4>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <!-- Donor Searcher -->
-                <div class="relative">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        Donador <span class="text-red-500">*</span>
-                    </label>
-                    
-                    <div v-if="selectedDonador" class="selected-card flex flex-col gap-2 p-3">
-                        <div>
-                            <span class="block font-bold text-institutional-blue">{{ selectedDonador.nombreCompleto }}</span>
-                            <span class="text-sm text-gray-600">{{ formatRutForDisplay(selectedDonador.identificador) }}</span>
-                        </div>
-                        <button type="button" @click="selectedDonador = null" class="self-start text-xs text-[var(--accent-color)] underline hover:text-[var(--accent-color-hover)]">
-                            Cambiar
-                        </button>
-                    </div>
+                <EntidadSelector v-model="selectedDonador" label="Donador" required crear-persona />
 
-                    <div v-else>
-                        <input 
-                            type="text" 
-                            v-model="donadorQuery"
-                            @input="searchDonador(donadorQuery)"
-                            @focus="showDonadorDropdown = true"
-                            placeholder="Buscar por nombre o RUT..."
-                            class="compact-control"
-                        />
-                        
-                        <!-- Dropdown -->
-                        <div v-if="showDonadorDropdown && donadorQuery.length >= 2" class="dropdown-panel absolute z-20 mt-1 max-h-60 w-full overflow-auto">
-                            <div v-if="loadingDonador" class="p-4 text-center text-gray-500">
-                                Buscando...
-                            </div>
-                            <ul v-else-if="donadorResults.length > 0">
-                                <li 
-                                    v-for="entidad in donadorResults" 
-                                    :key="entidad.id"
-                                    @click="selectDonador(entidad)"
-                                >
-                                    <p class="font-medium text-gray-900">{{ entidad.nombreCompleto }}</p>
-                                    <p class="text-xs text-gray-500">{{ formatRutForDisplay(entidad.identificador) }}</p>
-                                </li>
-                            </ul>
-                            <AgregarPersonaRapida v-else :query="donadorQuery" @agregar="abrirCrearPersona(donadorQuery)" />
-                        </div>
-                    </div>
-                </div>
-
-                <div class="relative">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        Responsable interno <span class="text-red-500">*</span>
-                    </label>
-                    
-                    <div v-if="selectedReceptor" class="selected-card flex flex-col gap-2 p-3">
-                        <div>
-                            <span class="block font-bold text-green-700">{{ selectedReceptor.nombreCompleto }}</span>
-                            <span class="text-sm text-gray-600">{{ formatRutForDisplay(selectedReceptor.identificador) }}</span>
-                            <span v-if="!canChangeResponsible" class="block text-xs text-gray-500 mt-1">Asignado automáticamente desde Authentik</span>
-                        </div>
-                        <button v-if="canChangeResponsible" type="button" @click="selectedReceptor = null" class="self-start text-xs text-[var(--accent-color)] underline hover:text-[var(--accent-color-hover)]">
-                            Cambiar
-                        </button>
-                    </div>
-
-                    <div v-else-if="resolvingReceptor" class="form-panel-muted p-4 text-sm text-[var(--text-muted)]">
-                        Resolviendo responsable interno...
-                    </div>
-
-                    <div v-else>
-                        <input 
-                            v-if="canChangeResponsible"
-                            type="text" 
-                            v-model="receptorQuery"
-                            @input="searchReceptor(receptorQuery)"
-                            @focus="showReceptorDropdown = true"
-                            placeholder="Buscar por nombre o RUT..."
-                            class="compact-control"
-                        />
-                        <div v-else class="message-banner message-error">
-                            No se encontró tu responsable interno. Debe existir una entidad con tu nombre o correo de Authentik.
-                        </div>
-                        
-                        <!-- Dropdown -->
-                        <div v-if="showReceptorDropdown && receptorQuery.length >= 2" class="dropdown-panel absolute z-20 mt-1 max-h-60 w-full overflow-auto">
-                            <div v-if="loadingReceptor" class="p-4 text-center text-gray-500">
-                                Buscando...
-                            </div>
-                            <ul v-else-if="receptorResults.length > 0">
-                                <li 
-                                    v-for="entidad in receptorResults" 
-                                    :key="entidad.id"
-                                    @click="selectReceptor(entidad)"
-                                >
-                                    <p class="font-medium text-gray-900">{{ entidad.nombreCompleto }}</p>
-                                    <p class="text-xs text-gray-500">{{ formatRutForDisplay(entidad.identificador) }}</p>
-                                </li>
-                            </ul>
-                            <div v-else class="p-4 text-center text-gray-500 text-sm">
-                                No se encontraron resultados
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <EntidadSelector
+                    v-model="selectedReceptor"
+                    label="Responsable interno"
+                    required
+                    :locked="!canChangeResponsible || resolvingReceptor"
+                    locked-hint="Asignado automáticamente desde Authentik"
+                >
+                    <template #locked-empty>
+                        <span v-if="resolvingReceptor">Resolviendo responsable interno...</span>
+                        <span v-else class="text-red-600">No se encontró tu responsable interno. Debe existir una entidad con tu nombre o correo de Authentik.</span>
+                    </template>
+                </EntidadSelector>
             </div>
 
             <!-- Purpose Field -->
@@ -514,51 +329,7 @@ loadCurrentResponsible().finally(() => {
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-                <div class="relative">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        Gestor / Responsable (opcional)
-                    </label>
-
-                    <div v-if="selectedGestor" class="selected-card flex flex-col gap-2 p-3">
-                        <div>
-                            <p class="font-semibold text-amber-900">{{ selectedGestor.nombreCompleto }}</p>
-                            <p class="text-xs text-gray-600">{{ formatRutForDisplay(selectedGestor.identificador) }}</p>
-                        </div>
-                        <button type="button" @click="clearGestor" class="self-start text-xs text-[var(--accent-color)] underline hover:text-[var(--accent-color-hover)]">
-                            Cambiar
-                        </button>
-                    </div>
-
-                    <div v-else>
-                        <input 
-                            type="text" 
-                            v-model="gestorQuery"
-                            @input="searchGestor(gestorQuery)"
-                            @focus="showGestorDropdown = true"
-                            placeholder="Buscar por nombre o RUT..."
-                            class="compact-control"
-                        />
-
-                        <div v-if="showGestorDropdown && gestorQuery.length >= 2" class="dropdown-panel absolute z-20 mt-1 max-h-60 w-full overflow-auto">
-                            <div v-if="loadingGestor" class="p-4 text-center text-gray-500">
-                                Buscando...
-                            </div>
-                            <ul v-else-if="gestorResults.length > 0">
-                                <li 
-                                    v-for="entidad in gestorResults" 
-                                    :key="entidad.id"
-                                    @click="selectGestor(entidad)"
-                                >
-                                    <p class="font-medium text-gray-900">{{ entidad.nombreCompleto }}</p>
-                                    <p class="text-xs text-gray-500">{{ formatRutForDisplay(entidad.identificador) }}</p>
-                                </li>
-                            </ul>
-                            <div v-else class="p-4 text-center text-gray-500 text-sm">
-                                No se encontraron resultados
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <EntidadSelector v-model="selectedGestor" label="Gestor / Responsable (opcional)" />
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">
@@ -711,11 +482,21 @@ loadCurrentResponsible().finally(() => {
                                 <div class="text-sm font-medium text-gray-900">{{ item.nombre }}</div>
                                 <div class="text-xs text-gray-500">{{ item.categoria }} • {{ item.unidad }}<span v-if="item.codigoBarras" class="font-mono"> • {{ item.codigoBarras }}</span></div>
                             </td>
-                            <td class="px-4 py-2.5 whitespace-nowrap text-sm text-gray-900">
-                                {{ item.cantidad }}
+                            <td class="px-4 py-2 whitespace-nowrap">
+                                <CantidadStepper v-model="item.cantidad" :unidad="item.unidad" />
+                                <p v-if="errorCantidad(item.cantidad, item.unidad)" class="mt-1 text-xs text-red-600">{{ errorCantidad(item.cantidad, item.unidad) }}</p>
                             </td>
-                            <td class="px-4 py-2.5 whitespace-nowrap text-sm text-gray-900">
-                                ${{ item.precio.toLocaleString('es-CL') }}
+                            <td class="px-4 py-2 whitespace-nowrap">
+                                <input
+                                    :value="item.precio"
+                                    type="text"
+                                    inputmode="numeric"
+                                    pattern="[0-9]*"
+                                    aria-label="Precio unitario"
+                                    class="compact-control w-28"
+                                    :class="{ '!border-red-400': !(item.precio > 0) }"
+                                    @input="item.precio = integerFromInput($event)"
+                                />
                             </td>
                             <td class="px-4 py-2.5 whitespace-nowrap text-sm font-semibold text-gray-900">
                                 ${{ (item.cantidad * item.precio).toLocaleString('es-CL') }}
@@ -776,5 +557,4 @@ loadCurrentResponsible().finally(() => {
         @close="showModalRegistroCatalogo = false" 
         @created="handleCatalogoCreado"
     />
-    <ModalCrearPersona :is-open="crearPersona.abierto" :initial-search="crearPersona.busqueda" @close="crearPersona.abierto = false" @created="personaCreada" />
 </template>

@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import ModalCrearPersona from '../components/ModalCrearPersona.vue';
-import AgregarPersonaRapida from '../components/AgregarPersonaRapida.vue';
+import EntidadSelector from '../components/EntidadSelector.vue';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { ExternalLink, FileImage, Loader2, Plus, ScanBarcode, Trash2, X } from 'lucide-vue-next';
 import { apiService } from '../api/apiService';
-import { formatRutForDisplay } from '../utils/rutFormatter';
 import type { CatalogoItem, CompraBoletaMetadata, CompraIngresoPayload, Cuenta, EntidadResumen, LineaEscaneada } from '../types';
 import { canChangeResponsible, resolveCurrentResponsible } from '../auth/currentResponsible';
 import { clearFormDraft, loadFormDraft, saveFormDraft } from '../utils/formDraft';
@@ -12,6 +10,8 @@ import { integerFromInput } from '../utils/integerInput';
 import InlineDateControl from '../components/InlineDateControl.vue';
 import EscanerCodigos from '../components/EscanerCodigos.vue';
 import { fusionarLinea } from '../utils/barcode';
+import CantidadStepper from '../components/CantidadStepper.vue';
+import { errorCantidad } from '../utils/cantidad';
 
 const today = new Date().toISOString().split('T')[0] ?? '';
 
@@ -19,29 +19,8 @@ const cuentas = ref<Cuenta[]>([]);
 const cuentasLoading = ref(false);
 const selectedCuentaId = ref<number | null>(null);
 
-const proveedorQuery = ref('');
-const proveedorResults = ref<EntidadResumen[]>([]);
-const proveedorLoading = ref(false);
-const showProveedorDropdown = ref(false);
 const selectedProveedor = ref<EntidadResumen | null>(null);
-
-// Persona no encontrada en el buscador: alta rápida y queda seleccionada.
-const crearPersona = ref({ abierto: false, busqueda: '' });
-const abrirCrearPersona = (busqueda: string) => {
-    crearPersona.value = { abierto: true, busqueda };
-};
-const personaCreada = (_rut: string, _id?: number, entidad?: EntidadResumen) => {
-    if (!entidad) return;
-    selectedProveedor.value = entidad;
-    proveedorQuery.value = '';
-    showProveedorDropdown.value = false;
-};
-
-const responsableQuery = ref('');
-const responsableResults = ref<EntidadResumen[]>([]);
-const responsableLoading = ref(false);
 const resolvingResponsable = ref(false);
-const showResponsableDropdown = ref(false);
 const selectedResponsable = ref<EntidadResumen | null>(null);
 
 const itemQuery = ref('');
@@ -97,8 +76,6 @@ const currency = new Intl.NumberFormat('es-CL', {
     minimumFractionDigits: 0
 });
 
-let proveedorTimer: ReturnType<typeof setTimeout> | null = null;
-let responsableTimer: ReturnType<typeof setTimeout> | null = null;
 let itemTimer: ReturnType<typeof setTimeout> | null = null;
 
 const resolveBoletaUrl = (endpoint?: string, ingresoId?: number) => {
@@ -134,44 +111,6 @@ const loadCurrentResponsible = async () => {
     }
 };
 
-const searchProveedor = (query: string) => {
-    if (proveedorTimer) clearTimeout(proveedorTimer);
-    if (!query || query.trim().length < 2) {
-        proveedorResults.value = [];
-        return;
-    }
-    proveedorTimer = setTimeout(async () => {
-        proveedorLoading.value = true;
-        try {
-            proveedorResults.value = await apiService.buscarEntidades(query);
-            showProveedorDropdown.value = true;
-        } catch {
-            proveedorResults.value = [];
-        } finally {
-            proveedorLoading.value = false;
-        }
-    }, 250);
-};
-
-const searchResponsable = (query: string) => {
-    if (responsableTimer) clearTimeout(responsableTimer);
-    if (!query || query.trim().length < 2) {
-        responsableResults.value = [];
-        return;
-    }
-    responsableTimer = setTimeout(async () => {
-        responsableLoading.value = true;
-        try {
-            responsableResults.value = await apiService.buscarEntidades(query);
-            showResponsableDropdown.value = true;
-        } catch {
-            responsableResults.value = [];
-        } finally {
-            responsableLoading.value = false;
-        }
-    }, 250);
-};
-
 const searchItems = (query: string) => {
     if (itemTimer) clearTimeout(itemTimer);
     if (!query || query.trim().length < 2) {
@@ -189,14 +128,6 @@ const searchItems = (query: string) => {
             itemLoading.value = false;
         }
     }, 250);
-};
-
-const closeProveedorDropdownDelayed = () => {
-    setTimeout(() => (showProveedorDropdown.value = false), 200);
-};
-
-const closeResponsableDropdownDelayed = () => {
-    setTimeout(() => (showResponsableDropdown.value = false), 200);
 };
 
 const closeItemsDropdownDelayed = () => {
@@ -244,8 +175,9 @@ const abrirBoletaUltimaCompra = () => {
 };
 
 const addDetalle = () => {
-    if (!selectedItem.value || itemCantidad.value <= 0 || itemPrecio.value <= 0) {
-        message.value = { type: 'error', text: 'Debes seleccionar un ítem con cantidad y precio válidos.' };
+    const errorItem = selectedItem.value ? errorCantidad(itemCantidad.value, selectedItem.value.unidadMedidaEstandar) : null;
+    if (!selectedItem.value || errorItem || itemPrecio.value <= 0) {
+        message.value = { type: 'error', text: errorItem || 'Debes seleccionar un ítem con cantidad y precio válidos.' };
         return;
     }
     detalles.value.push({
@@ -253,7 +185,8 @@ const addDetalle = () => {
         nombre: selectedItem.value.nombre,
         cantidad: itemCantidad.value,
         precioUnitarioIngreso: itemPrecio.value,
-        codigoBarras: selectedItem.value.codigoBarras || undefined
+        codigoBarras: selectedItem.value.codigoBarras || undefined,
+        unidad: selectedItem.value.unidadMedidaEstandar || undefined
     });
     selectedItem.value = null;
     itemQuery.value = '';
@@ -318,13 +251,7 @@ const persistDraft = () => {
 const resetForm = () => {
     clearFormDraft(draftKey);
     selectedProveedor.value = null;
-    proveedorQuery.value = '';
-    proveedorResults.value = [];
-    if (canChangeResponsible.value) {
-        selectedResponsable.value = null;
-        responsableQuery.value = '';
-    }
-    responsableResults.value = [];
+    if (canChangeResponsible.value) selectedResponsable.value = null;
     fecha.value = today;
     numeroFacturaBoleta.value = '';
     montoNeto.value = 0;
@@ -358,6 +285,11 @@ const submitCompra = async () => {
     }
     if (detalles.value.length === 0) {
         message.value = { type: 'error', text: 'Debes agregar al menos un ítem en el detalle.' };
+        return;
+    }
+    const lineaInvalida = detalles.value.find(d => errorCantidad(d.cantidad, d.unidad) || !(d.precioUnitarioIngreso > 0));
+    if (lineaInvalida) {
+        message.value = { type: 'error', text: `${lineaInvalida.nombre}: ${errorCantidad(lineaInvalida.cantidad, lineaInvalida.unidad) || 'el precio unitario debe ser mayor a cero.'}` };
         return;
     }
     if (montoTotal.value <= 0) {
@@ -439,82 +371,20 @@ onBeforeUnmount(clearBoletaPreview);
                 <InlineDateControl v-model="fecha" />
             </div>
             <div class="grid grid-cols-1 gap-4 p-5 md:grid-cols-2">
-                <div class="relative">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                        Proveedor / Origen <span class="text-red-500">*</span>
-                    </label>
-                    <div v-if="selectedProveedor" class="selected-card p-3">
-                        <p class="font-semibold text-[#006d8f]">{{ selectedProveedor.nombreCompleto }}</p>
-                        <p class="text-xs text-gray-600">{{ formatRutForDisplay(selectedProveedor.identificador) }}</p>
-                        <button type="button" class="text-xs text-gray-600 underline mt-1" @click="selectedProveedor = null">Cambiar</button>
-                    </div>
-                    <div v-else>
-                        <input
-                            v-model="proveedorQuery"
-                            type="text"
-                            placeholder="Buscar por nombre o RUT..."
-                            class="compact-control"
-                            @input="searchProveedor(proveedorQuery)"
-                            @focus="showProveedorDropdown = true"
-                            @blur="closeProveedorDropdownDelayed"
-                        />
-                        <div v-if="proveedorLoading" class="absolute right-3 top-10 text-xs text-gray-400">Buscando...</div>
-                        <ul v-if="showProveedorDropdown && proveedorResults.length > 0" class="dropdown-panel absolute z-20 mt-1 max-h-56 w-full overflow-auto">
-                            <li
-                                v-for="entidad in proveedorResults"
-                                :key="entidad.id"
-                                @mousedown.prevent="selectedProveedor = entidad; proveedorQuery = ''; showProveedorDropdown = false"
-                            >
-                                <p class="text-sm font-medium text-gray-900">{{ entidad.nombreCompleto }}</p>
-                                <p class="text-xs text-gray-500">{{ formatRutForDisplay(entidad.identificador) }}</p>
-                            </li>
-                        </ul>
-                        <div v-else-if="showProveedorDropdown && !proveedorLoading && proveedorQuery.trim().length >= 2" class="dropdown-panel absolute z-20 mt-1 w-full">
-                            <AgregarPersonaRapida :query="proveedorQuery" @agregar="abrirCrearPersona(proveedorQuery)" />
-                        </div>
-                    </div>
-                </div>
+                <EntidadSelector v-model="selectedProveedor" label="Proveedor / Origen" required crear-persona />
 
-                <div class="relative">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                        Responsable interno <span class="text-red-500">*</span>
-                    </label>
-                    <div v-if="selectedResponsable" class="selected-card p-3">
-                        <p class="font-semibold text-[#006d8f]">{{ selectedResponsable.nombreCompleto }}</p>
-                        <p class="text-xs text-gray-600">{{ formatRutForDisplay(selectedResponsable.identificador) }}</p>
-                        <p v-if="!canChangeResponsible" class="text-xs text-gray-500 mt-1">Asignado automáticamente desde Authentik</p>
-                        <button v-else type="button" class="text-xs text-gray-600 underline mt-1" @click="selectedResponsable = null">Cambiar</button>
-                    </div>
-                    <div v-else-if="resolvingResponsable" class="form-panel-muted p-3 text-sm text-[var(--text-muted)]">
-                        Resolviendo responsable interno...
-                    </div>
-                    <div v-else>
-                        <input
-                            v-if="canChangeResponsible"
-                            v-model="responsableQuery"
-                            type="text"
-                            placeholder="Buscar por nombre o RUT..."
-                            class="compact-control"
-                            @input="searchResponsable(responsableQuery)"
-                            @focus="showResponsableDropdown = true"
-                            @blur="closeResponsableDropdownDelayed"
-                        />
-                        <div v-else class="message-banner message-error">
-                            No se encontró tu responsable interno. Debe existir una entidad con tu nombre o correo de Authentik.
-                        </div>
-                        <div v-if="responsableLoading" class="absolute right-3 top-10 text-xs text-gray-400">Buscando...</div>
-                        <ul v-if="showResponsableDropdown && responsableResults.length > 0" class="dropdown-panel absolute z-20 mt-1 max-h-56 w-full overflow-auto">
-                            <li
-                                v-for="entidad in responsableResults"
-                                :key="entidad.id"
-                                @mousedown.prevent="selectedResponsable = entidad; responsableQuery = ''; showResponsableDropdown = false"
-                            >
-                                <p class="text-sm font-medium text-gray-900">{{ entidad.nombreCompleto }}</p>
-                                <p class="text-xs text-gray-500">{{ formatRutForDisplay(entidad.identificador) }}</p>
-                            </li>
-                        </ul>
-                    </div>
-                </div>
+                <EntidadSelector
+                    v-model="selectedResponsable"
+                    label="Responsable interno"
+                    required
+                    :locked="!canChangeResponsible || resolvingResponsable"
+                    locked-hint="Asignado automáticamente desde Authentik"
+                >
+                    <template #locked-empty>
+                        <span v-if="resolvingResponsable">Resolviendo responsable interno...</span>
+                        <span v-else class="text-red-600">No se encontró tu responsable interno. Debe existir una entidad con tu nombre o correo de Authentik.</span>
+                    </template>
+                </EntidadSelector>
             </div>
 
             <div class="grid grid-cols-1 gap-4 border-t border-[var(--card-border)] px-5 py-4 md:grid-cols-4">
@@ -673,8 +543,22 @@ onBeforeUnmount(clearBoletaPreview);
                                     {{ detalle.nombre }}
                                     <span v-if="detalle.codigoBarras" class="block font-mono text-xs text-gray-500">{{ detalle.codigoBarras }}<template v-if="!detalle.itemCatalogoId"> · nuevo</template></span>
                                 </td>
-                                <td class="px-4 py-3 text-sm text-gray-700">{{ detalle.cantidad }}</td>
-                                <td class="px-4 py-3 text-sm text-gray-700">{{ currency.format(detalle.precioUnitarioIngreso) }}</td>
+                                <td class="px-4 py-2">
+                                    <CantidadStepper v-model="detalle.cantidad" :unidad="detalle.unidad" />
+                                    <p v-if="errorCantidad(detalle.cantidad, detalle.unidad)" class="mt-1 text-xs text-red-600">{{ errorCantidad(detalle.cantidad, detalle.unidad) }}</p>
+                                </td>
+                                <td class="px-4 py-2">
+                                    <input
+                                        :value="detalle.precioUnitarioIngreso"
+                                        type="text"
+                                        inputmode="numeric"
+                                        pattern="[0-9]*"
+                                        aria-label="Precio unitario"
+                                        class="compact-control w-28"
+                                        :class="{ '!border-red-400': !(detalle.precioUnitarioIngreso > 0) }"
+                                        @input="detalle.precioUnitarioIngreso = integerFromInput($event)"
+                                    />
+                                </td>
                                 <td class="px-4 py-3 text-sm font-semibold text-right text-gray-900">
                                     {{ currency.format(detalle.cantidad * detalle.precioUnitarioIngreso) }}
                                 </td>
@@ -726,5 +610,4 @@ onBeforeUnmount(clearBoletaPreview);
             @close="showEscaner = false"
         />
     </div>
-    <ModalCrearPersona :is-open="crearPersona.abierto" :initial-search="crearPersona.busqueda" @close="crearPersona.abierto = false" @created="personaCreada" />
 </template>

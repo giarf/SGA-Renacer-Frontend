@@ -6,6 +6,7 @@ import { ApiError, apiService } from '../api/apiService';
 import AsistenciaDialog from '../components/AsistenciaDialog.vue';
 import AgregarPersonaRapida from '../components/AgregarPersonaRapida.vue';
 import ModalCrearPersona from '../components/ModalCrearPersona.vue';
+import { buscarCoherente } from '../components/EntidadSelector.vue';
 import AsistenciaCelda from '../components/AsistenciaCelda.vue';
 import CampanaMensajeCelda from '../components/CampanaMensajeCelda.vue';
 import type { ColumnaCampana } from '../types';
@@ -91,7 +92,8 @@ watch(search, query => {
     if (!searching.value) return;
     timer = setTimeout(async () => {
         try {
-            const data = await apiService.buscarEntidades(query.trim(), 'PersonaNatural');
+            // Misma búsqueda que EntidadSelector (nombre/apellido en cualquier orden, sin tildes, RUT con o sin formato).
+            const data = await buscarCoherente(query.trim(), 'PersonaNatural');
             if (disposed || sequence !== searchSequence) return;
             results.value = data.filter(p => p.tipoEntidad === 'PersonaNatural' && (modal.value === 'persona'
                 ? !detalle.value?.participantes.some(row => row.beneficiario.id === p.id)

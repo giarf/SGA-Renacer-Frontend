@@ -7,6 +7,7 @@ import HuellasPanel from './HuellasPanel.vue';
 import ProfilePhotoInput from './ProfilePhotoInput.vue';
 import EtiquetaChipsSelector from './EtiquetaChipsSelector.vue';
 import RegionComunaSelect from './RegionComunaSelect.vue';
+import EntidadSelector from './EntidadSelector.vue';
 import { apiService } from '../api/apiService';
 import { formatRutForDisplay, formatRutForBackend } from '../utils/rutFormatter';
 import { X, Pencil, ChevronDown, UserRound, MapPin, ClipboardList, FingerprintPattern } from 'lucide-vue-next';
@@ -71,45 +72,13 @@ const institucionForm = reactive({
     sector: ''
 });
 
-const gestorQuery = ref('');
-const gestorResults = ref<EntidadResumen[]>([]);
-const gestorLoading = ref(false);
-const showGestorDropdown = ref(false);
 const selectedGestor = ref<EntidadResumen | null>(null);
-let gestorDebounce: ReturnType<typeof setTimeout> | null = null;
-
-const searchGestor = (query: string) => {
-    if (gestorDebounce) clearTimeout(gestorDebounce);
-    if (!query || query.trim().length < 2) {
-        gestorResults.value = [];
-        return;
-    }
-    gestorDebounce = setTimeout(async () => {
-        gestorLoading.value = true;
-        try {
-            gestorResults.value = await apiService.buscarEntidades(query);
-        } catch {
-            gestorResults.value = [];
-        } finally {
-            gestorLoading.value = false;
-        }
-    }, 300);
-};
-
-const selectGestor = (entidad: EntidadResumen) => {
-    selectedGestor.value = entidad;
-    personaForm.gestorId = entidad.id;
-    institucionForm.gestorId = entidad.id;
-    gestorQuery.value = '';
-    showGestorDropdown.value = false;
-};
-
-const clearGestor = () => {
-    selectedGestor.value = null;
-    personaForm.gestorId = undefined;
-    institucionForm.gestorId = undefined;
-    gestorQuery.value = '';
-};
+// El gestor elegido en el buscador se copia a ambos formularios; nadie puede ser su propio gestor.
+watch(selectedGestor, (entidad) => {
+    personaForm.gestorId = entidad?.id;
+    institucionForm.gestorId = entidad?.id;
+});
+const noEsLaMisma = (entidad: EntidadResumen) => entidad.id !== props.entidad?.id;
 
 const formatRut = (value: string) => {
     const clean = value.replace(/[^0-9kK]/g, '');
@@ -199,8 +168,6 @@ watch(
     async newVal => {
         if (!newVal) return;
         error.value = null;
-        gestorQuery.value = '';
-        gestorResults.value = [];
         if (newVal.tipoEntidad === 'PersonaNatural') {
             await hydratePersona(newVal);
         } else {
@@ -401,47 +368,7 @@ const save = async () => {
                         </summary>
                         <div class="edit-section-body">
                         <div class="edit-grid">
-                        <div class="relative">
-                            <label :for="`${fieldId}-gestor`">Gestor</label>
-                            <div
-                                v-if="selectedGestor"
-                                class="flex items-center justify-between gap-3 bg-[var(--surface-muted)] p-3 rounded-xl border border-[var(--card-border)]"
-                            >
-                                <div>
-                                    <span class="block font-bold text-[var(--accent-color)]">{{ selectedGestor.nombreCompleto }}</span>
-                                    <span class="text-xs text-[var(--text-muted)]">{{ formatRutForDisplay(selectedGestor.identificador) }}</span>
-                                </div>
-                                <button type="button" @click="clearGestor" class="text-sm text-[var(--accent-color)] hover:underline">Cambiar</button>
-                            </div>
-                            <div v-else>
-                                <input
-                                    :id="`${fieldId}-gestor`"
-                                    type="text"
-                                    v-model="gestorQuery"
-                                    @input="searchGestor(gestorQuery)"
-                                    @focus="showGestorDropdown = true"
-                                    placeholder="Buscar gestor por nombre o RUT..."
-                                />
-                                <div
-                                    v-if="showGestorDropdown && gestorQuery.length >= 2"
-                                    class="dropdown-panel absolute z-20 mt-2 max-h-56 w-full overflow-auto"
-                                >
-                                    <div v-if="gestorLoading" class="p-3 text-center text-sm text-[var(--text-muted)]">Buscando...</div>
-                                    <ul v-else-if="gestorResults.length > 0">
-                                        <li
-                                            v-for="entidad in gestorResults"
-                                            :key="entidad.id"
-                                        >
-                                            <button type="button" class="w-full text-left" @click="selectGestor(entidad)">
-                                                <span class="block font-medium text-[var(--text-primary)]">{{ entidad.nombreCompleto }}</span>
-                                                <span class="block text-xs text-[var(--text-muted)]">{{ formatRutForDisplay(entidad.identificador) }}</span>
-                                            </button>
-                                        </li>
-                                    </ul>
-                                    <div v-else class="p-3 text-center text-sm text-[var(--text-muted)]">Sin coincidencias</div>
-                                </div>
-                            </div>
-                        </div>
+                        <EntidadSelector v-model="selectedGestor" label="Gestor" placeholder="Buscar gestor por nombre o RUT..." :filtro="noEsLaMisma" />
                         <div>
                             <label :for="`${fieldId}-ocupacion`">Ocupación</label>
                             <input :id="`${fieldId}-ocupacion`" v-model="personaForm.ocupacion" placeholder="Ocupación" />
@@ -475,43 +402,7 @@ const save = async () => {
                 </template>
 
                 <template v-else>
-                    <div class="relative">
-                        <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Gestor</label>
-                        <div v-if="selectedGestor" class="flex items-center justify-between bg-[var(--accent-color-muted)]/50 p-4 rounded-2xl border border-[var(--accent-color-muted)]">
-                            <div>
-                                <span class="block font-bold text-[var(--accent-color)]">{{ selectedGestor.nombreCompleto }}</span>
-                                <span class="text-xs text-gray-600 dark:text-gray-300">{{ formatRutForDisplay(selectedGestor.identificador) }}</span>
-                            </div>
-                            <button type="button" @click="clearGestor" class="text-sm text-[var(--accent-color)] hover:underline">Cambiar</button>
-                        </div>
-                        <div v-else>
-                            <input
-                                type="text"
-                                v-model="gestorQuery"
-                                @input="searchGestor(gestorQuery)"
-                                @focus="showGestorDropdown = true"
-                                placeholder="Buscar gestor por nombre o RUT..."
-                                class="w-full px-4 py-2 rounded-2xl border border-[var(--card-border)] bg-[var(--bg-base)]/60"
-                            />
-                            <div
-                                v-if="showGestorDropdown && gestorQuery.length >= 2"
-                                class="dropdown-panel absolute z-20 mt-2 max-h-56 w-full overflow-auto"
-                            >
-                                <div v-if="gestorLoading" class="p-3 text-center text-sm text-gray-500">Buscando...</div>
-                                <ul v-else-if="gestorResults.length > 0">
-                                    <li
-                                        v-for="entidad in gestorResults"
-                                        :key="entidad.id"
-                                        @click="selectGestor(entidad)"
-                                    >
-                                        <p class="font-medium text-gray-900 dark:text-white">{{ entidad.nombreCompleto }}</p>
-                                        <p class="text-xs text-gray-500">{{ formatRutForDisplay(entidad.identificador) }}</p>
-                                    </li>
-                                </ul>
-                                <div v-else class="p-3 text-center text-sm text-gray-500">Sin coincidencias</div>
-                            </div>
-                        </div>
-                    </div>
+                    <EntidadSelector v-model="selectedGestor" label="Gestor" placeholder="Buscar gestor por nombre o RUT..." :filtro="noEsLaMisma" />
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>

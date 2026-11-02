@@ -5,7 +5,7 @@ import { DoorOpen, Edit3, KeyRound, Loader2, Plus, RefreshCw, Shield, ShieldChec
 import { authentikAdminService, type ManagedAuthentikUser } from '../api/authentikAdminService';
 import { apiService } from '../api/apiService';
 import type { EntidadResumen } from '../types';
-import { formatRutForDisplay } from '../utils/rutFormatter';
+import EntidadSelector from '../components/EntidadSelector.vue';
 
 const users = ref<ManagedAuthentikUser[]>([]);
 const loading = ref(false);
@@ -17,12 +17,9 @@ const message = ref<{ type: 'success' | 'error'; text: string } | null>(null);
 const modalMode = ref<'create' | 'edit' | null>(null);
 const selectedUser = ref<ManagedAuthentikUser | null>(null);
 const showPasswordModal = ref(false);
-const personaQuery = ref('');
-const personaResults = ref<EntidadResumen[]>([]);
 const selectedPersona = ref<EntidadResumen | null>(null);
 const searchingPersona = ref(false);
 const generatingUsername = ref(false);
-const showPersonaDropdown = ref(false);
 
 const form = reactive({
     name: '',
@@ -38,8 +35,6 @@ const passwordForm = reactive({
     password: '',
     confirm: ''
 });
-
-let personaSearchTimer: ReturnType<typeof setTimeout> | null = null;
 
 const filteredUsers = computed(() => {
     const term = search.value;
@@ -140,43 +135,13 @@ const resetForm = () => {
     form.isAdmin = false;
     form.isGateAdmin = false;
     form.isActive = true;
-    personaQuery.value = '';
-    personaResults.value = [];
     selectedPersona.value = null;
-    showPersonaDropdown.value = false;
 };
 
-const searchPersonas = (query: string) => {
-    if (personaSearchTimer) clearTimeout(personaSearchTimer);
-    if (!query.trim() || query.trim().length < 2) {
-        personaResults.value = [];
-        return;
-    }
-
-    personaSearchTimer = setTimeout(async () => {
-        searchingPersona.value = true;
-        try {
-            personaResults.value = (await apiService.buscarEntidades(query)).filter(entidad => entidad.tipoEntidad === 'PersonaNatural');
-            showPersonaDropdown.value = true;
-        } catch (error: any) {
-            setMessage('error', error.message || 'No se pudieron buscar personas.');
-            personaResults.value = [];
-        } finally {
-            searchingPersona.value = false;
-        }
-    }, 250);
-};
-
-const closePersonaDropdownDelayed = () => {
-    window.setTimeout(() => {
-        showPersonaDropdown.value = false;
-    }, 180);
-};
-
-const selectPersona = async (persona: EntidadResumen) => {
+const selectPersona = async (persona: EntidadResumen | null) => {
+    selectedPersona.value = persona;
+    if (!persona) return;
     searchingPersona.value = true;
-    personaQuery.value = '';
-    showPersonaDropdown.value = false;
     try {
         const detalle = await apiService.getPersona(persona.id);
         selectedPersona.value = detalle;
@@ -269,7 +234,7 @@ const toggleAdmin = async (user: ManagedAuthentikUser) => {
     try {
         const result = await authentikAdminService.setAdmin(user.id, !user.isAdmin);
         if (result?.status === 'already_admin' || result?.status === 'not_admin') {
-            console.log(`[Usuarios] ${result.message}, recargando para verificar estado real`);
+            // El permiso ya estaba en ese estado: solo se recarga para reflejar el estado real.
         } else {
             setMessage('success', result?.message || (user.isAdmin ? 'Permiso admin removido.' : 'Permiso admin agregado.'));
         }
@@ -286,7 +251,7 @@ const toggleGateAdmin = async (user: ManagedAuthentikUser) => {
     try {
         const result = await authentikAdminService.setGateAdmin(user.id, !user.isGateAdmin);
         if (result?.status === 'already_gate_admin' || result?.status === 'not_gate_admin') {
-            console.log(`[Usuarios] ${result.message}, recargando para verificar estado real`);
+            // El permiso ya estaba en ese estado: solo se recarga para reflejar el estado real.
         } else {
             setMessage('success', result?.message || (user.isGateAdmin ? 'Permiso admin puerta removido.' : 'Permiso admin puerta agregado.'));
         }
@@ -468,40 +433,18 @@ onMounted(loadUsers);
                     </button>
                 </div>
                 <div class="space-y-4 p-5">
-                    <div v-if="modalMode === 'create'" class="relative">
-                        <label class="block text-sm font-medium">Buscar persona en SGA</label>
-                        <div v-if="selectedPersona" class="mt-1 flex items-center justify-between rounded-xl border border-blue-200 bg-blue-50 p-3">
-                            <div>
-                                <p class="text-sm font-semibold text-blue-900">{{ selectedPersona.nombreCompleto }}</p>
-                                <p class="text-xs text-blue-700">{{ formatRutForDisplay(selectedPersona.identificador) }}</p>
-                            </div>
-                            <button type="button" class="text-xs text-blue-700 underline" @click="selectedPersona = null">Cambiar</button>
-                        </div>
-                        <div v-else class="relative mt-1">
-                            <input
-                                v-model="personaQuery"
-                                type="search"
-                                placeholder="Escribe nombre o RUT..."
-                                @input="searchPersonas(personaQuery)"
-                                @focus="showPersonaDropdown = true"
-                                @blur="closePersonaDropdownDelayed"
-                            />
-                            <div v-if="searchingPersona" class="absolute right-3 top-2.5 text-xs text-[var(--text-muted)]">Buscando...</div>
-                            <ul v-if="showPersonaDropdown && personaResults.length > 0" class="dropdown-panel absolute z-20 mt-1 max-h-52 w-full overflow-auto">
-                                <li
-                                    v-for="persona in personaResults"
-                                    :key="persona.id"
-                                    @mousedown.prevent="selectPersona(persona)"
-                                >
-                                    <p class="text-sm font-medium text-[var(--text-primary)]">{{ persona.nombreCompleto }}</p>
-                                    <p class="text-xs text-[var(--text-muted)]">{{ formatRutForDisplay(persona.identificador) }}</p>
-                                </li>
-                            </ul>
-                            <div v-else-if="showPersonaDropdown && personaQuery.length >= 2 && !searchingPersona" class="absolute z-20 mt-1 w-full rounded-xl border border-[var(--card-border)] bg-[var(--bg-card)] p-3 text-xs text-[var(--text-muted)] shadow-xl">
-                                Sin coincidencias en personas.
-                            </div>
-                        </div>
-                    </div>
+                    <EntidadSelector
+                        v-if="modalMode === 'create'"
+                        :model-value="selectedPersona"
+                        label="Buscar persona en SGA"
+                        tipo="PersonaNatural"
+                        placeholder="Escribe nombre o RUT..."
+                        @update:model-value="selectPersona"
+                    >
+                        <template #selected>
+                            <span v-if="searchingPersona" class="text-xs text-[var(--text-muted)]">Cargando datos de la persona...</span>
+                        </template>
+                    </EntidadSelector>
                     <label class="block text-sm font-medium">Nombre completo<input v-model="form.name" required class="mt-1" /></label>
                     <label class="block text-sm font-medium">Correo<input v-model="form.email" required type="email" class="mt-1" /></label>
                     <label class="block text-sm font-medium">

@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { reactive, ref } from 'vue';
+import { reactive, ref, watch } from 'vue';
+import EntidadSelector from './EntidadSelector.vue';
 import PhoneInput from './PhoneInput.vue';
 import { apiService } from '../api/apiService';
-import { formatRutForBackend, formatRutForDisplay } from '../utils/rutFormatter';
+import { formatRutForBackend } from '../utils/rutFormatter';
 import type { RegistrarInstitucionPayload, EntidadResumen } from '../types';
 
 const emit = defineEmits<{
@@ -29,42 +30,13 @@ const form = reactive({
     rubro: ''
 });
 
-const gestorQuery = ref('');
-const gestorResults = ref<EntidadResumen[]>([]);
-const gestorLoading = ref(false);
-const showGestorDropdown = ref(false);
 const selectedGestor = ref<EntidadResumen | null>(null);
-let gestorDebounce: ReturnType<typeof setTimeout> | null = null;
-
-const searchGestor = (query: string) => {
-    if (gestorDebounce) clearTimeout(gestorDebounce);
-    if (!query || query.trim().length < 2) {
-        gestorResults.value = [];
-        return;
-    }
-    gestorDebounce = setTimeout(async () => {
-        gestorLoading.value = true;
-        try {
-            gestorResults.value = await apiService.buscarEntidades(query);
-        } catch {
-            gestorResults.value = [];
-        } finally {
-            gestorLoading.value = false;
-        }
-    }, 300);
-};
-
-const selectGestor = (entidad: EntidadResumen) => {
-    selectedGestor.value = entidad;
-    form.gestorId = entidad.id;
-    gestorQuery.value = '';
-    showGestorDropdown.value = false;
-};
+// El gestor elegido en el buscador se guarda en el payload.
+watch(selectedGestor, (entidad) => { form.gestorId = entidad?.id; });
 
 const clearGestor = () => {
     selectedGestor.value = null;
     form.gestorId = undefined;
-    gestorQuery.value = '';
 };
 
 const formatRut = (value: string) => {
@@ -178,42 +150,7 @@ const submit = async () => {
             </div>
         </div>
 
-        <div class="relative">
-            <label class="block text-sm font-semibold text-gray-700 mb-1">Gestor</label>
-            <div v-if="selectedGestor" class="selected-card flex items-center justify-between p-3">
-                <div>
-                    <span class="block font-bold text-blue-700">{{ selectedGestor.nombreCompleto }}</span>
-                    <span class="text-xs text-gray-600">{{ formatRutForDisplay(selectedGestor.identificador) }}</span>
-                </div>
-                <button type="button" @click="clearGestor" class="text-sm text-blue-600 hover:text-blue-800 underline">Cambiar</button>
-            </div>
-            <div v-else>
-                <input
-                    type="text"
-                    v-model="gestorQuery"
-                    @input="searchGestor(gestorQuery)"
-                    @focus="showGestorDropdown = true"
-                    placeholder="Buscar gestor por nombre o RUT..."
-                />
-                <div
-                    v-if="showGestorDropdown && gestorQuery.length >= 2"
-                    class="dropdown-panel absolute z-20 mt-2 max-h-48 w-full overflow-auto"
-                >
-                    <div v-if="gestorLoading" class="p-3 text-center text-sm text-gray-500">Buscando...</div>
-                    <ul v-else-if="gestorResults.length > 0">
-                        <li
-                            v-for="entidad in gestorResults"
-                            :key="entidad.id"
-                            @click="selectGestor(entidad)"
-                        >
-                            <p class="font-medium text-gray-900">{{ entidad.nombreCompleto }}</p>
-                            <p class="text-xs text-gray-500">{{ formatRutForDisplay(entidad.identificador) }}</p>
-                        </li>
-                    </ul>
-                    <div v-else class="p-3 text-center text-sm text-gray-500">No se encontraron resultados</div>
-                </div>
-            </div>
-        </div>
+        <EntidadSelector v-model="selectedGestor" label="Gestor" placeholder="Buscar gestor por nombre o RUT..." />
 
         <div>
             <label class="block text-sm font-semibold text-gray-700 mb-1">Anotaciones</label>
