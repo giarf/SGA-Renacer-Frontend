@@ -1,24 +1,31 @@
 <script setup lang="ts">
 import { nextTick, ref, useId, watch } from 'vue';
 import PersonaForm from './PersonaForm.vue';
+import PersonaRapidaForm from './PersonaRapidaForm.vue';
 import HuellasPanel from './HuellasPanel.vue';
 import { X, UserPlus, FingerprintPattern } from 'lucide-vue-next';
+import { hasAnyGroup } from '../auth/authService';
+import { ADMIN_GROUPS } from '../auth/permissions';
+import type { EntidadResumen } from '../types';
 
 const props = defineProps<{ isOpen: boolean; initialSearch?: string }>();
 const emit = defineEmits<{
     (e: 'close'): void;
-    (e: 'created', rut: string, id?: number): void;
+    (e: 'created', rut: string, id?: number, entidad?: EntidadResumen): void;
 }>();
 const dialog = ref<HTMLDialogElement | null>(null);
 const busy = ref(false);
 const titleId = useId();
-const creada = ref<{ rut: string; id: number } | null>(null);
+const creada = ref<{ rut: string; id: number; entidad?: EntidadResumen } | null>(null);
+// Los miembros no ven la ficha completa de las entidades: solo registran nombres, apellidos y teléfono.
+const rapida = ref(!hasAnyGroup(ADMIN_GROUPS));
 
 watch(() => props.isOpen, async (open) => {
     await nextTick();
     if (open && props.isOpen) {
         busy.value = false;
         creada.value = null;
+        rapida.value = !hasAnyGroup(ADMIN_GROUPS);
         dialog.value?.showModal();
     } else if (!props.isOpen) {
         dialog.value?.close();
@@ -28,7 +35,7 @@ watch(() => props.isOpen, async (open) => {
 const finish = () => {
     const persona = creada.value;
     creada.value = null;
-    if (persona) emit('created', persona.rut, persona.id);
+    if (persona) emit('created', persona.rut, persona.id, persona.entidad);
     emit('close');
 };
 
@@ -39,10 +46,10 @@ const requestClose = () => {
 };
 
 // Con la persona ya creada se ofrece registrar su huella antes de devolverla.
-const handleCreated = (rut: string, id?: number) => {
-    if (id) creada.value = { rut, id };
+const handleCreated = (rut: string, id?: number, entidad?: EntidadResumen) => {
+    if (id) creada.value = { rut, id, entidad };
     else {
-        emit('created', rut, id);
+        emit('created', rut, id, entidad);
         emit('close');
     }
 };
@@ -55,7 +62,7 @@ const handleCreated = (rut: string, id?: number) => {
                 <div class="person-dialog-icon"><FingerprintPattern v-if="creada" :size="21" aria-hidden="true" /><UserPlus v-else :size="21" aria-hidden="true" /></div>
                 <div class="min-w-0 flex-1">
                     <h2 :id="titleId">{{ creada ? 'Registrar huella' : 'Nueva persona' }}</h2>
-                    <p>{{ creada ? 'Persona registrada. Puedes agregar su huella ahora u omitir este paso.' : 'Registra sus datos sin salir de esta página.' }}</p>
+                    <p>{{ creada ? 'Persona registrada. Puedes agregar su huella ahora u omitir este paso.' : rapida ? 'No está registrada: agrégala con lo mínimo y sigue con el formulario.' : 'Registra sus datos sin salir de esta página.' }}</p>
                 </div>
                 <button type="button" class="person-dialog-close" aria-label="Cerrar nueva persona" :disabled="busy" @click="requestClose">
                     <X :size="20" aria-hidden="true" />
@@ -65,6 +72,7 @@ const handleCreated = (rut: string, id?: number) => {
                 <div class="person-dialog-step"><HuellasPanel :persona-id="creada.id" /></div>
                 <footer class="person-dialog-footer"><button type="button" class="btn-primary" @click="finish">Listo</button></footer>
             </template>
+            <PersonaRapidaForm v-else-if="isOpen && rapida" :initial-search="initialSearch" @cancel="requestClose" @created="handleCreated" @busy="busy = $event" />
             <PersonaForm v-else-if="isOpen" :initial-search="initialSearch" @cancel="requestClose" @created="handleCreated" @busy="busy = $event" />
         </dialog>
     </Teleport>

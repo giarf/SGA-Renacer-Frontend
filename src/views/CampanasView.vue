@@ -4,6 +4,8 @@ import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { ArrowLeft, ArrowUpRight, Columns3, HandHeart, MessageCircle, Plus, RefreshCw, Search, Trash2, UserPlus } from 'lucide-vue-next';
 import { ApiError, apiService } from '../api/apiService';
 import AsistenciaDialog from '../components/AsistenciaDialog.vue';
+import AgregarPersonaRapida from '../components/AgregarPersonaRapida.vue';
+import ModalCrearPersona from '../components/ModalCrearPersona.vue';
 import AsistenciaCelda from '../components/AsistenciaCelda.vue';
 import CampanaMensajeCelda from '../components/CampanaMensajeCelda.vue';
 import type { ColumnaCampana } from '../types';
@@ -121,6 +123,12 @@ async function create() {
         modal.value = null; await router.push(`/campanas/${created.id}`);
     });
 }
+// Persona no encontrada: alta rápida y se asigna de inmediato.
+const crearPersonaAbierto = ref(false);
+function personaCreada(_rut: string, personaId?: number) {
+    if (personaId) void choose(personaId);
+}
+
 async function choose(personaId: number | null) {
     const campaignId = id.value; const row = selected.value; const kind = modal.value;
     if (!campaignId) return;
@@ -237,10 +245,11 @@ async function saveCell(rowId: number, columnId: number, value: GuardarValorCamp
             <p v-if="modalError" role="alert" class="feedback error">{{ modalError }}</p>
             <form v-if="modal === 'mensaje' && mensajeColumna" class="dialog-form" @submit.prevent="configurarMensaje(mensajeColumna, mensajeForm)"><label>Mensaje<textarea v-model="mensajeForm" maxlength="2000" rows="8" /></label><p class="muted">{nombre}: destinatario · {beneficiario} · {campana} · {gustos}</p><button class="btn btn-primary" :disabled="working || loading">Guardar para todos</button></form>
             <form v-if="modal === 'campana'" class="dialog-form" @submit.prevent="create"><label>Nombre<input v-model="form.nombre" required maxlength="120" placeholder="Apadrinamiento Navidad 2026" /></label><label>Fecha de referencia<input v-model="form.fecha" type="date" required /></label><label>Descripción<textarea v-model="form.descripcion" maxlength="2000" rows="3" /></label><label>Plantilla<select v-model="form.plantilla"><option value="apadrinamiento">Apadrinamiento · regalos y agradecimientos</option><option value="personalizada">Personalizada · agregar mis columnas</option></select></label><button class="btn btn-primary" :disabled="working || loading || !form.nombre.trim()">Crear campaña</button></form>
-            <div v-else-if="modal === 'persona' || modal === 'padrino'" class="dialog-form"><p v-if="selected">Beneficiario: <strong>{{ selected.beneficiario.nombreCompleto }}</strong></p><p v-if="modal === 'padrino' && selected?.padrino" class="muted">Al cambiar de padrino, la ficha y el agradecimiento quedan pendientes de enviar al nuevo contacto.</p><label>Buscar persona<input v-model="search" placeholder="Nombre o RUT (mínimo 2 caracteres)" :disabled="working" /></label><p v-if="searching" role="status">Buscando…</p><div v-else class="person-results"><button v-for="p in results" :key="p.id" :disabled="working || loading" @click="choose(p.id)"><strong>{{ p.nombreCompleto }}</strong><span>{{ p.identificador || 'Sin RUT' }}<template v-if="modal === 'padrino'"> · {{ padrinoCount(p.id) }} beneficiario(s)</template></span><Plus :size="16" /></button><p v-if="search.trim().length >= 2 && !results.length" class="muted">No hay coincidencias disponibles. Puedes registrar personas nuevas en Entidades.</p></div><button v-if="modal === 'padrino' && selected?.padrino" class="btn btn-outline" :disabled="working || loading" @click="choose(null)">Quitar padrino y dejar pendiente</button></div>
+            <div v-else-if="modal === 'persona' || modal === 'padrino'" class="dialog-form"><p v-if="selected">Beneficiario: <strong>{{ selected.beneficiario.nombreCompleto }}</strong></p><p v-if="modal === 'padrino' && selected?.padrino" class="muted">Al cambiar de padrino, la ficha y el agradecimiento quedan pendientes de enviar al nuevo contacto.</p><label>Buscar persona<input v-model="search" placeholder="Nombre o RUT (mínimo 2 caracteres)" :disabled="working" /></label><p v-if="searching" role="status">Buscando…</p><div v-else class="person-results"><button v-for="p in results" :key="p.id" :disabled="working || loading" @click="choose(p.id)"><strong>{{ p.nombreCompleto }}</strong><span>{{ p.identificador || 'Sin RUT' }}<template v-if="modal === 'padrino'"> · {{ padrinoCount(p.id) }} beneficiario(s)</template></span><Plus :size="16" /></button><AgregarPersonaRapida v-if="search.trim().length >= 2 && !results.length" :query="search" @agregar="crearPersonaAbierto = true" /></div><button v-if="modal === 'padrino' && selected?.padrino" class="btn btn-outline" :disabled="working || loading" @click="choose(null)">Quitar padrino y dejar pendiente</button></div>
             <form v-else-if="modal === 'columna'" class="dialog-form" @submit.prevent="addColumn"><label>Nombre<input v-model="columna.nombre" required maxlength="120" /></label><label>Tipo<select v-model="columna.tipo"><option value="boolean">Casilla · Sí / No</option><option value="text">Texto</option><option value="number">Número</option><option value="whatsapp">Mensaje de WhatsApp</option></select></label><button class="btn btn-primary" :disabled="working || loading || !columna.nombre.trim()">Agregar columna</button></form>
             <div v-else-if="modal === 'quitar'" class="dialog-form"><p>¿Retirar a <strong>{{ selected?.beneficiario.nombreCompleto }}</strong> de esta campaña? Se eliminará su seguimiento en esta campaña. La persona seguirá registrada en el sistema.</p><button class="btn btn-primary" :disabled="working || loading" @click="remove">Retirar participante</button></div>
         </AsistenciaDialog>
+        <ModalCrearPersona :is-open="crearPersonaAbierto" :initial-search="search" @close="crearPersonaAbierto = false" @created="personaCreada" />
     </main>
 </template>
 

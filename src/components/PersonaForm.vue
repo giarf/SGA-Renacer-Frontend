@@ -16,7 +16,7 @@ const initialWords = initialText.split(' ');
 const emit = defineEmits<{
     (e: 'cancel'): void;
     (e: 'busy', value: boolean): void;
-    (e: 'created', rut: string, id?: number): void;
+    (e: 'created', rut: string, id?: number, entidad?: EntidadResumen): void;
 }>();
 
 const fieldId = useId();
@@ -147,7 +147,17 @@ const submit = async () => {
         if (created.id && selectedEtiquetaIds.value.length > 0) {
             await Promise.all(selectedEtiquetaIds.value.map(etiquetaId => apiService.asignarEtiquetaEntidad(created.id, etiquetaId)));
         }
-        emit('created', payloadToSend.rut || '', created.id);
+        const nombreCompleto = [payloadToSend.nombres, payloadToSend.apellidos].filter(Boolean).join(' ');
+        emit('created', payloadToSend.rut || '', created.id, created.id ? {
+            id: created.id,
+            tipoEntidad: 'PersonaNatural',
+            identificador: payloadToSend.rut || '',
+            rut: payloadToSend.rut,
+            nombreCompleto,
+            nombres: payloadToSend.nombres,
+            apellidos: payloadToSend.apellidos,
+            telefono: payloadToSend.telefono
+        } : undefined);
         resetForm();
     } catch (e: any) {
         error.value = e.message || 'Error al registrar persona';

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import ModalCrearPersona from '../components/ModalCrearPersona.vue';
+import AgregarPersonaRapida from '../components/AgregarPersonaRapida.vue';
 import { matchesSearch } from '../utils/search';
 import { ref, computed, onMounted, watch } from 'vue';
 import type { EntidadResumen, DonacionPayload, Cuenta } from '../types';
@@ -90,6 +92,17 @@ const selectEntidad = (e: EntidadResumen) => {
     selectedEntidad.value = e;
     searchQuery.value = '';
     isDropdownOpen.value = false;
+};
+
+// Persona no encontrada en el buscador: alta rápida y queda seleccionada.
+const crearPersona = ref({ abierto: false, busqueda: '' });
+const abrirCrearPersona = (busqueda: string) => {
+    crearPersona.value = { abierto: true, busqueda };
+};
+const personaCreada = (_rut: string, _id?: number, entidad?: EntidadResumen) => {
+    if (!entidad) return;
+    entidades.value = [entidad, ...entidades.value.filter(e => e.id !== entidad.id)];
+    selectEntidad(entidad);
 };
 
 const closeGestorDropdownDelayed = () => {
@@ -307,9 +320,7 @@ onMounted(async () => {
                                     <p class="text-xs text-[var(--text-muted)]">{{ formatRutForDisplay(entidad.identificador) }}</p>
                                 </li>
                             </ul>
-                            <div v-if="filteredEntidades.length === 0" class="bg-[var(--surface-muted)] p-4 text-center text-sm text-[var(--text-muted)]">
-                                No se encontraron resultados para "{{ searchQuery }}"
-                            </div>
+                            <AgregarPersonaRapida v-if="filteredEntidades.length === 0 && searchQuery.trim()" :query="searchQuery" @agregar="abrirCrearPersona(searchQuery)" />
                         </div>
                     </div>
                 </div>
@@ -462,5 +473,6 @@ onMounted(async () => {
                 </div>
             </form>
         </div>
+    <ModalCrearPersona :is-open="crearPersona.abierto" :initial-search="crearPersona.busqueda" @close="crearPersona.abierto = false" @created="personaCreada" />
     </div>
 </template>

@@ -545,6 +545,17 @@ export const apiService = {
 
 
 
+    /** Alta mínima (nombres, apellidos, teléfono) para cuando la persona buscada no existe. */
+    async registrarPersonaRapida(datos: { nombres: string; apellidos: string; telefono: string }): Promise<EntidadResumen> {
+        const data = await requestJson<any>(`${API_BASE_URL}/personas/rapida`, {
+            method: 'POST',
+            // Use text/plain to avoid CORS preflight (OPTIONS 405)
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify(datos)
+        });
+        return mapEntidadGenerica(data);
+    },
+
     async registrarPersonaNueva(datos: RegistrarPersonaPayload, foto?: File): Promise<{ id: number; mensaje?: string }> {
         const body = pruneEmpty({ ...datos });
         if (foto) {

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import ModalCrearPersona from '../components/ModalCrearPersona.vue';
+import AgregarPersonaRapida from '../components/AgregarPersonaRapida.vue';
 import { ref, computed, watch } from 'vue';
 import type { EntidadResumen, CatalogoItem, DonacionBienesPayload, LineaEscaneada } from '../types';
 import { apiService } from '../api/apiService';
@@ -172,6 +174,15 @@ const selectDonador = (entidad: EntidadResumen) => {
     selectedDonador.value = entidad;
     donadorQuery.value = '';
     showDonadorDropdown.value = false;
+};
+
+// Persona no encontrada en el buscador: alta rápida y queda seleccionada.
+const crearPersona = ref({ abierto: false, busqueda: '' });
+const abrirCrearPersona = (busqueda: string) => {
+    crearPersona.value = { abierto: true, busqueda };
+};
+const personaCreada = (_rut: string, _id?: number, entidad?: EntidadResumen) => {
+    if (entidad) selectDonador(entidad);
 };
 
 const selectReceptor = (entidad: EntidadResumen) => {
@@ -427,9 +438,7 @@ loadCurrentResponsible().finally(() => {
                                     <p class="text-xs text-gray-500">{{ formatRutForDisplay(entidad.identificador) }}</p>
                                 </li>
                             </ul>
-                            <div v-else class="p-4 text-center text-gray-500 text-sm">
-                                No se encontraron resultados
-                            </div>
+                            <AgregarPersonaRapida v-else :query="donadorQuery" @agregar="abrirCrearPersona(donadorQuery)" />
                         </div>
                     </div>
                 </div>
@@ -767,4 +776,5 @@ loadCurrentResponsible().finally(() => {
         @close="showModalRegistroCatalogo = false" 
         @created="handleCatalogoCreado"
     />
+    <ModalCrearPersona :is-open="crearPersona.abierto" :initial-search="crearPersona.busqueda" @close="crearPersona.abierto = false" @created="personaCreada" />
 </template>

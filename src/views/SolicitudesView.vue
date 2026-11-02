@@ -73,8 +73,14 @@ const showToast = (type: 'success' | 'error', text: string) => {
     }, 4000);
 };
 
-const handlePersonaCreada = async (rut: string) => {
+const handlePersonaCreada = async (rut: string, _id?: number, entidad?: EntidadResumen) => {
     showCrearPersonaModal.value = false;
+    if (entidad) {
+        solicitante.value = entidad;
+        solicitanteQuery.value = '';
+        showToast('success', 'Persona registrada y seleccionada.');
+        return;
+    }
     try {
         const resultados = await apiService.buscarEntidades(rut);
         const encontrada = resultados.find(e => e.identificador === rut);
@@ -506,6 +512,7 @@ onMounted(async () => {
 
     <ModalCrearPersona
         :isOpen="showCrearPersonaModal"
+        :initial-search="solicitanteQuery"
         @close="showCrearPersonaModal = false"
         @created="handlePersonaCreada"
     />

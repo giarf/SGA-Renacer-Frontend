@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import ModalCrearPersona from '../components/ModalCrearPersona.vue';
+import AgregarPersonaRapida from '../components/AgregarPersonaRapida.vue';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { ExternalLink, FileImage, Loader2, Plus, ScanBarcode, Trash2, X } from 'lucide-vue-next';
 import { apiService } from '../api/apiService';
@@ -22,6 +24,18 @@ const proveedorResults = ref<EntidadResumen[]>([]);
 const proveedorLoading = ref(false);
 const showProveedorDropdown = ref(false);
 const selectedProveedor = ref<EntidadResumen | null>(null);
+
+// Persona no encontrada en el buscador: alta rápida y queda seleccionada.
+const crearPersona = ref({ abierto: false, busqueda: '' });
+const abrirCrearPersona = (busqueda: string) => {
+    crearPersona.value = { abierto: true, busqueda };
+};
+const personaCreada = (_rut: string, _id?: number, entidad?: EntidadResumen) => {
+    if (!entidad) return;
+    selectedProveedor.value = entidad;
+    proveedorQuery.value = '';
+    showProveedorDropdown.value = false;
+};
 
 const responsableQuery = ref('');
 const responsableResults = ref<EntidadResumen[]>([]);
@@ -455,6 +469,9 @@ onBeforeUnmount(clearBoletaPreview);
                                 <p class="text-xs text-gray-500">{{ formatRutForDisplay(entidad.identificador) }}</p>
                             </li>
                         </ul>
+                        <div v-else-if="showProveedorDropdown && !proveedorLoading && proveedorQuery.trim().length >= 2" class="dropdown-panel absolute z-20 mt-1 w-full">
+                            <AgregarPersonaRapida :query="proveedorQuery" @agregar="abrirCrearPersona(proveedorQuery)" />
+                        </div>
                     </div>
                 </div>
 
@@ -709,4 +726,5 @@ onBeforeUnmount(clearBoletaPreview);
             @close="showEscaner = false"
         />
     </div>
+    <ModalCrearPersona :is-open="crearPersona.abierto" :initial-search="crearPersona.busqueda" @close="crearPersona.abierto = false" @created="personaCreada" />
 </template>

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import ModalCrearPersona from '../components/ModalCrearPersona.vue';
+import AgregarPersonaRapida from '../components/AgregarPersonaRapida.vue';
 import { computed, onMounted, ref, watch } from 'vue';
 import { Boxes, HandCoins, Loader2, Plus, ScanBarcode, Trash2 } from 'lucide-vue-next';
 import { apiService } from '../api/apiService';
@@ -59,6 +61,18 @@ const destinoResults = ref<EntidadResumen[]>([]);
 const destinoLoading = ref(false);
 const showDestinoDropdown = ref(false);
 const selectedDestino = ref<EntidadResumen | null>(null);
+
+// Persona no encontrada en el buscador: alta rápida y queda seleccionada.
+const crearPersona = ref({ abierto: false, busqueda: '' });
+const abrirCrearPersona = (busqueda: string) => {
+    crearPersona.value = { abierto: true, busqueda };
+};
+const personaCreada = (_rut: string, _id?: number, entidad?: EntidadResumen) => {
+    if (!entidad) return;
+    selectedDestino.value = entidad;
+    destinoQuery.value = '';
+    showDestinoDropdown.value = false;
+};
 
 const itemQuery = ref('');
 const itemResults = ref<CatalogoItem[]>([]);
@@ -588,6 +602,9 @@ onMounted(async () => {
                                             <p class="text-xs text-gray-500">{{ formatRutForDisplay(entidad.identificador) }}</p>
                                         </li>
                                     </ul>
+                                    <div v-else-if="showDestinoDropdown && !destinoLoading && destinoQuery.trim().length >= 2" class="dropdown-panel absolute z-20 mt-1 w-full">
+                                        <AgregarPersonaRapida :query="destinoQuery" @agregar="abrirCrearPersona(destinoQuery)" />
+                                    </div>
                                 </div>
                             </div>
 
@@ -835,4 +852,5 @@ onMounted(async () => {
         @agregar="agregarEscaneado"
         @close="showEscaner = false"
     />
+    <ModalCrearPersona :is-open="crearPersona.abierto" :initial-search="crearPersona.busqueda" @close="crearPersona.abierto = false" @created="personaCreada" />
 </template>
