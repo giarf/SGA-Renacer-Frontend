@@ -445,7 +445,7 @@ const ACCIONES: DefAccion[] = [
         titulo: p => `Donación de ${clp.format(Number(p.monto))}`,
         ejecutar: async p => apiService.registrarDonacion({
             ingreso: { origenEntidadId: Number(p.origenEntidadId), responsableInternoId: await responsable(), montoTotal: Number(p.monto), tipoTransaccion: 'Donacion', estado: 'Cerrado', fecha: p.fecha ?? hoy(), anotaciones: p.anotaciones },
-            donacion: { propositoEspecifico: p.proposito || 'Donación registrada', gestorId: p.gestorId ? Number(p.gestorId) : undefined },
+            donacion: { propositoEspecifico: p.proposito?.trim() || undefined, gestorId: p.gestorId ? Number(p.gestorId) : undefined },
             pecuniario: { cuentaDestinoId: Number(p.cuentaDestinoId), metodoTransferencia: p.metodoTransferencia }
         })
     },
@@ -462,7 +462,7 @@ const ACCIONES: DefAccion[] = [
             });
             return apiService.registrarDonacionBienes({
                 ingreso: { origenEntidadId: Number(p.origenEntidadId), responsableInternoId: await responsable(), montoTotal: items.reduce((a, i) => a + i.cantidad * i.precio, 0), tipoTransaccion: 'Donacion', estado: 'Cerrado', fecha: p.fecha ?? hoy(), anotaciones: p.anotaciones },
-                donacion: { propositoEspecifico: p.proposito || 'Donación en especie' },
+                donacion: { propositoEspecifico: p.proposito?.trim() || undefined },
                 items
             });
         }

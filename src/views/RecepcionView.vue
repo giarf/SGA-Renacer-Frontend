@@ -216,9 +216,8 @@ const submitDonacion = async () => {
     submitting.value = true;
     message.value = null;
 
-    const destinoBase = selectedFondo.value?.nombre || 'Fondo sin nombre';
     const anotaciones = donationForm.value.anotaciones?.trim() || '';
-    const proposito = donationForm.value.proposito?.trim() || destinoBase;
+    const proposito = donationForm.value.proposito?.trim() || undefined;
     const payload: DonacionPayload = {
         ingreso: {
             origenEntidadId: selectedEntidad.value.id,

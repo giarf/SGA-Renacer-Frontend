@@ -5,7 +5,9 @@ import { Ban, Clock3, Pencil, Plus, RefreshCw, Printer, FileSpreadsheet, Funnel,
 import { apiService } from '../api/apiService';
 import { hasAnyGroup } from '../auth/authService';
 import { ADMIN_GROUPS } from '../auth/permissions';
-import type { CatalogoItem, CompraBoletaMetadata, CompraResumen, Cuenta, EgresoPayload, EgresoRecurso, IngresoDetalleResponse, IngresoResumen } from '../types';
+import type { CatalogoItem, CompraBoletaMetadata, CompraResumen, Cuenta, EgresoPayload, EgresoRecurso, EntidadResumen, IngresoDetalleResponse, IngresoResumen } from '../types';
+import EntidadSelector from '../components/EntidadSelector.vue';
+import { canChangeResponsible } from '../auth/currentResponsible';
 
 type LogRegistro = {
     key: string;
@@ -25,15 +27,20 @@ type EditDetalle = {
     precio: number;
 };
 
+// Variante del registro: decide qué campos se muestran, igual que en su formulario de registro.
+type EditVariante = 'donacion-dinero' | 'donacion-especie' | 'compra' | 'subvencion' | 'ingreso' | 'egreso';
+
 type EditForm = {
     movimiento: 'ingreso' | 'egreso';
+    variante: EditVariante;
     id: number;
     fecha: string;
     montoTotal: number;
     estado?: string;
     tipo?: string;
-    responsableInternoId?: number;
-    entidadId?: number;
+    responsable: EntidadResumen | null;
+    entidad: EntidadResumen | null;
+    gestor: EntidadResumen | null;
     anotaciones?: string;
     proposito?: string;
     documento?: string;
@@ -57,6 +64,8 @@ const anulandoKey = ref<string | null>(null);
 const editLoadingKey = ref<string | null>(null);
 const editSaving = ref(false);
 const editForm = ref<EditForm | null>(null);
+const editErrores = ref<string[]>([]);
+const entidadesPorId = ref<Map<number, EntidadResumen> | null>(null);
 const boletaStatus = ref<{ type: 'success' | 'error'; text: string } | null>(null);
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? 'https://api.familiarenacer.cl/api').replace(/\/$/, '');
 const apiOrigin = apiBaseUrl.replace(/\/api$/, '');
@@ -284,22 +293,82 @@ const recalcularMontoEdit = () => {
     editForm.value.montoTotal = editForm.value.detalles.reduce((sum, detalle) => sum + detalleTotal(detalle), 0);
 };
 
+const cargarEntidades = async () => {
+    if (entidadesPorId.value) return entidadesPorId.value;
+    const lista = await apiService.getEntidades();
+    entidadesPorId.value = new Map(lista.map(entidad => [entidad.id, entidad]));
+    return entidadesPorId.value;
+};
+
+// Convierte el ID guardado en la misma tarjeta seleccionada que muestra el registro.
+const entidadDesdeId = (mapa: Map<number, EntidadResumen>, id?: number | null): EntidadResumen | null => {
+    const valor = Number(id || 0);
+    if (valor <= 0) return null;
+    return mapa.get(valor) ?? { id: valor, tipoEntidad: 'PersonaNatural', identificador: '', nombreCompleto: `Entidad #${valor}` };
+};
+
+const varianteIngreso = (detalle: IngresoDetalleResponse): EditVariante => {
+    if (detalle.compra) return 'compra';
+    if (detalle.subvencion) return 'subvencion';
+    if (detalle.donacion) return detalle.pecuniario || detalle.detalles.length === 0 ? 'donacion-dinero' : 'donacion-especie';
+    return 'ingreso';
+};
+
+const varianteLabels: Record<EditVariante, string> = {
+    'donacion-dinero': 'Donación en dinero',
+    'donacion-especie': 'Donación en especie',
+    compra: 'Compra',
+    subvencion: 'Subvención',
+    ingreso: 'Ingreso',
+    egreso: 'Egreso'
+};
+
+const tipoEditLabel = (form: EditForm) => {
+    if (form.movimiento === 'egreso') return tipoLabels[form.tipo || ''] || form.tipo || 'Egreso';
+    return varianteLabels[form.variante];
+};
+
+const entidadLabel = (form: EditForm) => {
+    switch (form.variante) {
+        case 'donacion-dinero': return 'Donante';
+        case 'donacion-especie': return 'Donador';
+        case 'compra': return 'Proveedor';
+        case 'subvencion': return 'Entidad financiadora';
+        case 'egreso': return 'Destinatario';
+        default: return 'Origen';
+    }
+};
+
+const propositoLabel = (form: EditForm) => {
+    if (form.variante === 'subvencion') return 'Nombre del proyecto';
+    return 'Propósito / actividad asociada';
+};
+
+const cuentaNombre = (id?: number) => {
+    if (!id) return 'Sin cuenta';
+    return cuentas.value.find(cuenta => cuenta.id === id)?.nombre || `Cuenta #${id}`;
+};
+
 const abrirEditarRegistro = async (item: LogRegistro) => {
     if (isAnulado(item.estado)) return;
     editLoadingKey.value = item.key;
+    editErrores.value = [];
     error.value = null;
     try {
+        const entidades = await cargarEntidades();
         if (item.movimiento === 'ingreso') {
             const detalle = await apiService.getIngresoById(item.id);
             editForm.value = {
                 movimiento: 'ingreso',
+                variante: varianteIngreso(detalle),
                 id: item.id,
                 fecha: detalle.ingreso.fecha || item.fecha,
                 montoTotal: Number(detalle.ingreso.montoTotal || item.montoTotal || 0),
                 estado: detalle.ingreso.estado || item.estado,
                 tipo: detalle.ingreso.tipoTransaccion || item.tipo,
-                responsableInternoId: Number(detalle.ingreso.responsableInternoId || 0),
-                entidadId: Number(detalle.ingreso.origenEntidadId || 0),
+                responsable: entidadDesdeId(entidades, detalle.ingreso.responsableInternoId),
+                entidad: entidadDesdeId(entidades, detalle.ingreso.origenEntidadId),
+                gestor: entidadDesdeId(entidades, detalle.donacion?.gestorId),
                 anotaciones: detalle.ingreso.anotaciones || '',
                 proposito: detalle.donacion?.propositoEspecifico || detalle.subvencion?.nombreProyecto || '',
                 documento: detalle.compra?.numeroFacturaBoleta || '',
@@ -317,13 +386,15 @@ const abrirEditarRegistro = async (item: LogRegistro) => {
             const egreso = await apiService.getEgresoById(item.id);
             editForm.value = {
                 movimiento: 'egreso',
+                variante: 'egreso',
                 id: item.id,
                 fecha: egreso.fecha,
                 montoTotal: Number(egreso.montoTotal || 0),
                 estado: egreso.estado || item.estado,
                 tipo: egreso.tipoEgreso,
-                responsableInternoId: Number(egreso.responsableInternoId || 0),
-                entidadId: Number(egreso.destinoEntidadId || 0),
+                responsable: entidadDesdeId(entidades, egreso.responsableInternoId),
+                entidad: entidadDesdeId(entidades, egreso.destinoEntidadId),
+                gestor: null,
                 anotaciones: egreso.anotaciones || '',
                 proposito: egreso.propositoEspecifico || '',
                 cuentaId: egreso.egresoPecuniario?.cuentaOrigenId || 0,
@@ -346,7 +417,27 @@ const abrirEditarRegistro = async (item: LogRegistro) => {
 const cerrarEditarRegistro = () => {
     if (editSaving.value) return;
     editForm.value = null;
+    editErrores.value = [];
 };
+
+// Mismas reglas que al registrar: si algo falta, no se envía.
+const validarEdicion = (form: EditForm): string[] => {
+    const errores: string[] = [];
+    if (!form.fecha) errores.push('La fecha es obligatoria.');
+    if (!form.responsable) errores.push('Selecciona el responsable interno.');
+    const entidadObligatoria = form.movimiento === 'ingreso' || Boolean(form.rawEgreso?.destinoEntidadId);
+    if (entidadObligatoria && !form.entidad) errores.push(`Selecciona el ${entidadLabel(form).toLowerCase()}.`);
+    if (form.detalles.length === 0 && !(Number(form.montoTotal) > 0)) errores.push('El monto total debe ser mayor a cero.');
+    form.detalles.forEach((detalle, index) => {
+        const fila = `Ítem ${index + 1}`;
+        if (!detalle.itemCatalogoId) errores.push(`${fila}: selecciona un ítem del catálogo.`);
+        if (!(Number(detalle.cantidad) > 0)) errores.push(`${fila}: la cantidad debe ser mayor a cero.`);
+        if (form.movimiento === 'ingreso' && !(Number(detalle.precio) > 0)) errores.push(`${fila}: el precio debe ser mayor a cero.`);
+    });
+    return errores;
+};
+
+const textoOpcional = (valor?: string) => (valor ?? '').trim();
 
 const agregarDetalleEdit = () => {
     if (!editForm.value) return;
@@ -363,6 +454,8 @@ const quitarDetalleEdit = (index: number) => {
 const guardarEdicionRegistro = async () => {
     if (!editForm.value) return;
     const form = editForm.value;
+    editErrores.value = validarEdicion(form);
+    if (editErrores.value.length > 0) return;
     editSaving.value = true;
     error.value = null;
     try {
@@ -375,14 +468,16 @@ const guardarEdicionRegistro = async () => {
                     fecha: form.fecha,
                     montoTotal: form.montoTotal,
                     estado: form.estado,
-                    tipoTransaccion: form.tipo,
-                    responsableInternoId: form.responsableInternoId,
-                    origenEntidadId: form.entidadId,
-                    anotaciones: form.anotaciones
+                    tipoTransaccion: raw?.ingreso.tipoTransaccion,
+                    responsableInternoId: form.responsable?.id,
+                    origenEntidadId: form.entidad?.id,
+                    anotaciones: textoOpcional(form.anotaciones)
                 },
-                donacion: raw?.donacion ? { ...raw.donacion, propositoEspecifico: form.proposito } : undefined,
-                compra: raw?.compra ? { ...raw.compra, numeroFacturaBoleta: form.documento } : undefined,
-                subvencion: raw?.subvencion ? { ...raw.subvencion, nombreProyecto: form.proposito } : undefined,
+                donacion: raw?.donacion
+                    ? { ...raw.donacion, propositoEspecifico: textoOpcional(form.proposito), gestorId: form.gestor?.id }
+                    : undefined,
+                compra: raw?.compra ? { ...raw.compra, numeroFacturaBoleta: textoOpcional(form.documento) } : undefined,
+                subvencion: raw?.subvencion ? { ...raw.subvencion, nombreProyecto: textoOpcional(form.proposito) } : undefined,
                 detalles: form.detalles.map(detalle => ({
                     id: detalle.id,
                     ingresoId: form.id,
@@ -396,12 +491,12 @@ const guardarEdicionRegistro = async () => {
             const payload: EgresoPayload = {
                 egreso: {
                     fecha: form.fecha,
-                    tipoEgreso: form.tipo || raw?.tipoEgreso || 'Ajuste',
+                    tipoEgreso: raw?.tipoEgreso || form.tipo || 'Ajuste',
                     montoTotal: form.montoTotal,
-                    responsableInternoId: Number(form.responsableInternoId || 0),
-                    destinoEntidadId: Number(form.entidadId || 0),
-                    anotaciones: form.anotaciones,
-                    propositoEspecifico: form.proposito
+                    responsableInternoId: form.responsable?.id ?? 0,
+                    destinoEntidadId: form.entidad?.id,
+                    anotaciones: textoOpcional(form.anotaciones),
+                    propositoEspecifico: textoOpcional(form.proposito)
                 },
                 pecuniario: raw?.egresoPecuniario || undefined,
                 detalles: form.detalles.map(detalle => ({
@@ -415,7 +510,8 @@ const guardarEdicionRegistro = async () => {
         editForm.value = null;
         await fetchHistorial();
     } catch (e: any) {
-        error.value = e.message || 'No se pudo guardar la edición.';
+        // El modal tapa el aviso general: el error de la API se muestra dentro.
+        editErrores.value = [e.message || 'No se pudo guardar la edición.'];
     } finally {
         editSaving.value = false;
     }
@@ -781,37 +877,64 @@ onMounted(fetchHistorial);
                 </div>
 
                 <div class="grid gap-4 p-5 md:grid-cols-2">
+                    <div class="text-sm font-medium text-gray-700 dark:text-slate-200">
+                        Tipo
+                        <p class="mt-1 flex h-10 items-center rounded-md border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                            {{ tipoEditLabel(editForm) }}
+                        </p>
+                    </div>
                     <label class="text-sm font-medium text-gray-700 dark:text-slate-200">
-                        Fecha
+                        Fecha <span class="text-red-500">*</span>
                         <input v-model="editForm.fecha" type="date" class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-950">
                     </label>
-                    <label class="text-sm font-medium text-gray-700 dark:text-slate-200">
-                        Monto total
-                        <input v-model.number="editForm.montoTotal" type="number" min="0" step="1" class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-950" :readonly="editForm.detalles.length > 0">
-                    </label>
-                    <label class="text-sm font-medium text-gray-700 dark:text-slate-200">
-                        Tipo
-                        <input v-model="editForm.tipo" type="text" class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-950">
-                    </label>
-                    <label class="text-sm font-medium text-gray-700 dark:text-slate-200">
-                        Responsable interno ID
-                        <input v-model.number="editForm.responsableInternoId" type="number" min="0" class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-950">
-                    </label>
-                    <label class="text-sm font-medium text-gray-700 dark:text-slate-200">
-                        {{ editForm.movimiento === 'ingreso' ? 'Origen entidad ID' : 'Destino entidad ID' }}
-                        <input v-model.number="editForm.entidadId" type="number" min="0" class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-950">
-                    </label>
-                    <label v-if="editForm.documento !== undefined" class="text-sm font-medium text-gray-700 dark:text-slate-200">
-                        Documento
+
+                    <EntidadSelector
+                        v-model="editForm.entidad"
+                        :label="entidadLabel(editForm)"
+                        :required="editForm.movimiento === 'ingreso' || Boolean(editForm.rawEgreso?.destinoEntidadId)"
+                    />
+                    <EntidadSelector
+                        v-model="editForm.responsable"
+                        label="Responsable interno"
+                        required
+                        :locked="!canChangeResponsible"
+                        locked-hint="Solo un administrador puede cambiar el responsable."
+                    />
+
+                    <EntidadSelector
+                        v-if="editForm.variante === 'donacion-dinero' || editForm.variante === 'donacion-especie'"
+                        v-model="editForm.gestor"
+                        label="Gestor / responsable (opcional)"
+                    />
+                    <div v-if="editForm.variante === 'donacion-dinero'" class="text-sm font-medium text-gray-700 dark:text-slate-200">
+                        Fondo destino
+                        <p class="mt-1 flex h-10 items-center rounded-md border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                            {{ cuentaNombre(editForm.cuentaId) }}
+                        </p>
+                    </div>
+                    <div v-if="editForm.variante === 'compra'" class="text-sm font-medium text-gray-700 dark:text-slate-200">
+                        Cuenta de pago
+                        <p class="mt-1 flex h-10 items-center rounded-md border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                            {{ cuentaNombre(editForm.cuentaId) }}
+                        </p>
+                    </div>
+                    <label v-if="editForm.variante === 'compra'" class="text-sm font-medium text-gray-700 dark:text-slate-200">
+                        N° boleta / factura
                         <input v-model="editForm.documento" type="text" class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-950">
                     </label>
-                    <label class="text-sm font-medium text-gray-700 dark:text-slate-200 md:col-span-2">
-                        Propósito / descripción
-                        <input v-model="editForm.proposito" type="text" class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-950">
+
+                    <label class="text-sm font-medium text-gray-700 dark:text-slate-200">
+                        Monto total <span v-if="editForm.detalles.length === 0" class="text-red-500">*</span>
+                        <input v-model.number="editForm.montoTotal" type="number" min="0" step="1" class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm read-only:bg-gray-50 dark:border-slate-600 dark:bg-slate-950" :readonly="editForm.detalles.length > 0">
+                        <span v-if="editForm.detalles.length > 0" class="mt-1 block text-xs font-normal text-gray-500 dark:text-slate-400">Se calcula con los ítems.</span>
+                    </label>
+                    <label v-if="editForm.variante !== 'compra'" class="text-sm font-medium text-gray-700 dark:text-slate-200 md:col-span-2">
+                        {{ propositoLabel(editForm) }}
+                        <input v-model="editForm.proposito" type="text" placeholder="Opcional" class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-950">
                     </label>
                     <label class="text-sm font-medium text-gray-700 dark:text-slate-200 md:col-span-2">
-                        Anotaciones
-                        <textarea v-model="editForm.anotaciones" rows="3" class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-950"></textarea>
+                        Anotaciones internas
+                        <textarea v-model="editForm.anotaciones" rows="3" placeholder="Opcional" class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-950"></textarea>
                     </label>
                 </div>
 
@@ -873,6 +996,12 @@ onMounted(fetchHistorial);
                     </div>
                 </div>
 
+                <div v-if="editErrores.length > 0" class="mx-5 mb-1 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+                    <p class="font-semibold">Revisa antes de guardar:</p>
+                    <ul class="mt-1 list-disc pl-5">
+                        <li v-for="mensaje in editErrores" :key="mensaje">{{ mensaje }}</li>
+                    </ul>
+                </div>
                 <div class="flex flex-col gap-2 border-t border-gray-100 p-5 sm:flex-row sm:justify-end dark:border-slate-700">
                     <button type="button" class="rounded-md border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-slate-600 dark:text-slate-200" @click="cerrarEditarRegistro">
                         Cancelar

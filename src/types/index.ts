@@ -232,7 +232,7 @@ export interface IngresoDonacionPayload {
 }
 
 export interface DonacionDetallePayload {
-    propositoEspecifico: string;
+    propositoEspecifico?: string;
     gestorId?: number;
     numeroCertificado?: string;
 }
@@ -403,7 +403,7 @@ export interface DonacionBienesPayload {
         anotaciones?: string;
     };
     donacion: {
-        propositoEspecifico: string;
+        propositoEspecifico?: string;
         gestorId?: number;
     };
     items: ItemDonacionBienes[];
@@ -615,7 +615,7 @@ export interface EgresoPayload {
         tipoEgreso: TipoEgreso | string;
         montoTotal: number;
         responsableInternoId: number;
-        destinoEntidadId: number;
+        destinoEntidadId?: number;
         anotaciones?: string;
         propositoEspecifico?: string;
     };

@@ -312,7 +312,7 @@ const submitDonacion = async () => {
             anotaciones: anotaciones.value.trim() || undefined
         },
         donacion: {
-            propositoEspecifico: proposito.value || 'Campaña Invierno',
+            propositoEspecifico: proposito.value.trim() || undefined,
             gestorId: selectedGestor.value?.id
         },
         items: items.value.map(item => ({
