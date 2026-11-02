@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { matchesSearch } from '../utils/search';
 import { ref, onMounted, computed } from 'vue';
-import type { RegistrarCatalogoPayload } from '../types';
+import type { RegistrarCatalogoPayload, CatalogoItem } from '../types';
 import { apiService } from '../api/apiService';
-import { X, Info, CheckCircle2, ScanBarcode } from 'lucide-vue-next';
+import { X, Info, CheckCircle2, ScanBarcode, Loader2, Sparkles, AlertTriangle } from 'lucide-vue-next';
 import EscanerCodigos from './EscanerCodigos.vue';
 import { esCodigoValido } from '../utils/barcode';
 import { integerFromInput } from '../utils/integerInput';
@@ -39,6 +39,44 @@ const codigoError = computed(() => {
     const codigo = codigoBarras.value.trim();
     return codigo && !esCodigoValido(codigo) ? 'Código inválido: revisa los dígitos (8, 12 o 13 con verificador correcto).' : null;
 });
+
+// Sugerencia de la API al escanear (como en donaciones)
+const buscandoCodigo = ref(false);
+const sugerenciaInfo = ref<{ detalle: string; imagenUrl: string | null } | null>(null);
+const itemExistente = ref<CatalogoItem | null>(null);
+const avisoCodigo = ref<string | null>(null);
+let consultaCodigo = 0;
+
+const aplicarSugerencia = async (codigo: string) => {
+    codigoBarras.value = codigo;
+    sugerenciaInfo.value = null;
+    itemExistente.value = null;
+    avisoCodigo.value = null;
+    if (!esCodigoValido(codigo)) return;
+    const consulta = ++consultaCodigo;
+    buscandoCodigo.value = true;
+    try {
+        const resultado = await apiService.buscarPorCodigoBarras(codigo);
+        if (consulta !== consultaCodigo) return;
+        if (resultado.fuente === 'catalogo') {
+            itemExistente.value = resultado.item;
+        } else if (resultado.fuente === 'openfoodfacts') {
+            const s = resultado.sugerencia;
+            // Solo rellena lo que el usuario no ha escrito
+            if (!formData.value.nombre.trim() && s.nombre) formData.value.nombre = s.nombre;
+            if (!formData.value.categoria.trim() && s.categoria) formData.value.categoria = s.categoria;
+            if (!formData.value.unidadMedidaEstandar.trim()) formData.value.unidadMedidaEstandar = 'unidad';
+            sugerenciaInfo.value = { detalle: [s.marca, s.cantidad].filter(Boolean).join(' · '), imagenUrl: s.imagenUrl };
+        } else {
+            avisoCodigo.value = 'Sin sugerencias para este código; completa los datos manualmente.';
+        }
+    } catch (e: any) {
+        if (consulta !== consultaCodigo) return;
+        avisoCodigo.value = e?.message || 'No se pudo consultar el código';
+    } finally {
+        if (consulta === consultaCodigo) buscandoCodigo.value = false;
+    }
+};
 
 const submitting = ref(false);
 const error = ref<string | null>(null);
@@ -108,6 +146,7 @@ const submitForm = async () => {
 
 onMounted(() => {
     cargarCategorias();
+    if (props.codigoInicial && !props.nombreInicial) void aplicarSugerencia(props.codigoInicial.trim());
 });
 </script>
 
@@ -177,6 +216,19 @@ onMounted(() => {
                         </button>
                     </div>
                     <p v-if="codigoError" class="mt-1 text-xs text-red-600">{{ codigoError }}</p>
+                    <p v-if="buscandoCodigo" class="mt-1 flex items-center gap-1 text-xs text-gray-500">
+                        <Loader2 class="h-3 w-3 animate-spin" /> Buscando sugerencias…
+                    </p>
+                    <div v-else-if="itemExistente" class="mt-2 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
+                        <AlertTriangle class="mt-0.5 h-4 w-4 shrink-0" />
+                        <span>Este código ya está registrado en el catálogo como <strong>{{ itemExistente.nombre }}</strong>.</span>
+                    </div>
+                    <div v-else-if="sugerenciaInfo" class="mt-2 flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 p-2 text-xs text-blue-800">
+                        <img v-if="sugerenciaInfo.imagenUrl" :src="sugerenciaInfo.imagenUrl" alt="" class="h-10 w-10 shrink-0 rounded object-contain bg-white" />
+                        <Sparkles v-else class="h-4 w-4 shrink-0" />
+                        <span>Datos sugeridos por Open Food Facts<span v-if="sugerenciaInfo.detalle"> ({{ sugerenciaInfo.detalle }})</span>. Revísalos antes de registrar.</span>
+                    </div>
+                    <p v-else-if="avisoCodigo" class="mt-1 text-xs text-gray-500">{{ avisoCodigo }}</p>
                 </div>
 
                 <!-- Categoría -->
@@ -266,5 +318,5 @@ onMounted(() => {
             </form>
         </div>
     </div>
-    <EscanerCodigos v-if="showEscaner" modo="unico" titulo="Escanear código del ítem" @codigo="codigoBarras = $event" @close="showEscaner = false" />
+    <EscanerCodigos v-if="showEscaner" modo="unico" titulo="Escanear código del ítem" @codigo="aplicarSugerencia($event)" @close="showEscaner = false" />
 </template>
