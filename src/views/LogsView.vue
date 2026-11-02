@@ -626,7 +626,7 @@ onMounted(fetchHistorial);
 </script>
 
 <template>
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-5">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 space-y-4">
         <section class="surface-card p-5 space-y-4 no-print">
             <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                 <div class="flex items-center gap-2 text-gray-700 dark:text-slate-200">

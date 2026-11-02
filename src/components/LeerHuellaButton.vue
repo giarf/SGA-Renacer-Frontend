@@ -23,7 +23,7 @@ async function leer() {
 
 <template>
     <button type="button" class="fingerprint-button" :class="{ reading: leyendo }" :disabled="disabled || leyendo"
-        :aria-label="leyendo ? 'Esperando huella en el lector' : 'Leer con huellero'" :title="leyendo ? 'Pon el dedo en el lector…' : 'Leer con huellero'" @click="leer">
+        :aria-label="leyendo ? 'Esperando huella en el lector' : 'Lectura con huella'" :data-tooltip="leyendo ? 'Pon el dedo en el lector…' : 'Lectura con huella'" @click="leer">
         <LoaderCircle v-if="leyendo" :size="22" class="animate-spin" aria-hidden="true" />
         <FingerprintPattern v-else :size="24" aria-hidden="true" />
         <span v-if="leyendo" class="fingerprint-label" role="status">Pon el dedo…</span>

@@ -87,10 +87,7 @@ async function quitar(huella: HuellaRegistrada) {
     <section class="fingerprints" aria-labelledby="fingerprints-title">
         <div class="fingerprints-heading">
             <span class="fingerprints-icon"><FingerprintPattern :size="20" aria-hidden="true" /></span>
-            <div>
-                <h4 id="fingerprints-title">Huellas digitales</h4>
-                <p>Se guardan con su propio botón, independientemente de los datos de la ficha.</p>
-            </div>
+            <h4 id="fingerprints-title">Huellas digitales</h4>
         </div>
         <p v-if="error" role="alert" class="fingerprints-error">{{ error }}</p>
         <p v-if="mensaje" role="status" class="fingerprints-ok">{{ mensaje }}</p>

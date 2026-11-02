@@ -706,7 +706,7 @@ const logout = () => {
             </header>
 
             <main class="flex-1 overflow-y-auto">
-                <section class="py-6">
+                <section class="pb-8">
                     <RouterView v-slot="{ Component: RouteComponent }">
                         <transition name="route-fade" mode="out-in">
                             <div :key="route.fullPath">

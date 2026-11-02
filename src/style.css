@@ -361,7 +361,7 @@ button {
 }
 
 .form-page {
-    padding: 1.25rem 1rem;
+    padding: 1rem;
 }
 
 @media (min-width: 640px) {
@@ -459,6 +459,36 @@ button {
     background: var(--bg-card);
     color: var(--accent-color);
     box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+}
+
+/* Tooltip compacto: <button data-tooltip="Texto"> */
+[data-tooltip] {
+    position: relative;
+}
+
+[data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    top: calc(100% + 0.4rem);
+    left: 50%;
+    z-index: 60;
+    transform: translate(-50%, -2px);
+    padding: 0.3rem 0.6rem;
+    border-radius: 0.5rem;
+    background: var(--text-primary);
+    color: var(--bg-card);
+    font-size: 0.72rem;
+    font-weight: 600;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.12s ease, transform 0.12s ease;
+}
+
+[data-tooltip]:hover::after,
+[data-tooltip]:focus-visible::after {
+    opacity: 1;
+    transform: translate(-50%, 0);
 }
 
 /* Tabla a todo el ancho de su sección, sin borde extra. */

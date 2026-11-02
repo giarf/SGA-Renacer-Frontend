@@ -116,7 +116,7 @@ onMounted(() => {
 </script>
 
 <template>
-    <div class="px-4 py-5 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full">
+    <div class="px-4 py-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full">
         <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center">
             <div class="relative flex-1">
                 <Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />

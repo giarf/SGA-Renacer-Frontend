@@ -335,7 +335,7 @@ onMounted(loadUsers);
 </script>
 
 <template>
-    <div class="px-4 sm:px-6 lg:px-8 py-6">
+    <div class="px-4 sm:px-6 lg:px-8 py-4">
         <div class="rounded-2xl border border-[var(--card-border)] bg-[var(--bg-card)] shadow-sm overflow-hidden">
             <header class="flex flex-col gap-4 border-b border-[var(--card-border)] px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
                 <div class="flex items-center gap-3">

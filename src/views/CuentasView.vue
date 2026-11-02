@@ -166,7 +166,7 @@ onMounted(() => {
 </script>
 
 <template>
-    <div class="px-4 sm:px-6 lg:px-8 py-5 space-y-5">
+    <div class="px-4 sm:px-6 lg:px-8 py-4 space-y-4">
         <div class="page-toolbar items-end">
             <section class="flex flex-wrap gap-x-10 gap-y-3 px-1">
                 <div>

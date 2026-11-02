@@ -26,9 +26,6 @@ const titulo = computed(() => !activo.value ? 'Lectura con huella'
     : props.pausado || estado.value === 'pausado' ? 'Lectura en pausa'
     : estado.value === 'reintentando' ? 'Reconectando con el huellero…'
     : 'Esperando huella…');
-const subtitulo = computed(() => !activo.value ? 'Actívala para registrar llegadas con solo poner el dedo.'
-    : props.pausado ? 'Se reanuda sola al cerrar la ventana abierta.'
-    : 'Cada huella reconocida queda en la lista. Puedes seguir buscando por nombre.');
 
 const hora = () => new Date().toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
 const mensaje = (e: unknown) => e instanceof Error && e.name !== 'TimeoutError' && e.name !== 'AbortError' ? e.message : 'El huellero no respondió a tiempo.';
@@ -129,45 +126,45 @@ onBeforeUnmount(() => { controller?.abort(); void audio?.close(); });
 </script>
 
 <template>
-    <section class="fp-bar" :class="{ active: activo }" aria-label="Lectura con huella">
-        <div class="fp-main">
-            <span class="fp-icon" :class="{ pulse: activo && !pausado && estado === 'esperando' }"><FingerprintPattern :size="24" aria-hidden="true" /></span>
-            <div class="fp-text">
-                <strong>{{ titulo }}</strong>
-                <p>{{ subtitulo }}</p>
-            </div>
-            <button type="button" :class="activo ? 'btn-secondary' : 'btn-primary'" @click="activo ? detener() : activar()">
-                <FingerprintPattern v-if="!activo" :size="18" aria-hidden="true" />{{ activo ? 'Detener lectura' : 'Activar lectura con huella' }}
-            </button>
-        </div>
-        <p v-if="aviso" role="status" class="fp-notice" :class="aviso.tipo">{{ aviso.texto }}</p>
-        <ul v-if="recientes.length" class="fp-recent" aria-label="Últimas huellas reconocidas">
+    <div class="fp-root" role="group" aria-label="Lectura con huella">
+        <button
+            type="button"
+            class="fp-toggle"
+            :class="{ active: activo, pulse: activo && !pausado && estado === 'esperando' }"
+            :aria-pressed="activo"
+            :aria-label="activo ? 'Detener lectura con huella' : 'Lectura con huella'"
+            :data-tooltip="activo ? 'Detener lectura con huella' : 'Lectura con huella'"
+            @click="activo ? detener() : activar()"
+        >
+            <FingerprintPattern :size="20" aria-hidden="true" />
+        </button>
+        <span v-if="activo" class="fp-state" role="status">{{ titulo }}</span>
+        <p v-if="aviso" role="status" class="fp-notice fp-full" :class="aviso.tipo">{{ aviso.texto }}</p>
+        <ul v-if="recientes.length" class="fp-recent fp-full" aria-label="Últimas huellas reconocidas">
             <li v-for="r in recientes" :key="r.clave">
                 <span><strong>{{ r.persona.nombreCompleto }}</strong><small>{{ r.hora }} · {{ r.creada ? 'Llegada registrada' : 'Ya estaba presente' }}</small></span>
                 <button type="button" class="btn-ghost !px-3 !py-1.5 text-sm" @click="emit('grupo', r.persona)"><Users :size="15" aria-hidden="true" /> Acompañantes</button>
             </li>
         </ul>
-    </section>
+    </div>
 </template>
 
 <style scoped>
-.fp-bar { display: grid; gap: .6rem; padding: .6rem 1rem; margin-bottom: .75rem; border: 1px solid var(--card-border); border-radius: 1rem; background: var(--bg-card); }
-.fp-bar.active { border-color: var(--accent-color); }
-.fp-main { display: flex; align-items: center; gap: .9rem; flex-wrap: wrap; }
-.fp-icon { display: grid; place-items: center; width: 2.25rem; height: 2.25rem; border-radius: .9rem; flex-shrink: 0; color: var(--accent-color); background: var(--accent-color-muted); }
-.fp-icon.pulse { animation: fp-pulse 1.6s ease-in-out infinite; }
-.fp-text { flex: 1; min-width: 12rem; }
-.fp-text strong { font-size: .95rem; }
-.fp-text p { font-size: .78rem; color: var(--text-muted); margin-top: .15rem; }
-.fp-notice { font-size: .85rem; padding: .6rem .8rem; border-radius: .6rem; background: var(--surface-muted); }
-.fp-notice.ok { background: var(--accent-color-muted); }
+.fp-root { display: contents; }
+.fp-toggle { display: grid; place-items: center; width: 2.6rem; height: 2.6rem; flex-shrink: 0; border-radius: .75rem; border: 1px solid var(--card-border); background: var(--bg-card); color: var(--accent-color); transition: background .15s, border-color .15s, color .15s; }
+.fp-toggle:hover { border-color: var(--accent-color); }
+.fp-toggle.active { background: var(--accent-color); border-color: var(--accent-color); color: #fff; }
+.fp-toggle.pulse { animation: fp-pulse 1.6s ease-in-out infinite; }
+.fp-state { font-size: .8rem; font-weight: 600; color: var(--accent-color); white-space: nowrap; }
+.fp-full { flex-basis: 100%; order: 1; }
+.fp-notice { font-size: .85rem; padding: .5rem .8rem; border-radius: .6rem; background: var(--bg-card); }
+.fp-notice.ok { background: var(--bg-card); }
 .fp-notice.error { background: var(--surface-strong); border-left: 3px solid #d58925; }
 .fp-recent { display: grid; gap: .35rem; }
-.fp-recent li { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .45rem .75rem; border-radius: .6rem; background: var(--surface-muted); }
+.fp-recent li { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .4rem .75rem; border-radius: .6rem; background: var(--bg-card); }
 .fp-recent strong, .fp-recent small { display: block; }
 .fp-recent strong { font-size: .85rem; }
 .fp-recent small { font-size: .72rem; color: var(--text-muted); }
 @keyframes fp-pulse { 50% { box-shadow: 0 0 0 6px var(--accent-color-muted); } }
-@media (prefers-reduced-motion: reduce) { .fp-icon.pulse { animation: none; } }
-@media (max-width: 640px) { .fp-bar { padding: .75rem; } .fp-main > button { width: 100%; } }
+@media (prefers-reduced-motion: reduce) { .fp-toggle.pulse { animation: none; } }
 </style>

@@ -245,7 +245,7 @@ async function saveCell(rowId: number, columnId: number, value: GuardarValorCamp
 </template>
 
 <style scoped>
-.campaign-page { max-width: 1600px; margin: 0 auto; padding: 1.5rem; color: var(--text-primary); }
+.campaign-page { max-width: 1600px; margin: 0 auto; padding: 1rem 1.5rem; color: var(--text-primary); }
 .campaign-header { display: flex; justify-content: space-between; gap: 1.5rem; align-items: flex-start; margin-bottom: 1.25rem; }
 .eyebrow { font-size: .65rem; letter-spacing: .16em; font-weight: 800; color: var(--accent-color); margin-bottom: .65rem; }
 h1 { font-size: clamp(1.8rem, 3vw, 2.6rem); font-weight: 800; letter-spacing: -.04em; line-height: 1.15; overflow-wrap: anywhere; }

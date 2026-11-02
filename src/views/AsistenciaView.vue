@@ -321,10 +321,6 @@ onBeforeUnmount(() => {
                 </div>
             </template>
         </header>
-        <header v-else class="page-heading">
-            <div />
-            <button class="btn-primary" :disabled="working" @click="openEvent"><Plus :size="19" /> Crear evento</button>
-        </header>
 
         <div v-if="error" role="alert" class="message error-message">{{ error }} <button class="underline ml-2" @click="refresh">Reintentar</button></div>
         <div v-if="notice" role="status" class="message success-message"><Check :size="18" /> {{ notice }} <button class="ml-auto" aria-label="Cerrar aviso" @click="notice = ''">×</button></div>
@@ -333,8 +329,11 @@ onBeforeUnmount(() => {
 
         <template v-else-if="!eventoId">
             <div class="section-bar">
-                <p class="muted">{{ eventos.length }} {{ eventos.length === 1 ? 'evento' : 'eventos' }}</p>
-                <label class="search-field"><Search :size="18" /><input v-model="eventFilter" aria-label="Buscar evento" placeholder="Buscar evento…" /></label>
+                <div class="flex flex-wrap items-center gap-3">
+                    <label class="search-field"><Search :size="18" /><input v-model="eventFilter" aria-label="Buscar evento" placeholder="Buscar evento…" /></label>
+                    <p class="muted text-sm">{{ eventos.length }} {{ eventos.length === 1 ? 'evento' : 'eventos' }}</p>
+                </div>
+                <button class="btn-primary" :disabled="working" @click="openEvent"><Plus :size="19" /> Crear evento</button>
             </div>
             <div v-if="!eventos.length && connected" class="empty-state surface-card">
                 <CalendarCheck :size="44" class="accent" />
@@ -375,10 +374,9 @@ onBeforeUnmount(() => {
                         <p v-if="results.length === 20" class="p-3 text-xs muted">Mostrando 20 resultados. Escribe más para precisar la búsqueda.</p>
                     </div>
                 </div>
+                <HuellaContinua :key="detalle.evento.id" :evento-id="detalle.evento.id" :pausado="huellaPausada" @registrada="registradaPorHuella" @grupo="grupoPorHuella" />
                 <button class="btn-secondary" :disabled="working" @click="showResults = false; newPersonOpen = true"><Plus :size="17" /> Nueva persona</button>
             </section>
-
-            <HuellaContinua :key="detalle.evento.id" :evento-id="detalle.evento.id" :pausado="huellaPausada" @registrada="registradaPorHuella" @grupo="grupoPorHuella" />
 
             <section class="attendance-sheet" aria-labelledby="sheet-title">
                 <div class="sheet-toolbar">
@@ -425,7 +423,7 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.attendance-page { max-width: 1600px; margin: 0 auto; padding: 1.5rem; color: var(--text-primary); }
+.attendance-page { max-width: 1600px; margin: 0 auto; padding: 1rem 1.5rem; color: var(--text-primary); }
 .page-heading { display: flex; justify-content: space-between; align-items: center; gap: 1.5rem; margin-bottom: 1.25rem; }
 .eyebrow { color: var(--accent-color); text-transform: uppercase; letter-spacing: .18em; font-size: .7rem; font-weight: 700; margin-bottom: .5rem; }
 h1 { font-size: clamp(1.8rem, 3vw, 2.5rem); line-height: 1.2; font-weight: 750; letter-spacing: -.035em; overflow-wrap: anywhere; }
@@ -438,7 +436,7 @@ h2, h3 { font-weight: 700; }
 .event-title { flex: 1; min-width: 0; }
 .event-title h1 { font-size: 1.25rem; letter-spacing: -.02em; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .event-meta { display: flex; align-items: center; gap: .35rem; font-size: .75rem; color: var(--text-muted); min-width: 0; }
-.section-bar, .sheet-toolbar { display: flex; justify-content: space-between; gap: 1rem; align-items: center; margin-bottom: 1.25rem; }
+.section-bar, .sheet-toolbar { display: flex; justify-content: space-between; gap: 1rem; align-items: center; margin-bottom: 1rem; }
 .search-field { display: flex; align-items: center; gap: .5rem; background: var(--input-bg); border: 1px solid var(--input-border); padding: 0 .8rem; border-radius: .75rem; color: var(--text-muted); }
 .search-field input { border: 0; box-shadow: none; background: transparent; padding-left: .1rem; min-width: 0; }
 .search-field:focus-within { outline: 2px solid var(--accent-color); outline-offset: 2px; }
@@ -465,7 +463,7 @@ h2, h3 { font-weight: 700; }
 .sync-status strong { color: var(--text-muted); font-weight: 500; }
 .sync-dot { width: 8px; height: 8px; border-radius: 100%; background: #24a176; flex-shrink: 0; }
 .offline .sync-dot { background: #d58925; }
-.arrival-panel { display: flex; align-items: center; gap: 1rem; padding: .75rem 1rem; border-radius: .9rem; background: var(--accent-color-muted); margin-bottom: .75rem; }
+.arrival-panel { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem 1rem; padding: .75rem 1rem; border-radius: .9rem; background: var(--accent-color-muted); margin-bottom: .75rem; }
 .arrival-label { display: flex; gap: .5rem; align-items: center; white-space: nowrap; }
 .arrival-label h2 { font-size: .95rem; }
 .arrival-label > svg { color: var(--accent-color); flex-shrink: 0; }
