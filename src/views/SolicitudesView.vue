@@ -227,7 +227,7 @@ const submitSolicitud = async () => {
     try {
         const respuesta = await apiService.crearSolicitud(payload);
         showToast('success', `Solicitud #${respuesta.id} registrada. Queda pendiente de entrega.`);
-        solicitante.value = esAdmin.value ? null : yo.value;
+        solicitante.value = yo.value;
         programa.value = '';
         items.value = [];
     } catch (e: any) {
@@ -238,7 +238,8 @@ const submitSolicitud = async () => {
 onMounted(async () => {
     try {
         yo.value = await resolveCurrentResponsible();
-        if (!esAdmin.value) solicitante.value = yo.value;
+        // Igual que el responsable interno en otros formularios: parte con quien inició sesión.
+        solicitante.value ??= yo.value;
     } catch (e: any) {
         errorYo.value = e.message || 'No se pudo identificar tu persona en el sistema.';
     } finally {
