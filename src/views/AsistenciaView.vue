@@ -306,18 +306,24 @@ onBeforeUnmount(() => {
 
 <template>
     <main class="attendance-page">
-        <header class="page-heading">
-            <div>
-                <RouterLink v-if="eventoId" to="/asistencia" class="back-link"><ArrowLeft :size="16" /> Todos los eventos</RouterLink>
-                <h1 v-if="eventoId">{{ detalle?.evento.nombre ?? 'Asistencia del evento' }}</h1>
+        <header v-if="eventoId" class="event-header">
+            <RouterLink to="/asistencia" class="back-link" aria-label="Todos los eventos" title="Todos los eventos"><ArrowLeft :size="18" /></RouterLink>
+            <div class="event-title">
+                <h1>{{ detalle?.evento.nombre ?? 'Asistencia del evento' }}</h1>
+                <p v-if="detalle" class="event-meta"><CalendarDays :size="14" class="shrink-0" /> <span class="shrink-0">{{ fecha(detalle.evento.fecha) }}</span><span v-if="detalle.evento.descripcion" class="truncate" :title="detalle.evento.descripcion">· {{ detalle.evento.descripcion }}</span></p>
             </div>
-            <div class="flex gap-2 flex-wrap">
-                <template v-if="detalle">
-                    <button class="btn-secondary" @click="copyLink"><Link :size="17" /> Copiar enlace</button>
-                    <button class="btn-ghost !p-3" aria-label="Eliminar evento" :disabled="working" @click="confirmDelete('event', detalle.evento.id, detalle.evento.nombre)"><Trash2 :size="18" /></button>
-                </template>
-                <button v-else-if="!eventoId" class="btn-primary" :disabled="working" @click="openEvent"><Plus :size="19" /> Crear evento</button>
-            </div>
+            <template v-if="detalle">
+                <div class="attendance-count"><strong>{{ detalle.asistentes.length }}</strong><span>presentes</span></div>
+                <div class="sync-status" :class="{ offline: !connected }" :title="lastSync ? `Última actualización ${lastSync}` : 'Conectando con el evento'"><span class="sync-dot" /><strong>{{ pendingWrites ? 'Guardando…' : connected ? (lastSync ? `Actualizado ${lastSync}` : 'Conectando…') : 'Reconectando…' }}</strong></div>
+                <div class="flex gap-1 items-center">
+                    <button class="btn-secondary !py-2" @click="copyLink"><Link :size="16" /> Copiar enlace</button>
+                    <button class="btn-ghost !p-2" aria-label="Eliminar evento" :disabled="working" @click="confirmDelete('event', detalle.evento.id, detalle.evento.nombre)"><Trash2 :size="18" /></button>
+                </div>
+            </template>
+        </header>
+        <header v-else class="page-heading">
+            <div />
+            <button class="btn-primary" :disabled="working" @click="openEvent"><Plus :size="19" /> Crear evento</button>
         </header>
 
         <div v-if="error" role="alert" class="message error-message">{{ error }} <button class="underline ml-2" @click="refresh">Reintentar</button></div>
@@ -350,14 +356,8 @@ onBeforeUnmount(() => {
         </template>
 
         <template v-else-if="detalle">
-            <section class="event-overview">
-                <div class="attendance-count"><strong>{{ detalle.asistentes.length }}</strong><span>personas presentes</span></div>
-                <div class="event-context"><p class="flex items-center gap-2"><CalendarDays :size="17" /> {{ fecha(detalle.evento.fecha) }}</p><p v-if="detalle.evento.descripcion" class="muted mt-2 whitespace-pre-wrap">{{ detalle.evento.descripcion }}</p></div>
-                <div class="sync-status" :class="{ offline: !connected }"><span class="sync-dot" /><div><strong>{{ pendingWrites ? 'Guardando cambios…' : connected ? 'Actualización automática' : 'Reconectando…' }}</strong><p>{{ lastSync ? `Última actualización ${lastSync}` : 'Conectando con el evento' }}</p></div></div>
-            </section>
-
             <section class="arrival-panel" aria-labelledby="arrival-title">
-                <div class="arrival-label"><UserPlus :size="22" /><div><h2 id="arrival-title">Registrar llegada</h2></div></div>
+                <div class="arrival-label"><UserPlus :size="20" /><h2 id="arrival-title">Registrar llegada</h2></div>
                 <div class="person-search">
                     <label for="attendance-person-search" class="sr-only">Buscar persona por nombre o RUT</label>
                     <div class="search-field large"><Search :size="20" /><input id="attendance-person-search" ref="searchInput" v-model="search" placeholder="Nombre o RUT de la persona…" autocomplete="off" role="combobox" :aria-expanded="showResults" aria-controls="attendance-person-results" :aria-activedescendant="showResults && results.length ? `person-result-${activeResult}` : undefined" :disabled="busy" @focus="showResults = search.trim().length >= 2" @keydown.down.prevent="activeResult = Math.min(activeResult + 1, results.length - 1)" @keydown.up.prevent="activeResult = Math.max(0, activeResult - 1)" @keydown.enter.prevent="chooseActive" @keydown.esc="showResults = false" /> <LoaderCircle v-if="searching" :size="18" class="animate-spin" /></div>
@@ -432,7 +432,12 @@ h1 { font-size: clamp(1.8rem, 3vw, 2.5rem); line-height: 1.2; font-weight: 750; 
 h2, h3 { font-weight: 700; }
 .muted { color: var(--text-muted); }
 .accent { color: var(--accent-color); }
-.back-link { display: inline-flex; align-items: center; gap: .5rem; font-size: .85rem; margin-bottom: .8rem; }
+.back-link { display: inline-flex; align-items: center; justify-content: center; width: 2.25rem; height: 2.25rem; border-radius: .6rem; flex-shrink: 0; color: var(--text-muted); border: 1px solid var(--card-border); }
+.back-link:hover { color: var(--accent-color); border-color: var(--accent-color); }
+.event-header { display: flex; align-items: center; gap: 1rem; padding: .6rem .9rem; margin-bottom: .75rem; background: var(--bg-card); border: 1px solid var(--card-border); border-radius: .9rem; }
+.event-title { flex: 1; min-width: 0; }
+.event-title h1 { font-size: 1.25rem; letter-spacing: -.02em; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.event-meta { display: flex; align-items: center; gap: .35rem; font-size: .75rem; color: var(--text-muted); min-width: 0; }
 .section-bar, .sheet-toolbar { display: flex; justify-content: space-between; gap: 1rem; align-items: center; margin-bottom: 1.25rem; }
 .search-field { display: flex; align-items: center; gap: .5rem; background: var(--input-bg); border: 1px solid var(--input-border); padding: 0 .8rem; border-radius: .75rem; color: var(--text-muted); }
 .search-field input { border: 0; box-shadow: none; background: transparent; padding-left: .1rem; min-width: 0; }
@@ -453,22 +458,20 @@ h2, h3 { font-weight: 700; }
 .message { display: flex; gap: .65rem; align-items: center; padding: .9rem 1rem; border: 1px solid var(--card-border); border-radius: .75rem; margin-bottom: 1rem; font-size: .9rem; }
 .error-message { background: var(--surface-strong); border-left: 3px solid #d58925; }
 .success-message { background: var(--accent-color-muted); color: var(--text-primary); }
-.event-overview { display: flex; gap: 2rem; align-items: center; padding: 1.25rem 1.5rem; background: var(--bg-card); border: 1px solid var(--card-border); border-radius: 1rem; margin-bottom: 1.25rem; }
-.attendance-count { display: flex; align-items: center; gap: .85rem; flex-shrink: 0; }
-.attendance-count strong { font-size: 3rem; font-weight: 750; letter-spacing: -.06em; line-height: 1; color: var(--accent-color); }
-.attendance-count span { font-size: .85rem; max-width: 5rem; color: var(--text-muted); }
-.event-context { flex: 1; font-size: .85rem; padding-left: 1.5rem; border-left: 1px solid var(--card-border); overflow-wrap: anywhere; }
-.sync-status { display: flex; align-items: center; gap: .6rem; font-size: .7rem; color: var(--text-muted); }
-.sync-status strong { color: var(--text-primary); font-weight: 600; }
-.sync-status p { margin-top: .2rem; }
+.attendance-count { display: flex; align-items: baseline; gap: .4rem; flex-shrink: 0; padding: 0 1rem; border-left: 1px solid var(--card-border); border-right: 1px solid var(--card-border); }
+.attendance-count strong { font-size: 1.75rem; font-weight: 750; letter-spacing: -.04em; line-height: 1; color: var(--accent-color); }
+.attendance-count span { font-size: .8rem; color: var(--text-muted); }
+.sync-status { display: flex; align-items: center; gap: .45rem; font-size: .7rem; flex-shrink: 0; white-space: nowrap; }
+.sync-status strong { color: var(--text-muted); font-weight: 500; }
 .sync-dot { width: 8px; height: 8px; border-radius: 100%; background: #24a176; flex-shrink: 0; }
 .offline .sync-dot { background: #d58925; }
-.arrival-panel { display: flex; align-items: center; gap: 1.5rem; padding: 1.5rem; border-radius: 1rem; background: var(--accent-color-muted); margin-bottom: 1.5rem; }
-.arrival-label { display: flex; gap: .75rem; align-items: center; }
+.arrival-panel { display: flex; align-items: center; gap: 1rem; padding: .75rem 1rem; border-radius: .9rem; background: var(--accent-color-muted); margin-bottom: .75rem; }
+.arrival-label { display: flex; gap: .5rem; align-items: center; white-space: nowrap; }
+.arrival-label h2 { font-size: .95rem; }
 .arrival-label > svg { color: var(--accent-color); flex-shrink: 0; }
 .arrival-label p { font-size: .75rem; margin-top: .2rem; }
 .person-search { flex: 1; position: relative; min-width: 200px; }
-.large { background: var(--bg-card); min-height: 50px; }
+.large { background: var(--bg-card); min-height: 42px; }
 .search-dropdown { position: absolute; top: calc(100% + .5rem); left: 0; right: 0; z-index: 20; border: 1px solid var(--card-border); background: var(--bg-card); box-shadow: var(--shadow-soft); border-radius: .75rem; overflow: auto; max-height: 360px; }
 .person-result { display: flex; align-items: center; justify-content: space-between; gap: 1rem; text-align: left; width: 100%; padding: .8rem 1rem; border-bottom: 1px solid var(--card-border); }
 .person-result.active, .person-result:hover { background: var(--surface-muted); }
@@ -477,7 +480,7 @@ h2, h3 { font-weight: 700; }
 .person-result small { color: var(--text-muted); font-size: .75rem; margin-top: .2rem; }
 .result-action { display: flex; gap: .35rem; align-items: center; font-size: .75rem; color: var(--accent-color); white-space: nowrap; }
 .attendance-sheet { background: var(--bg-card); border: 1px solid var(--card-border); border-radius: 1rem; overflow: hidden; }
-.sheet-toolbar { padding: 1.25rem 1.5rem; margin: 0; }
+.sheet-toolbar { padding: .75rem 1.25rem; margin: 0; }
 .sheet-toolbar h2 { font-size: 1.1rem; }
 .column-totals { display: flex; flex-wrap: wrap; gap: .5rem; padding: 0 1.5rem 1.2rem; }
 .column-totals > div { display: flex; gap: .65rem; font-size: .75rem; align-items: center; padding: .5rem .75rem; background: var(--surface-muted); border-radius: .5rem; overflow-wrap: anywhere; }
@@ -498,6 +501,6 @@ tr:hover td { background: var(--input-bg); }
 .dialog-form label input, .dialog-form label select, .dialog-form label textarea { display: block; margin-top: .5rem; }
 .dialog-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: .75rem; margin-top: .5rem; }
 button:disabled { opacity: .5; cursor: not-allowed; }
-@media (max-width: 1000px) { .arrival-panel { flex-wrap: wrap; } .arrival-label { width: 100%; } .event-overview { flex-wrap: wrap; gap: 1rem; } .sync-status { margin-left: auto; } }
-@media (max-width: 640px) { .attendance-page { padding: .75rem; } .page-heading, .section-bar, .sheet-toolbar { flex-direction: column; align-items: stretch; } .page-heading { gap: 1rem; } .arrival-panel { padding: 1rem; gap: .8rem; } .person-search { flex-basis: 100%; min-width: 0; } .event-overview { padding: 1rem; } .event-context { padding-left: 1rem; } .sync-status { margin-left: 0; } .sheet-toolbar { padding: 1rem; } .sheet-toolbar .search-field { flex-basis: 100%; } .sheet-footer { flex-direction: column; padding: 1rem; gap: .35rem; } .column-totals { padding-left: 1rem; padding-right: 1rem; } .person-column { position: static; min-width: 180px; } }
+@media (max-width: 1000px) { .event-header { flex-wrap: wrap; gap: .5rem .75rem; } .event-title { flex-basis: calc(100% - 3rem); } .attendance-count { border-left: 0; padding-left: 0; } .sync-status { margin-right: auto; } }
+@media (max-width: 640px) { .attendance-page { padding: .75rem; } .page-heading, .section-bar, .sheet-toolbar { flex-direction: column; align-items: stretch; } .page-heading { gap: 1rem; } .arrival-panel { flex-wrap: wrap; padding: .75rem; gap: .6rem; } .person-search { flex-basis: 100%; min-width: 0; } .sheet-toolbar { padding: 1rem; } .sheet-toolbar .search-field { flex-basis: 100%; } .sheet-footer { flex-direction: column; padding: 1rem; gap: .35rem; } .column-totals { padding-left: 1rem; padding-right: 1rem; } .person-column { position: static; min-width: 180px; } }
 </style>

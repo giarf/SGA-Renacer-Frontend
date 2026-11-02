@@ -151,10 +151,10 @@ onBeforeUnmount(() => { controller?.abort(); void audio?.close(); });
 </template>
 
 <style scoped>
-.fp-bar { display: grid; gap: .75rem; padding: 1rem 1.25rem; margin-bottom: 1.5rem; border: 1px solid var(--card-border); border-radius: 1rem; background: var(--bg-card); }
+.fp-bar { display: grid; gap: .6rem; padding: .6rem 1rem; margin-bottom: .75rem; border: 1px solid var(--card-border); border-radius: 1rem; background: var(--bg-card); }
 .fp-bar.active { border-color: var(--accent-color); }
 .fp-main { display: flex; align-items: center; gap: .9rem; flex-wrap: wrap; }
-.fp-icon { display: grid; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: .9rem; flex-shrink: 0; color: var(--accent-color); background: var(--accent-color-muted); }
+.fp-icon { display: grid; place-items: center; width: 2.25rem; height: 2.25rem; border-radius: .9rem; flex-shrink: 0; color: var(--accent-color); background: var(--accent-color-muted); }
 .fp-icon.pulse { animation: fp-pulse 1.6s ease-in-out infinite; }
 .fp-text { flex: 1; min-width: 12rem; }
 .fp-text strong { font-size: .95rem; }
@@ -169,5 +169,5 @@ onBeforeUnmount(() => { controller?.abort(); void audio?.close(); });
 .fp-recent small { font-size: .72rem; color: var(--text-muted); }
 @keyframes fp-pulse { 50% { box-shadow: 0 0 0 6px var(--accent-color-muted); } }
 @media (prefers-reduced-motion: reduce) { .fp-icon.pulse { animation: none; } }
-@media (max-width: 640px) { .fp-bar { padding: 1rem; } .fp-main > button { width: 100%; } }
+@media (max-width: 640px) { .fp-bar { padding: .75rem; } .fp-main > button { width: 100%; } }
 </style>
