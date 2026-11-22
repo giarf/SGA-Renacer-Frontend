@@ -380,6 +380,12 @@ export const apiService = {
     crearColumnaCampana(id: number, datos: { nombre: string; tipo: TipoColumnaCampana }): Promise<{ id: number }> {
         return requestJson(`${API_BASE_URL}/campanas/${id}/columnas`, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(datos) });
     },
+    ordenarColumnasCampana(id: number, columnas: number[]): Promise<void> {
+        return requestJson(`${API_BASE_URL}/campanas/${id}/orden-columnas`, { method: 'PUT', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ columnas }) });
+    },
+    eliminarColumnaCampana(id: number, columnaId: number): Promise<void> {
+        return requestJson(`${API_BASE_URL}/campanas/${id}/columnas/${columnaId}`, { method: 'DELETE' });
+    },
     guardarValorCampana(id: number, participanteId: number, columnaId: number, dato: GuardarValorCampana): Promise<ValorCampana> {
         return requestJson(`${API_BASE_URL}/campanas/${id}/participantes/${participanteId}/valores/${columnaId}`, { method: 'PUT', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(dato) });
     },

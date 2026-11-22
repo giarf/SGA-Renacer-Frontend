@@ -16,7 +16,7 @@ export interface CrearCampana {
     descripcion: string;
     plantilla: 'apadrinamiento' | 'personalizada';
 }
-export interface ContactoCampana { id: number; nombreCompleto: string; telefono?: string | null }
+export interface ContactoCampana { id: number; nombreCompleto: string; telefono?: string | null; gestor?: string | null }
 export type TipoColumnaCampana = TipoColumnaAsistencia | 'whatsapp';
 export interface MensajeCampana { texto: string; enviado: boolean }
 export interface ColumnaCampana { id: number; nombre: string; tipo: TipoColumnaCampana; clave?: string | null; mensaje: string; destinatario: 'beneficiario' | 'colaborador'; version: number }
