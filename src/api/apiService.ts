@@ -377,7 +377,7 @@ export const apiService = {
     quitarParticipanteCampana(id: number, participanteId: number): Promise<void> {
         return requestJson(`${API_BASE_URL}/campanas/${id}/participantes/${participanteId}`, { method: 'DELETE' });
     },
-    crearColumnaCampana(id: number, datos: { nombre: string; tipo: TipoColumnaCampana }): Promise<{ id: number }> {
+    crearColumnaCampana(id: number, datos: { nombre: string; tipo: TipoColumnaCampana; campo?: string }): Promise<{ id: number }> {
         return requestJson(`${API_BASE_URL}/campanas/${id}/columnas`, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(datos) });
     },
     ordenarColumnasCampana(id: number, columnas: number[]): Promise<void> {

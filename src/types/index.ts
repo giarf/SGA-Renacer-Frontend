@@ -16,8 +16,16 @@ export interface CrearCampana {
     descripcion: string;
     plantilla: 'apadrinamiento' | 'personalizada';
 }
-export interface ContactoCampana { id: number; nombreCompleto: string; telefono?: string | null; gestor?: string | null }
-export type TipoColumnaCampana = TipoColumnaAsistencia | 'whatsapp';
+export interface ApoderadoFicha { nombre: string; telefono?: string | null; parentesco?: string | null }
+/** Datos de la ficha que el backend envía cuando la campaña tiene columnas de tipo 'ficha'. */
+export interface FichaCampana {
+    rut?: string; edad?: number; fechaNacimiento?: string; genero?: string; ocupacion?: string; telefono?: string; correo?: string;
+    direccion?: string; comuna?: string; sector?: string; region?: string; redSocial?: string; anotaciones?: string; gestor?: string;
+    etiquetas?: string; apoderado?: ApoderadoFicha;
+}
+export type CampoFicha = keyof FichaCampana;
+export interface ContactoCampana { id: number; nombreCompleto: string; telefono?: string | null; gestor?: string | null; ficha?: FichaCampana | null }
+export type TipoColumnaCampana = TipoColumnaAsistencia | 'whatsapp' | 'ficha';
 export interface MensajeCampana { texto: string; enviado: boolean }
 export interface ColumnaCampana { id: number; nombre: string; tipo: TipoColumnaCampana; clave?: string | null; mensaje: string; destinatario: 'beneficiario' | 'colaborador'; version: number }
 export interface GuardarValorCampana { valor: DatoAsistencia | MensajeCampana; version: number; columnaVersion?: number }

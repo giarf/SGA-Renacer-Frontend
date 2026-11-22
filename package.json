@@ -10,6 +10,7 @@
     "test:search": "node --experimental-strip-types --test tests/search.test.mjs",
     "test:responsible": "node --experimental-strip-types --test tests/responsibleMatching.test.mjs",
     "test:barcode": "node --experimental-strip-types --test tests/barcode.test.mjs",
+    "test:campanas": "node --experimental-strip-types --test tests/campanaFiltros.test.mjs",
     "preview": "vite preview",
     "start": "node server.mjs"
   },

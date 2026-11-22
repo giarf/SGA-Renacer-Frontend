@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
-import { ArrowLeft, ArrowUpRight, ChevronLeft, ChevronRight, Columns3, HandHeart, MessageCircle, Plus, RefreshCw, Search, Trash2, UserPlus } from 'lucide-vue-next';
+import { ArrowLeft, ArrowUpRight, ChevronLeft, ChevronRight, Columns3, Filter, HandHeart, MessageCircle, Plus, RefreshCw, Search, Trash2, UserPlus, X } from 'lucide-vue-next';
 import { ApiError, apiService } from '../api/apiService';
 import AsistenciaDialog from '../components/AsistenciaDialog.vue';
 import AgregarPersonaRapida from '../components/AgregarPersonaRapida.vue';
@@ -12,7 +12,8 @@ import CampanaMensajeCelda from '../components/CampanaMensajeCelda.vue';
 import type { ColumnaCampana } from '../types';
 import { matchesSearch } from '../utils/search';
 import { whatsappUrl } from '../utils/whatsapp';
-import type { Campana, CrearCampana, DetalleCampana, EntidadResumen, EstadoCampana, ParticipanteCampana, TipoColumnaCampana, GuardarValorCampana, ValorAsistencia, ValorCampana } from '../types';
+import { CAMPOS_FICHA, campoDe, cumpleFiltros, datoFicha, describirFiltro, modoDe, opcionesLista, textoFicha, type FiltroCampana, type PersonaFicha } from '../utils/campanaFiltros';
+import type { Campana, CampoFicha, CrearCampana, DetalleCampana, EntidadResumen, EstadoCampana, ParticipanteCampana, TipoColumnaCampana, GuardarValorCampana, ValorAsistencia, ValorCampana } from '../types';
 
 const route = useRoute();
 const router = useRouter();
@@ -26,7 +27,9 @@ const working = computed(() => busy.value || pending.value > 0);
 const error = ref('');
 const notice = ref('');
 const filtro = ref('');
-const pendiente = ref('todos');
+const filtros = ref<FiltroCampana[]>([]);
+/** Filtro en construcción: primero se elige qué filtrar ("padrino" o el id de una columna) y luego su condición. */
+const nuevoFiltro = ref({ objetivo: '', marcada: 'si', desde: '', hasta: '', valor: '', texto: '' });
 const modal = ref<'campana' | 'persona' | 'padrino' | 'columna' | 'mensaje' | 'quitar' | 'quitarColumna' | null>(null);
 const mensajeColumna = ref<ColumnaCampana | null>(null);
 const columnaAQuitar = ref<ColumnaCampana | null>(null);
@@ -34,25 +37,57 @@ const mensajeForm = ref('');
 const modalError = ref('');
 const selected = ref<ParticipanteCampana | null>(null);
 const form = ref<CrearCampana>({ nombre: '', fecha: '', descripcion: '', plantilla: 'apadrinamiento' });
-const columna = ref<{ nombre: string; tipo: TipoColumnaCampana }>({ nombre: '', tipo: 'boolean' });
+const columna = ref<{ nombre: string; tipo: TipoColumnaCampana; persona: PersonaFicha; campo: CampoFicha }>({ nombre: '', tipo: 'boolean', persona: 'beneficiario', campo: 'edad' });
+const nombreSugerido = computed(() => {
+    const etiqueta = CAMPOS_FICHA.find(c => c.campo === columna.value.campo)?.etiqueta ?? '';
+    return columna.value.persona === 'padrino' ? `${etiqueta} del padrino` : etiqueta;
+});
+const camposUsados = computed(() => new Set(detalle.value?.columnas.filter(c => c.tipo === 'ficha').map(c => c.clave) ?? []));
 const search = ref('');
 const results = ref<EntidadResumen[]>([]);
 const searching = ref(false);
 const cerrada = computed(() => detalle.value?.campana.estado === 'cerrada');
 const title = computed(() => ({ campana: 'Crear campaña', persona: 'Agregar beneficiario', padrino: 'Asignar padrino o madrina', columna: 'Agregar columna', mensaje: 'Editar mensaje para todos', quitar: 'Retirar participante', quitarColumna: 'Eliminar columna' }[modal.value ?? 'campana']));
 const list = computed(() => campanas.value.filter(c => matchesSearch(filtro.value, c.nombre, c.descripcion)));
+const columnasFicha = computed(() => detalle.value?.columnas.filter(c => c.tipo === 'ficha') ?? []);
 const rows = computed(() => (detalle.value?.participantes ?? []).filter(p =>
-    matchesSearch(filtro.value, p.beneficiario.nombreCompleto, p.padrino?.nombreCompleto, p.padrino?.gestor) &&
-    coincideFiltro(p)));
-function coincideFiltro(p: ParticipanteCampana) {
-    const f = pendiente.value;
-    if (f === 'todos') return true;
-    if (f === 'sin_padrino') return !p.padrino;
-    if (f === 'con_padrino') return !!p.padrino;
-    const [estado, columnaId = ''] = f.split(':');
-    return estado === 'si' ? valor(p, columnaId) === true : valor(p, columnaId) !== true;
-}
+    matchesSearch(filtro.value, p.beneficiario.nombreCompleto, p.padrino?.nombreCompleto, p.padrino?.gestor,
+        ...columnasFicha.value.map(c => textoFicha(p, c))) &&
+    cumpleFiltros(p, filtros.value, detalle.value?.columnas ?? [])));
 const checkpoints = computed(() => detalle.value?.columnas.filter(c => c.tipo === 'boolean') ?? []);
+const columnaObjetivo = computed(() => detalle.value?.columnas.find(c => String(c.id) === nuevoFiltro.value.objetivo) ?? null);
+const modoObjetivo = computed(() => {
+    const c = columnaObjetivo.value;
+    if (nuevoFiltro.value.objetivo === 'padrino') return 'padrino';
+    if (!c) return null;
+    if (c.tipo === 'boolean') return 'casilla';
+    const ref = campoDe(c);
+    return ref ? modoDe(ref.campo) : null;
+});
+const opcionesObjetivo = computed(() => columnaObjetivo.value && modoObjetivo.value === 'lista' ? opcionesLista(detalle.value?.participantes ?? [], columnaObjetivo.value) : []);
+const filtroValido = computed(() => {
+    const f = nuevoFiltro.value;
+    if (modoObjetivo.value === 'rango') return f.desde !== '' || f.hasta !== '';
+    if (modoObjetivo.value === 'texto') return f.texto.trim() !== '';
+    return modoObjetivo.value !== null;
+});
+watch(() => nuevoFiltro.value.objetivo, () => {
+    Object.assign(nuevoFiltro.value, { desde: '', hasta: '', texto: '', valor: opcionesObjetivo.value[0] ?? '' });
+});
+let filtroSeq = 0;
+function agregarFiltro() {
+    const f = nuevoFiltro.value; const c = columnaObjetivo.value; const fid = String(++filtroSeq);
+    let nuevo: FiltroCampana | null = null;
+    if (modoObjetivo.value === 'padrino') nuevo = { id: fid, tipo: 'padrino', con: f.marcada === 'si' };
+    else if (c && modoObjetivo.value === 'casilla') nuevo = { id: fid, tipo: 'casilla', columnaId: c.id, marcada: f.marcada === 'si' };
+    else if (c && modoObjetivo.value === 'rango') nuevo = { id: fid, tipo: 'rango', columnaId: c.id, desde: f.desde === '' ? null : Number(f.desde), hasta: f.hasta === '' ? null : Number(f.hasta) };
+    else if (c && modoObjetivo.value === 'lista') nuevo = { id: fid, tipo: 'lista', columnaId: c.id, valor: f.valor };
+    else if (c && modoObjetivo.value === 'texto') nuevo = { id: fid, tipo: 'texto', columnaId: c.id, texto: f.texto.trim() };
+    if (!nuevo) return;
+    filtros.value = [...filtros.value, nuevo];
+    nuevoFiltro.value = { objetivo: '', marcada: 'si', desde: '', hasta: '', valor: '', texto: '' };
+}
+const quitarFiltro = (fid: string) => { filtros.value = filtros.value.filter(f => f.id !== fid); };
 const delivered = computed(() => detalle.value?.participantes.filter(p => valor(p, 'entregado') === true).length ?? 0);
 const thanks = computed(() => detalle.value?.participantes.filter(p => valor(p, 'agradecimiento') === true).length ?? 0);
 const hasDelivery = computed(() => detalle.value?.columnas.some(c => c.clave === 'entregado'));
@@ -89,7 +124,7 @@ async function load() {
     } finally { if (!disposed && sequence === readSequence) loading.value = false; }
 }
 watch(() => route.params.campanaId, () => {
-    detalle.value = null; modal.value = null; filtro.value = ''; pendiente.value = 'todos'; error.value = ''; notice.value = '';
+    detalle.value = null; modal.value = null; filtro.value = ''; filtros.value = []; nuevoFiltro.value = { objetivo: '', marcada: 'si', desde: '', hasta: '', valor: '', texto: '' }; error.value = ''; notice.value = '';
     search.value = ''; ++searchSequence;
     void load();
 }, { immediate: true });
@@ -119,7 +154,7 @@ function open(kind: NonNullable<typeof modal.value>, row: ParticipanteCampana | 
         const today = new Date();
         form.value = { nombre: '', fecha: `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`, descripcion: '', plantilla: 'apadrinamiento' };
     }
-    if (kind === 'columna') columna.value = { nombre: '', tipo: 'boolean' };
+    if (kind === 'columna') columna.value = { nombre: '', tipo: 'boolean', persona: 'beneficiario', campo: 'edad' };
 }
 async function mutate(action: () => Promise<void>) {
     if (working.value || loading.value) return;
@@ -151,7 +186,11 @@ async function choose(personaId: number | null) {
 }
 async function addColumn() {
     const campaignId = id.value; if (!campaignId) return;
-    await mutate(async () => { await apiService.crearColumnaCampana(campaignId, columna.value); modal.value = null; });
+    const { nombre, tipo, persona, campo } = columna.value;
+    const datos = tipo === 'ficha'
+        ? { nombre: nombre.trim() || nombreSugerido.value, tipo, campo: `${persona}.${campo}` }
+        : { nombre, tipo };
+    await mutate(async () => { await apiService.crearColumnaCampana(campaignId, datos); modal.value = null; });
 }
 async function moverColumna(index: number, delta: -1 | 1) {
     const campaignId = id.value; const columnas = detalle.value?.columnas;
@@ -166,7 +205,7 @@ function pedirQuitarColumna(c: ColumnaCampana) {
 }
 async function quitarColumna() {
     const campaignId = id.value; const c = columnaAQuitar.value; if (!campaignId || !c) return;
-    await mutate(async () => { await apiService.eliminarColumnaCampana(campaignId, c.id); modal.value = null; if (pendiente.value.endsWith(`:${c.id}`)) pendiente.value = 'todos'; notice.value = `Columna "${c.nombre}" eliminada.`; });
+    await mutate(async () => { await apiService.eliminarColumnaCampana(campaignId, c.id); modal.value = null; filtros.value = filtros.value.filter(f => f.tipo === 'padrino' || f.columnaId !== c.id); notice.value = `Columna "${c.nombre}" eliminada.`; });
 }
 function editarMensaje(c: ColumnaCampana) {
     mensajeColumna.value = { ...c }; mensajeForm.value = c.mensaje; modalError.value = ''; modal.value = 'mensaje';
@@ -246,7 +285,21 @@ async function saveCell(rowId: number, columnId: number, value: GuardarValorCamp
             </section>
             <section class="surface-card tracking">
                 <div class="table-toolbar"><div><h2>Seguimiento de participantes</h2></div><button class="btn btn-outline" :disabled="cerrada || working || loading" @click="open('columna')"><Columns3 :size="16" /> Agregar columna</button></div>
-                <div class="filters"><label class="search-box"><Search :size="17" /><input v-model="filtro" placeholder="Buscar beneficiario o padrino…" aria-label="Buscar participante" /></label><select v-model="pendiente" aria-label="Filtrar registros"><option value="todos">Todos los registros</option><optgroup label="Padrino / madrina"><option value="sin_padrino">Sin padrino asignado</option><option value="con_padrino">Con padrino asignado</option></optgroup><optgroup v-for="c in checkpoints" :key="c.id" :label="c.nombre"><option :value="`si:${c.id}`">✓ Marcado: {{ c.nombre }}</option><option :value="`no:${c.id}`">✗ No marcado: {{ c.nombre }}</option></optgroup></select><span class="muted">{{ rows.length }} registros</span></div>
+                <div class="filters"><label class="search-box"><Search :size="17" /><input v-model="filtro" placeholder="Buscar beneficiario o padrino…" aria-label="Buscar participante" /></label><span class="muted">{{ rows.length }} registros</span></div>
+                <form class="filter-builder" @submit.prevent="agregarFiltro">
+                    <Filter :size="16" aria-hidden="true" />
+                    <select v-model="nuevoFiltro.objetivo" aria-label="Filtrar por"><option value="" disabled>Filtrar por…</option><option value="padrino">Padrino / madrina</option><optgroup v-if="checkpoints.length" label="Casillas"><option v-for="c in checkpoints" :key="c.id" :value="String(c.id)">{{ c.nombre }}</option></optgroup><optgroup v-if="columnasFicha.length" label="Datos de la ficha"><option v-for="c in columnasFicha" :key="c.id" :value="String(c.id)">{{ c.nombre }}</option></optgroup></select>
+                    <select v-if="modoObjetivo === 'padrino'" v-model="nuevoFiltro.marcada" aria-label="Condición"><option value="si">Con padrino asignado</option><option value="no">Sin padrino asignado</option></select>
+                    <select v-else-if="modoObjetivo === 'casilla'" v-model="nuevoFiltro.marcada" aria-label="Condición"><option value="si">✓ Marcado</option><option value="no">✗ No marcado</option></select>
+                    <template v-else-if="modoObjetivo === 'rango'"><input v-model="nuevoFiltro.desde" type="number" placeholder="Desde" aria-label="Desde" class="range-input" /><input v-model="nuevoFiltro.hasta" type="number" placeholder="Hasta" aria-label="Hasta" class="range-input" /></template>
+                    <select v-else-if="modoObjetivo === 'lista'" v-model="nuevoFiltro.valor" aria-label="Valor"><option v-for="o in opcionesObjetivo" :key="o" :value="o">{{ o || 'Sin dato' }}</option></select>
+                    <input v-else-if="modoObjetivo === 'texto'" v-model="nuevoFiltro.texto" placeholder="Contiene…" aria-label="Texto a buscar" />
+                    <button class="btn btn-outline" :disabled="!filtroValido"><Plus :size="15" /> Agregar filtro</button>
+                </form>
+                <div v-if="filtros.length" class="active-filters" aria-label="Filtros activos">
+                    <span v-for="f in filtros" :key="f.id" class="filter-chip">{{ describirFiltro(f, detalle.columnas) }}<button type="button" :aria-label="`Quitar filtro ${describirFiltro(f, detalle.columnas)}`" @click="quitarFiltro(f.id)"><X :size="13" /></button></span>
+                    <button type="button" class="text-action" @click="filtros = []">Quitar todos</button>
+                </div>
                 <p v-if="cerrada" class="closed-note">Campaña cerrada. Cambia su estado a activa para continuar el seguimiento.</p>
                 <div v-if="rows.length" class="table-scroll">
                     <table><thead><tr><th class="beneficiary">Beneficiario</th><th>Padrino / madrina</th><th v-for="(c, i) in detalle.columnas" :key="c.id"><span class="column-title"><button class="btn-ghost column-move" :disabled="cerrada || working || loading || i === 0" :aria-label="`Mover ${c.nombre} a la izquierda`" title="Mover a la izquierda" @click="moverColumna(i, -1)"><ChevronLeft :size="14" /></button>{{ c.nombre }}<button class="btn-ghost column-move" :disabled="cerrada || working || loading || i === detalle.columnas.length - 1" :aria-label="`Mover ${c.nombre} a la derecha`" title="Mover a la derecha" @click="moverColumna(i, 1)"><ChevronRight :size="14" /></button><button class="btn-ghost column-delete" :disabled="cerrada || working || loading" :aria-label="`Eliminar columna ${c.nombre}`" :title="`Eliminar columna ${c.nombre}`" @click="pedirQuitarColumna(c)"><Trash2 :size="14" /></button></span><div v-if="c.tipo === 'whatsapp'" class="message-heading"><button class="text-action" :disabled="cerrada || working || loading" @click="editarMensaje(c)">Editar mensaje</button><select :aria-label="`Destinatario de ${c.nombre}`" :value="c.destinatario" :disabled="cerrada || working || loading" @change="configurarMensaje(c, c.mensaje, ($event.target as HTMLSelectElement).value as 'beneficiario' | 'colaborador')"><option value="beneficiario">Beneficiario</option><option value="colaborador">Colaborador</option></select></div></th><th>Acciones</th></tr></thead>
@@ -254,7 +307,16 @@ async function saveCell(rowId: number, columnId: number, value: GuardarValorCamp
                             <td class="beneficiary"><strong>{{ p.beneficiario.nombreCompleto }}</strong><a v-if="whatsappUrl(p.beneficiario.telefono)" :href="whatsappUrl(p.beneficiario.telefono)" target="_blank" rel="noopener noreferrer" class="phone" :aria-label="`WhatsApp de ${p.beneficiario.nombreCompleto}`"><MessageCircle :size="13" /> {{ p.beneficiario.telefono }}</a></td>
                             <td class="sponsor"><template v-if="p.padrino"><strong>{{ p.padrino.nombreCompleto }}</strong><a v-if="whatsappUrl(p.padrino.telefono)" :href="whatsappUrl(p.padrino.telefono)" target="_blank" rel="noopener noreferrer" class="phone"><MessageCircle :size="13" /> {{ p.padrino.telefono }}</a><span v-else class="muted">Sin teléfono válido para WhatsApp</span><small class="gestor">Gestor: <template v-if="p.padrino.gestor">{{ p.padrino.gestor }}</template><span v-else class="muted">sin asignar</span></small><small class="muted">{{ padrinoCount(p.padrino.id) }} beneficiario(s) en esta campaña</small></template><span v-else class="unassigned">Sin asignar</span><button class="text-action" :disabled="cerrada || working || loading" @click="open('padrino', p)">{{ p.padrino ? 'Cambiar asignación' : 'Asignar padrino / madrina' }}</button></td>
                             <td v-for="c in detalle.columnas" :key="c.id">
-                                <CampanaMensajeCelda v-if="c.tipo === 'whatsapp'" :mensaje="c.mensaje" :columna-version="c.version" :dato="p.valores[String(c.id)]" :label="`${c.nombre} · ${p.beneficiario.nombreCompleto}`" :telefono="c.destinatario === 'beneficiario' ? p.beneficiario.telefono : p.padrino?.telefono" :readonly="cerrada || busy || loading" :variables="{ nombre: (c.destinatario === 'beneficiario' ? p.beneficiario.nombreCompleto : p.padrino?.nombreCompleto) ?? '', beneficiario: p.beneficiario.nombreCompleto, campana: detalle.campana.nombre, gustos: String(valor(p, 'gustos') ?? '') }" :save-value="v => saveCell(p.id, c.id, v)" />
+                                <template v-if="c.tipo === 'ficha'">
+                                    <template v-if="campoDe(c)?.campo === 'apoderado' && typeof datoFicha(p, c) === 'object'">
+                                        <span>{{ (datoFicha(p, c) as { nombre: string }).nombre }}<small v-if="(datoFicha(p, c) as { parentesco?: string }).parentesco" class="muted"> · {{ (datoFicha(p, c) as { parentesco?: string }).parentesco }}</small></span>
+                                        <a v-if="whatsappUrl((datoFicha(p, c) as { telefono?: string }).telefono)" :href="whatsappUrl((datoFicha(p, c) as { telefono?: string }).telefono)" target="_blank" rel="noopener noreferrer" class="phone"><MessageCircle :size="13" /> {{ (datoFicha(p, c) as { telefono?: string }).telefono }}</a>
+                                    </template>
+                                    <a v-else-if="campoDe(c)?.campo === 'telefono' && whatsappUrl(textoFicha(p, c))" :href="whatsappUrl(textoFicha(p, c))" target="_blank" rel="noopener noreferrer" class="phone"><MessageCircle :size="13" /> {{ textoFicha(p, c) }}</a>
+                                    <span v-else-if="textoFicha(p, c)" class="ficha-value">{{ textoFicha(p, c) }}</span>
+                                    <span v-else class="muted">—</span>
+                                </template>
+                                <CampanaMensajeCelda v-else-if="c.tipo === 'whatsapp'" :mensaje="c.mensaje" :columna-version="c.version" :dato="p.valores[String(c.id)]" :label="`${c.nombre} · ${p.beneficiario.nombreCompleto}`" :telefono="c.destinatario === 'beneficiario' ? p.beneficiario.telefono : p.padrino?.telefono" :readonly="cerrada || busy || loading" :variables="{ nombre: (c.destinatario === 'beneficiario' ? p.beneficiario.nombreCompleto : p.padrino?.nombreCompleto) ?? '', beneficiario: p.beneficiario.nombreCompleto, campana: detalle.campana.nombre, gustos: String(valor(p, 'gustos') ?? '') }" :save-value="v => saveCell(p.id, c.id, v)" />
                                 <template v-else-if="cerrada"><span>{{ p.valores[String(c.id)]?.valor === true ? 'Sí' : p.valores[String(c.id)]?.valor === false ? 'No' : p.valores[String(c.id)]?.valor ?? '—' }}</span></template>
                                 <AsistenciaCelda v-else :persona-nombre="p.beneficiario.nombreCompleto" :columna="{ ...c, tipo: c.tipo }" :dato="p.valores[String(c.id)] as ValorAsistencia | undefined" :save-value="async v => await saveCell(p.id, c.id, v) as ValorAsistencia" />
                                 <small v-if="p.valores[String(c.id)]" class="timestamp" :title="`Última actualización: ${actualizado(p.valores[String(c.id)])}`">{{ actualizado(p.valores[String(c.id)]) }}</small>
@@ -272,7 +334,7 @@ async function saveCell(rowId: number, columnId: number, value: GuardarValorCamp
             <form v-if="modal === 'mensaje' && mensajeColumna" class="dialog-form" @submit.prevent="configurarMensaje(mensajeColumna, mensajeForm)"><label>Mensaje<textarea v-model="mensajeForm" maxlength="2000" rows="8" /></label><p class="muted">{nombre}: destinatario · {beneficiario} · {campana} · {gustos}</p><button class="btn btn-primary" :disabled="working || loading">Guardar para todos</button></form>
             <form v-if="modal === 'campana'" class="dialog-form" @submit.prevent="create"><label>Nombre<input v-model="form.nombre" required maxlength="120" placeholder="Apadrinamiento Navidad 2026" /></label><label>Fecha de referencia<input v-model="form.fecha" type="date" required /></label><label>Descripción<textarea v-model="form.descripcion" maxlength="2000" rows="3" /></label><label>Plantilla<select v-model="form.plantilla"><option value="apadrinamiento">Apadrinamiento · regalos y agradecimientos</option><option value="personalizada">Personalizada · agregar mis columnas</option></select></label><button class="btn btn-primary" :disabled="working || loading || !form.nombre.trim()">Crear campaña</button></form>
             <div v-else-if="modal === 'persona' || modal === 'padrino'" class="dialog-form"><p v-if="selected">Beneficiario: <strong>{{ selected.beneficiario.nombreCompleto }}</strong></p><p v-if="modal === 'padrino' && selected?.padrino" class="muted">Al cambiar de padrino, la ficha y el agradecimiento quedan pendientes de enviar al nuevo contacto.</p><label>Buscar persona<input v-model="search" placeholder="Nombre o RUT (mínimo 2 caracteres)" :disabled="working" /></label><p v-if="searching" role="status">Buscando…</p><div v-else class="person-results"><button v-for="p in results" :key="p.id" :disabled="working || loading" @click="choose(p.id)"><strong>{{ p.nombreCompleto }}</strong><span>{{ p.identificador || 'Sin RUT' }}<template v-if="modal === 'padrino'"> · {{ padrinoCount(p.id) }} beneficiario(s)</template></span><Plus :size="16" /></button><AgregarPersonaRapida v-if="search.trim().length >= 2 && !results.length" :query="search" @agregar="crearPersonaAbierto = true" /></div><button v-if="modal === 'padrino' && selected?.padrino" class="btn btn-outline" :disabled="working || loading" @click="choose(null)">Quitar padrino y dejar pendiente</button></div>
-            <form v-else-if="modal === 'columna'" class="dialog-form" @submit.prevent="addColumn"><label>Nombre<input v-model="columna.nombre" required maxlength="120" /></label><label>Tipo<select v-model="columna.tipo"><option value="boolean">Casilla · Sí / No</option><option value="text">Texto</option><option value="number">Número</option><option value="whatsapp">Mensaje de WhatsApp</option></select></label><button class="btn btn-primary" :disabled="working || loading || !columna.nombre.trim()">Agregar columna</button></form>
+            <form v-else-if="modal === 'columna'" class="dialog-form" @submit.prevent="addColumn"><label>Nombre<input v-model="columna.nombre" :required="columna.tipo !== 'ficha'" maxlength="120" :placeholder="columna.tipo === 'ficha' ? nombreSugerido : ''" /></label><label>Tipo<select v-model="columna.tipo"><option value="boolean">Casilla · Sí / No</option><option value="text">Texto</option><option value="number">Número</option><option value="whatsapp">Mensaje de WhatsApp</option><option value="ficha">Dato de la ficha · solo lectura</option></select></label><template v-if="columna.tipo === 'ficha'"><label>De quién<select v-model="columna.persona"><option value="beneficiario">Beneficiario</option><option value="padrino">Padrino / madrina</option></select></label><label>Dato<select v-model="columna.campo"><option v-for="c in CAMPOS_FICHA" :key="c.campo" :value="c.campo" :disabled="camposUsados.has(`${columna.persona}.${c.campo}`)">{{ c.etiqueta }}{{ camposUsados.has(`${columna.persona}.${c.campo}`) ? ' (ya agregado)' : '' }}</option></select></label><p class="muted">Se muestra lo que dice la ficha de cada persona y se actualiza solo. Para cambiar un dato, edita la ficha.</p></template><button class="btn btn-primary" :disabled="working || loading || (columna.tipo === 'ficha' ? camposUsados.has(`${columna.persona}.${columna.campo}`) : !columna.nombre.trim())">Agregar columna</button></form>
             <div v-else-if="modal === 'quitar'" class="dialog-form"><p>¿Retirar a <strong>{{ selected?.beneficiario.nombreCompleto }}</strong> de esta campaña? Se eliminará su seguimiento en esta campaña. La persona seguirá registrada en el sistema.</p><button class="btn btn-primary" :disabled="working || loading" @click="remove">Retirar participante</button></div>
             <div v-else-if="modal === 'quitarColumna'" class="dialog-form"><p>¿Eliminar la columna <strong>{{ columnaAQuitar?.nombre }}</strong>? Se borrarán los datos de esta columna para todos los participantes y no se pueden recuperar.</p><button class="btn btn-primary" :disabled="working || loading" @click="quitarColumna">Eliminar columna</button></div>
         </AsistenciaDialog>
@@ -305,13 +367,18 @@ h2 { font-size: 1.15rem; font-weight: 750; } h3 { font-weight: 700; }
 .summary div { flex: 1; min-width: 150px; padding: 1.25rem 1rem; } .summary strong { display: block; font-size: 2rem; font-weight: 750; font-variant-numeric: tabular-nums; letter-spacing: -.05em; } .summary span { font-size: .75rem; color: var(--text-muted); }
 .tracking { overflow: hidden; border-radius: 1rem; } .table-toolbar { padding: 1.25rem; justify-content: space-between; } .table-toolbar p { margin-top: .35rem; }
 .filters { padding: 0 1.25rem 1.25rem; } .filters .search-box { flex: 1; min-width: 220px; } .filters select { width: auto; max-width: 100%; }
-.table-scroll { overflow-x: auto; } table { width: 100%; border-collapse: separate; border-spacing: 0; text-align: left; font-size: .85rem; }
-th { padding: .85rem 1rem; background: var(--bg-base); font-size: .7rem; font-weight: 700; white-space: nowrap; border-block: 1px solid var(--card-border); }
+/* La tabla se desplaza dentro de su propio marco para que el encabezado y la columna del beneficiario queden fijos. */
+.table-scroll { overflow: auto; max-height: calc(100vh - 6rem); max-height: calc(100dvh - 6rem); overscroll-behavior: contain; } table { width: 100%; border-collapse: separate; border-spacing: 0; text-align: left; font-size: .85rem; }
+th { position: sticky; top: 0; z-index: 2; padding: .85rem 1rem; background: var(--bg-base); font-size: .7rem; font-weight: 700; white-space: nowrap; border-block: 1px solid var(--card-border); }
 td { padding: .85rem 1rem; border-bottom: 1px solid var(--card-border); vertical-align: top; } td strong { display: block; }
 .beneficiary { position: sticky; left: 0; z-index: 1; min-width: 210px; max-width: 260px; background: var(--bg-card); border-right: 1px solid var(--card-border); }
-th.beneficiary { background: var(--bg-base); } .sponsor { min-width: 230px; } .sponsor small { display: block; margin-top: .4rem; } .sponsor .gestor { color: var(--text-secondary, inherit); }
+th.beneficiary { z-index: 3; background: var(--bg-base); } .sponsor { min-width: 230px; } .sponsor small { display: block; margin-top: .4rem; } .sponsor .gestor { color: var(--text-secondary, inherit); }
 .phone { display: flex; gap: .35rem; align-items: center; color: var(--accent-color); margin-top: .45rem; font-size: .8rem; text-decoration: underline; text-underline-offset: 3px; }
 .column-title { display: inline-flex; align-items: center; gap: .25rem; } .column-delete, .column-move { padding: .15rem; opacity: .6; } .column-move:hover:not(:disabled) { opacity: 1; } .column-move:disabled { opacity: .2; } .column-delete:hover:not(:disabled) { opacity: 1; color: var(--danger-color, #c0392b); }
+.filter-builder { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; padding: 0 1.25rem 1rem; color: var(--text-muted); } .filter-builder select, .filter-builder input { width: auto; max-width: 100%; } .range-input { width: 6.5rem !important; }
+.active-filters { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; padding: 0 1.25rem 1rem; } .active-filters .text-action { margin-top: 0; }
+.filter-chip { display: inline-flex; align-items: center; gap: .35rem; padding: .3rem .4rem .3rem .75rem; border: 1px solid var(--accent-color); border-radius: 999px; background: var(--accent-color-muted); font-size: .75rem; } .filter-chip button { display: inline-flex; padding: .1rem; border-radius: 999px; }
+.ficha-value { white-space: pre-line; overflow-wrap: anywhere; }
 .text-action { display: block; font-size: .75rem; margin-top: .5rem; color: var(--accent-color); text-decoration: underline; } .unassigned { color: var(--text-muted); font-style: italic; }
 .timestamp { display: block; font-size: .65rem; margin-top: .4rem; white-space: nowrap; } .row-actions { min-width: 185px; } .row-actions .btn { font-size: .75rem; }
 .tracking-footer, .closed-note { padding: 1rem 1.25rem; font-size: .75rem; color: var(--text-muted); background: var(--bg-base); }
@@ -320,6 +387,6 @@ th.beneficiary { background: var(--bg-base); } .sponsor { min-width: 230px; } .s
 .dialog-form { display: grid; gap: 1rem; } .dialog-form label { display: grid; gap: .4rem; font-size: .85rem; font-weight: 650; } .dialog-form textarea { resize: vertical; }
 .person-results { display: grid; gap: .5rem; max-height: 320px; overflow-y: auto; } .person-results button { position: relative; padding: .85rem 2rem .85rem .85rem; border: 1px solid var(--card-border); border-radius: .65rem; text-align: left; } .person-results button:hover { border-color: var(--accent-color); } .person-results strong, .person-results span { display: block; } .person-results span { color: var(--text-muted); font-size: .75rem; margin-top: .25rem; } .person-results svg { position: absolute; right: .75rem; top: 1rem; }
 button:disabled { opacity: .5; cursor: not-allowed; }
-@media (max-width: 760px) { .campaign-page { padding: 1rem; } .campaign-header { flex-direction: column; } .actions { justify-content: flex-start; } .summary div { min-width: 45%; } .beneficiary { position: static; } .filters { align-items: stretch; flex-direction: column; } }
+@media (max-width: 760px) { .campaign-page { padding: 1rem; } .campaign-header { flex-direction: column; } .actions { justify-content: flex-start; } .summary div { min-width: 45%; } td.beneficiary { position: static; } th.beneficiary { left: auto; } .filters { align-items: stretch; flex-direction: column; } }
 @media (prefers-reduced-motion: reduce) { .campaign-card { transition: none; } .campaign-card:hover { transform: none; } }
 </style>
