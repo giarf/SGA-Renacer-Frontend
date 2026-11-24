@@ -12,7 +12,11 @@ const props = defineProps<{
 const current = computed(() => typeof props.dato?.valor === 'object' && props.dato.valor !== null ? props.dato.valor : { texto: '', enviado: false });
 const saving = ref(false);
 const error = ref('');
-const rendered = computed(() => props.mensaje.replace(/\{(nombre|beneficiario|campana|gustos)\}/g, (token, key: string) => props.variables[key] ?? token));
+const rendered = computed(() => props.mensaje.replace(/\{(nombre|beneficiario|campana|gustos)\}/g, (token, key: string) => {
+    const valor = props.variables[key];
+    if (valor === undefined) return token;
+    return key === 'nombre' ? valor.trim().split(/\s+/, 1)[0] ?? '' : valor;
+}));
 const url = computed(() => whatsappUrl(props.telefono, rendered.value));
 async function save(enviado: boolean) {
     if (saving.value || props.readonly) return false;
