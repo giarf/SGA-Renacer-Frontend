@@ -344,7 +344,6 @@ async function saveCell(rowId: number, columnId: number, value: GuardarValorCamp
                 <div v-if="rows.length" class="table-scroll" @scroll="menuColumna = null">
                     <table class="campaign-table">
                         <thead><tr>
-                            <th class="row-num" aria-label="Fila" />
                             <th class="beneficiary"><span class="head-label"><User :size="13" /> Beneficiario</span></th>
                             <th class="sponsor"><span class="head-label"><HandHeart :size="13" /> Padrino / madrina</span></th>
                             <th v-for="c in detalle.columnas" :key="c.id" :class="`col-${c.tipo}`">
@@ -355,8 +354,7 @@ async function saveCell(rowId: number, columnId: number, value: GuardarValorCamp
                             </th>
                             <th class="actions-col" aria-label="Acciones" />
                         </tr></thead>
-                        <tbody><tr v-for="(p, n) in rows" :key="p.id">
-                            <td class="row-num">{{ n + 1 }}</td>
+                        <tbody><tr v-for="p in rows" :key="p.id">
                             <td class="beneficiary"><span class="cell-name" :title="p.beneficiario.nombreCompleto">{{ p.beneficiario.nombreCompleto }}</span><a v-if="whatsappUrl(p.beneficiario.telefono)" :href="whatsappUrl(p.beneficiario.telefono)" target="_blank" rel="noopener noreferrer" class="phone" :aria-label="`WhatsApp de ${p.beneficiario.nombreCompleto}`"><MessageCircle :size="12" /> {{ p.beneficiario.telefono }}</a></td>
                             <td class="sponsor">
                                 <div class="sponsor-cell">
@@ -495,9 +493,8 @@ h2 { font-size: 1.15rem; font-weight: 750; } h3 { font-weight: 700; }
 .head-label { display: inline-flex; align-items: center; gap: .35rem; min-width: 0; }
 .head-name { overflow: hidden; text-overflow: ellipsis; max-width: 16rem; }
 .head-menu-btn { opacity: 0; } th:hover .head-menu-btn, .head-menu-btn[aria-expanded="true"], .head-menu-btn:focus-visible { opacity: 1; }
-.row-num { position: sticky; left: 0; z-index: 1; width: 40px; min-width: 40px; text-align: center; color: var(--text-muted); font-size: .7rem; font-variant-numeric: tabular-nums; }
-.beneficiary { position: sticky; left: 40px; z-index: 1; min-width: 200px; max-width: 240px; box-shadow: 1px 0 0 var(--card-border); }
-th.row-num, th.beneficiary { z-index: 3; }
+.beneficiary { position: sticky; left: 0; z-index: 1; min-width: 200px; max-width: 240px; box-shadow: 1px 0 0 var(--card-border); }
+th.beneficiary { z-index: 3; }
 .sponsor { min-width: 210px; max-width: 260px; }
 .cell-name { display: block; font-weight: 600; color: var(--text-primary); overflow-wrap: anywhere; }
 .sponsor-cell { display: flex; align-items: flex-start; gap: .25rem; }
