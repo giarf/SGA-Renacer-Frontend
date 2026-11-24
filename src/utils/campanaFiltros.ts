@@ -40,6 +40,11 @@ export function datoFicha(p: ParticipanteCampana, columna: ColumnaCampana) {
     const ref = campoDe(columna);
     return ref ? fichaDe(p, ref.persona)?.[ref.campo] : undefined;
 }
+/** Teléfono del gestor, que viene en la misma ficha que su nombre. */
+export function telefonoGestor(p: ParticipanteCampana, columna: ColumnaCampana): string {
+    const ref = campoDe(columna);
+    return ref?.campo === 'gestor' ? fichaDe(p, ref.persona)?.gestorTelefono ?? '' : '';
+}
 /** Texto plano del dato, usado para mostrar, buscar y armar listas de opciones. */
 export function textoFicha(p: ParticipanteCampana, columna: ColumnaCampana): string {
     const v = datoFicha(p, columna);

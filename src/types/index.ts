@@ -20,7 +20,7 @@ export interface ApoderadoFicha { nombre: string; telefono?: string | null; pare
 /** Datos de la ficha que el backend envía cuando la campaña tiene columnas de tipo 'ficha'. */
 export interface FichaCampana {
     rut?: string; edad?: number; fechaNacimiento?: string; genero?: string; ocupacion?: string; telefono?: string; correo?: string;
-    direccion?: string; comuna?: string; sector?: string; region?: string; redSocial?: string; anotaciones?: string; gestor?: string;
+    direccion?: string; comuna?: string; sector?: string; region?: string; redSocial?: string; anotaciones?: string; gestor?: string; gestorTelefono?: string;
     etiquetas?: string; apoderado?: ApoderadoFicha;
 }
 export type CampoFicha = keyof FichaCampana;
