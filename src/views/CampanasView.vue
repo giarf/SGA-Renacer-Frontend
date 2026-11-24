@@ -342,7 +342,7 @@ async function saveCell(rowId: number, columnId: number, value: GuardarValorCamp
                 </div>
                 <p v-if="cerrada" class="closed-note">Campaña cerrada. Cambia su estado a activa para continuar el seguimiento.</p>
                 <div v-if="rows.length" class="table-scroll" @scroll="menuColumna = null">
-                    <table class="grid">
+                    <table class="campaign-table">
                         <thead><tr>
                             <th class="row-num" aria-label="Fila" />
                             <th class="beneficiary"><span class="head-label"><User :size="13" /> Beneficiario</span></th>
@@ -485,11 +485,12 @@ h2 { font-size: 1.15rem; font-weight: 750; } h3 { font-weight: 700; }
 
 /* La tabla se desplaza dentro de su propio marco para que el encabezado y la columna del beneficiario queden fijos. */
 .table-scroll { overflow: auto; max-height: calc(100vh - 9rem); max-height: calc(100dvh - 9rem); overscroll-behavior: contain; }
-.grid { width: max-content; min-width: 100%; border-collapse: separate; border-spacing: 0; text-align: left; font-size: .8rem; }
-.grid th, .grid td { border-right: 1px solid var(--card-border); border-bottom: 1px solid var(--card-border); }
-.grid th { position: sticky; top: 0; z-index: 2; height: 33px; padding: 0 .5rem; background: var(--bg-base); font-size: .75rem; font-weight: 600; color: var(--text-muted); white-space: nowrap; }
-.grid td { padding: .35rem .5rem; vertical-align: top; line-height: 1.35; background: var(--bg-card); }
-.grid tbody tr:hover td { background: color-mix(in srgb, var(--accent-color) 5%, var(--bg-card)); }
+.campaign-table { width: max-content; min-width: 100%; border-collapse: separate; border-spacing: 0; text-align: left; font-size: .8rem; }
+.campaign-table thead { position: sticky; top: 0; z-index: 3; }
+.campaign-table th, .campaign-table td { border-right: 1px solid var(--card-border); border-bottom: 1px solid var(--card-border); }
+.campaign-table th { height: 33px; padding: 0 .5rem; background: var(--bg-base); font-size: .75rem; font-weight: 600; color: var(--text-muted); white-space: nowrap; }
+.campaign-table td { padding: .35rem .5rem; vertical-align: top; line-height: 1.35; background: var(--bg-card); }
+.campaign-table tbody tr:hover td { background: color-mix(in srgb, var(--accent-color) 5%, var(--bg-card)); }
 .head-cell { display: flex; align-items: center; justify-content: space-between; gap: .25rem; }
 .head-label { display: inline-flex; align-items: center; gap: .35rem; min-width: 0; }
 .head-name { overflow: hidden; text-overflow: ellipsis; max-width: 16rem; }
@@ -508,12 +509,12 @@ th.row-num, th.beneficiary { z-index: 3; }
 .ficha-value { display: block; max-width: 18rem; white-space: pre-line; overflow-wrap: anywhere; }
 .actions-col { width: 36px; min-width: 36px; text-align: center; }
 .col-boolean { min-width: 120px; } .col-text, .col-number { min-width: 150px; }
-.grid :deep(.attendance-cell) { min-width: 0; }
-.grid :deep(.check-cell) { min-height: 26px; padding: .15rem .5rem; gap: .3rem; border-radius: .35rem; font-size: .72rem; }
-.grid :deep(.value-input) { height: 28px; padding: .2rem .4rem; font-size: .8rem; }
-.grid :deep(.message-cell) { min-width: 260px; max-width: 320px; gap: .3rem; }
-.grid :deep(.message-cell .preview) { max-height: 3.2em; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; }
-.grid :deep(.message-cell .controls button) { padding: .2rem .5rem; }
+.campaign-table :deep(.attendance-cell) { min-width: 0; }
+.campaign-table :deep(.check-cell) { min-height: 26px; padding: .15rem .5rem; gap: .3rem; border-radius: .35rem; font-size: .72rem; }
+.campaign-table :deep(.value-input) { height: 28px; padding: .2rem .4rem; font-size: .8rem; }
+.campaign-table :deep(.message-cell) { min-width: 260px; max-width: 320px; gap: .3rem; }
+.campaign-table :deep(.message-cell .preview) { max-height: 3.2em; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; }
+.campaign-table :deep(.message-cell .controls button) { padding: .2rem .5rem; }
 .grid-footer { padding: .35rem .75rem; font-size: .72rem; color: var(--text-muted); border-top: 1px solid var(--card-border); background: var(--bg-base); }
 .column-menu { position: fixed; z-index: 21; width: 220px; padding: .3rem; border: 1px solid var(--card-border); border-radius: .5rem; background: var(--bg-card); box-shadow: 0 12px 32px rgba(0, 0, 0, .22); }
 .column-menu button { display: flex; align-items: center; gap: .5rem; width: 100%; padding: .4rem .5rem; border-radius: .35rem; font-size: .78rem; text-align: left; }
