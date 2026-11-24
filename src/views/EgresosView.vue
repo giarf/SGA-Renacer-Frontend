@@ -713,8 +713,8 @@ onMounted(async () => {
 
                             <section v-if="form.detalles.length" class="form-panel space-y-3">
                                 <h4 class="form-section-title">3 · Agregados</h4>
-                                <div class="overflow-x-auto">
-                                    <table class="min-w-full divide-y divide-gray-100">
+                                <div class="list-scroll" tabindex="0" role="region" aria-label="Ítems del egreso">
+                                    <table class="list-table list-pin-first">
                                         <thead class="bg-[var(--surface-muted)]">
                                             <tr>
                                                 <th class="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Ítem</th>

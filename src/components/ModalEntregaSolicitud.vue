@@ -166,8 +166,8 @@ onMounted(async () => {
                             <span class="text-xs text-[var(--text-muted)]">Ajusta a lo que sale de verdad</span>
                         </div>
 
-                        <div v-if="lineas.length" class="flat-table">
-                            <table class="min-w-full divide-y divide-[var(--card-border)]">
+                        <div v-if="lineas.length" class="flat-table list-scroll" tabindex="0" role="region" aria-label="Ítems para entregar">
+                            <table class="list-table list-pin-first">
                                 <thead class="bg-[var(--surface-muted)]">
                                     <tr>
                                         <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Ítem</th>

@@ -385,8 +385,8 @@ onMounted(async () => {
 
             <div class="space-y-3 border-t border-[var(--card-border)] px-5 py-4">
                 <h4 class="form-section-title !mb-0">Resumen</h4>
-                <div v-if="items.length" class="flat-table">
-                    <table class="min-w-full divide-y divide-[var(--card-border)]">
+                <div v-if="items.length" class="flat-table list-scroll" tabindex="0" role="region" aria-label="Ítems solicitados">
+                    <table class="list-table list-pin-first">
                         <thead class="bg-[var(--surface-muted)]">
                             <tr>
                                 <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Ítem</th>

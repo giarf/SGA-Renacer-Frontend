@@ -176,16 +176,16 @@ onMounted(loadFamilias);
 
         <div class="grid grid-cols-1 gap-5 lg:grid-cols-[340px_1fr]">
             <aside class="form-shell overflow-hidden">
-                <div class="border-b border-[var(--card-border)] p-4">
+                <div class="border-b border-[var(--card-border)] p-2">
                     <input v-model="familiaSearch" class="compact-control" type="search" placeholder="Buscar familia...">
                 </div>
-                <div class="max-h-[70vh] overflow-y-auto p-2 space-y-0.5">
+                <div class="list-scroll divide-y divide-[var(--card-border)]">
                     <p v-if="loading" class="px-3 py-4 text-sm text-[var(--text-muted)]">Cargando familias...</p>
                     <button
                         v-for="familia in filteredFamilias"
                         :key="familia.id"
                         type="button"
-                        class="w-full rounded-xl px-3 py-2.5 text-left transition"
+                        class="w-full px-3 py-1.5 text-left text-sm transition"
                         :class="selectedFamilia?.id === familia.id ? 'bg-[var(--accent-color-muted)]' : 'hover:bg-[var(--surface-muted)]'"
                         @click="selectFamilia(familia)"
                     >

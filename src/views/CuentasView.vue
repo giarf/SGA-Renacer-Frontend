@@ -205,8 +205,8 @@ onMounted(() => {
                     <h3 class="text-base font-semibold text-[var(--text-primary)]">Cuentas configuradas</h3>
                     <span v-if="loading" class="text-sm text-[var(--text-muted)]">Cargando...</span>
                 </div>
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-[var(--card-border)] table-soft">
+                <div class="list-scroll" tabindex="0" aria-label="Listado de cuentas" role="region">
+                    <table class="list-table list-pin-first">
                         <thead class="bg-[var(--surface-muted)]/60 text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
                             <tr>
                                 <th class="px-4 py-3 text-left">Nombre</th>

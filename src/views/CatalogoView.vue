@@ -148,8 +148,8 @@ onMounted(() => {
             </div>
 
             <!-- Table -->
-            <div v-else-if="filteredItems.length > 0" class="overflow-x-auto">
-                <table class="w-full text-left text-sm border-collapse">
+            <div v-else-if="filteredItems.length > 0" class="list-scroll" tabindex="0" aria-label="Listado del catálogo" role="region">
+                <table class="list-table list-pin-first">
                     <thead class="bg-[var(--surface-muted)] text-[var(--text-muted)] text-xs uppercase tracking-wider font-semibold border-b border-[var(--card-border)]">
                         <tr>
                             <th class="px-5 py-4 cursor-pointer hover:text-[var(--text-primary)] transition-colors group select-none" @click="toggleSort('nombre')">

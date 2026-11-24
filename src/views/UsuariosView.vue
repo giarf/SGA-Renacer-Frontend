@@ -355,8 +355,8 @@ onMounted(loadUsers);
                 {{ search ? 'No se encontraron resultados.' : 'No hay usuarios registrados.' }}
             </div>
 
-            <div v-else class="overflow-x-auto">
-                <table class="min-w-full text-sm">
+            <div v-else class="list-scroll" tabindex="0" aria-label="Listado de usuarios" role="region">
+                <table class="list-table list-pin-first">
                     <thead class="bg-black/5 text-xs uppercase tracking-wide text-[var(--text-muted)] dark:bg-white/5">
                         <tr>
                             <th class="px-5 py-3 text-left font-semibold">Usuario</th>

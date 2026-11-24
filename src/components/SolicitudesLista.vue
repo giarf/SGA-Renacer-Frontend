@@ -130,17 +130,19 @@ onMounted(cargar);
             No hay solicitudes {{ filtro === 'todas' ? '' : filtros.find(f => f.valor === filtro)?.texto.toLowerCase() }}.
         </p>
 
-        <article v-for="s in visibles" :key="s.id" class="rounded-2xl border border-[var(--card-border)] bg-[var(--bg-card)] p-4">
-            <div class="flex flex-wrap items-start justify-between gap-3">
-                <div class="min-w-0">
+        <div v-if="visibles.length" class="list-scroll rounded-lg border border-[var(--card-border)]" tabindex="0" role="region" aria-label="Listado de solicitudes">
+            <table class="list-table list-pin-first">
+                <thead><tr><th scope="col">Solicitud</th><th scope="col">Estado</th><th scope="col">Ítems</th><th scope="col" class="text-right">Acciones</th></tr></thead>
+                <tbody>
+                <tr v-for="s in visibles" :key="s.id">
+                <td class="min-w-40 align-top">
                     <p class="text-xs text-[var(--text-muted)]">#{{ s.id }} · {{ formatoFecha(s.fechaSolicitud) }}</p>
                     <h4 class="font-semibold text-[var(--text-primary)]">{{ s.programa || 'Sin programa' }}</h4>
                     <p class="text-sm text-[var(--text-muted)]">Pide {{ nombreSolicitante(s) }}</p>
-                </div>
-                <span class="rounded-full px-2.5 py-1 text-xs font-semibold" :class="estadoClase(s.estado)">{{ s.estado || 'Pendiente' }}</span>
-            </div>
+                </td>
+                <td class="align-top"><span class="inline-block rounded-full px-2.5 py-1 text-xs font-semibold" :class="estadoClase(s.estado)">{{ s.estado || 'Pendiente' }}</span></td>
 
-            <ul class="mt-3 space-y-1 text-sm">
+            <td class="min-w-44 align-top"><ul class="space-y-1">
                 <li v-for="item in s.items" :key="item.id" class="flex justify-between gap-3">
                     <span class="text-[var(--text-primary)]">
                         {{ nombreItem(item) }}
@@ -155,16 +157,20 @@ onMounted(cargar);
             <p v-if="s.egresoIds.length" class="mt-2 text-xs text-[var(--text-muted)]">
                 Entregada como consumo interno {{ s.egresoIds.map(id => `#${id}`).join(', ') }} (ver en Logs).
             </p>
+            </td>
 
-            <div v-if="(s.estado || 'Pendiente') === 'Pendiente'" class="mt-3 flex flex-wrap justify-end gap-2">
+            <td class="align-top"><div v-if="(s.estado || 'Pendiente') === 'Pendiente'" class="flex flex-wrap justify-end gap-2">
                 <button type="button" class="btn-secondary h-9 px-3 text-sm" :disabled="cancelandoId === s.id" @click="cancelar(s)">
                     <Ban class="h-4 w-4" /> Cancelar
                 </button>
                 <button v-if="puedeEntregar" type="button" class="btn-primary h-9 px-4 text-sm" @click="entregando = s">
                     <PackageCheck class="h-4 w-4" /> Entregar
                 </button>
-            </div>
-        </article>
+            </div></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
 
         <ModalEntregaSolicitud
             v-if="entregando"

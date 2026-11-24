@@ -72,11 +72,13 @@ const boletaStatus = ref<{ type: 'success' | 'error'; text: string } | null>(nul
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? 'https://api.familiarenacer.cl/api').replace(/\/$/, '');
 const apiOrigin = apiBaseUrl.replace(/\/api$/, '');
 
+const filtrosAbiertos = ref(false);
 const filtroTipo = ref<'todos' | string>('todos');
 const filtroEstado = ref<'todos' | string>('todos');
 const filtroPrograma = ref('');
 const filtroDesde = ref('');
 const filtroHasta = ref('');
+const filtrosActivos = computed(() => [filtroTipo.value !== 'todos', filtroEstado.value !== 'todos', filtroPrograma.value.trim(), filtroDesde.value, filtroHasta.value].filter(Boolean).length);
 const isAdmin = computed(() => hasAnyGroup(ADMIN_GROUPS));
 
 const currency = new Intl.NumberFormat('es-CL', {
@@ -629,10 +631,9 @@ onMounted(fetchHistorial);
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 space-y-4">
         <section class="surface-card p-5 space-y-4 no-print">
             <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                <div class="flex items-center gap-2 text-gray-700 dark:text-slate-200">
-                    <Funnel class="w-4 h-4 text-[#006d8f]" />
-                    <p class="text-sm font-semibold">Filtros de consulta</p>
-                </div>
+                <button type="button" class="list-filter-toggle" :aria-expanded="filtrosAbiertos" aria-controls="logs-filtros" @click="filtrosAbiertos = !filtrosAbiertos">
+                    <Funnel class="h-4 w-4" /> {{ filtrosActivos ? `${filtrosActivos} ${filtrosActivos === 1 ? 'filtro' : 'filtros'}` : 'Filtrar' }}
+                </button>
                 <div class="flex flex-wrap gap-2">
                     <button
                         type="button"
@@ -653,7 +654,7 @@ onMounted(fetchHistorial);
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
+            <div v-show="filtrosAbiertos" id="logs-filtros" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
                 <div>
                     <label class="text-xs uppercase tracking-wide text-gray-500 dark:text-slate-400">Tipo</label>
                     <select v-model="filtroTipo" class="mt-1 w-full border border-gray-300 dark:border-slate-600 rounded-md px-3 py-2 text-sm bg-white dark:bg-slate-950 text-gray-800 dark:text-slate-100">
@@ -763,8 +764,8 @@ onMounted(fetchHistorial);
                 No hay registros que coincidan con los filtros actuales.
             </div>
 
-            <div v-else class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-100 dark:divide-slate-700">
+            <div v-else class="list-scroll" tabindex="0" aria-label="Historial de movimientos" role="region">
+                <table class="list-table list-pin-first">
                     <thead class="bg-gray-50 dark:bg-slate-800">
                         <tr>
                             <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 dark:text-slate-300 uppercase tracking-wider">Fecha</th>
@@ -853,8 +854,8 @@ onMounted(fetchHistorial);
                 >
                     No hay compras disponibles.
                 </div>
-                <div v-else class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-100 dark:divide-slate-700">
+                <div v-else class="list-scroll" tabindex="0" aria-label="Historial de ingresos" role="region">
+                    <table class="list-table list-pin-first">
                         <thead class="bg-gray-50 dark:bg-slate-800">
                             <tr>
                                 <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 dark:text-slate-300 uppercase tracking-wider">Fecha</th>
@@ -999,8 +1000,8 @@ onMounted(fetchHistorial);
                     <div v-if="editForm.detalles.length === 0" class="rounded-lg border border-dashed border-gray-200 px-4 py-6 text-center text-sm text-gray-500 dark:border-slate-700 dark:text-slate-400">
                         Este registro no tiene detalles de inventario. Puedes editar solo cabecera/monto.
                     </div>
-                    <div v-else class="overflow-x-auto rounded-lg border border-gray-100 dark:border-slate-700">
-                        <table class="min-w-full divide-y divide-gray-100 dark:divide-slate-700">
+                    <div v-else class="list-scroll rounded-lg border border-[var(--card-border)]" tabindex="0" aria-label="Detalle de ítems" role="region">
+                        <table class="list-table list-pin-first">
                             <thead class="bg-gray-50 text-xs uppercase tracking-wide text-gray-500 dark:bg-slate-800 dark:text-slate-300">
                                 <tr>
                                     <th class="px-3 py-2 text-left">Ítem</th>

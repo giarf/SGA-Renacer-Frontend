@@ -673,8 +673,8 @@ onBeforeUnmount(() => {
                     </div>
                 </div>
 
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-[var(--card-border)] table-soft">
+                <div class="list-scroll" tabindex="0" aria-label="Listado de personas" role="region">
+                    <table class="list-table list-pin-first list-selection">
                         <thead class="bg-[var(--surface-muted)]/60 text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
                             <tr>
                                 <th class="w-16 px-4 py-3 text-center">
@@ -686,7 +686,7 @@ onBeforeUnmount(() => {
                                     >
                                     <span class="sr-only">Seleccionar todas las personas visibles</span>
                                 </th>
-                                <th class="min-w-[360px] px-6 py-3 text-left cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors select-none group" @click="toggleSort('nombre')">
+                                <th class="list-pin min-w-[220px] px-6 py-3 text-left cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors select-none group" @click="toggleSort('nombre')">
                                     <div class="flex items-center gap-2">
                                         Persona
                                         <ArrowUp v-if="sortKey === 'nombre' && sortAsc" class="w-4 h-4 text-[var(--accent-color)]" />
@@ -747,7 +747,7 @@ onBeforeUnmount(() => {
                                         @change="setPersonaSelected(persona.id, ($event.target as HTMLInputElement).checked)"
                                     >
                                 </td>
-                                <td class="min-w-[360px] px-6 py-4 text-sm">
+                                <td class="list-pin min-w-[220px] px-6 py-4 text-sm">
                                     <div class="flex items-center gap-3">
                                         <img
                                             v-if="persona.fotoUrl"
@@ -847,8 +847,8 @@ onBeforeUnmount(() => {
                     </div>
                 </div>
 
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-[var(--card-border)] table-soft">
+                <div class="list-scroll" tabindex="0" aria-label="Listado de instituciones" role="region">
+                    <table class="list-table list-pin-first">
                         <thead class="bg-[var(--surface-muted)]/60 text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
                             <tr>
                                 <th class="px-6 py-3 text-left cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors select-none group" @click="toggleInstSort('nombre')">
@@ -897,7 +897,8 @@ onBeforeUnmount(() => {
                                 </td>
                                 <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
                                     <p>{{ inst.correo || 'Sin correo' }}</p>
-                                    <p class="text-xs text-gray-500">{{ inst.telefono || 'Sin teléfono' }}</p>
+                                    <a v-if="whatsappUrl(inst.telefono)" :href="whatsappUrl(inst.telefono)" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-xs text-[var(--accent-color)] underline" :aria-label="`WhatsApp: ${inst.telefono}`"><MessageCircle :size="12" /> {{ inst.telefono }}</a>
+                                    <p v-else class="text-xs text-gray-500">{{ inst.telefono || 'Sin teléfono' }}</p>
                                 </td>
                                 <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
                                     <p>{{ inst.comuna || 'Sin comuna' }}</p>

@@ -503,6 +503,75 @@ button {
     background: var(--surface-muted);
 }
 
+/* Shared spreadsheet layout for operational lists and item tables. */
+.list-scroll {
+    max-height: min(66dvh, 42rem);
+    overflow: auto;
+}
+.list-filter-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    padding: .35rem .55rem;
+    border-radius: .35rem;
+    font-size: .8rem;
+    font-weight: 600;
+}
+.list-filter-toggle:hover, .list-filter-toggle[aria-expanded="true"] { background: var(--accent-color-muted); }
+
+.list-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: .8rem;
+    text-align: left;
+}
+
+.list-table > thead { position: sticky; top: 0; z-index: 3; }
+.list-table > thead > tr > th {
+    height: 33px;
+    background: var(--bg-base);
+    color: var(--text-muted);
+    font-size: .75rem;
+    font-weight: 600;
+    text-transform: none;
+    letter-spacing: normal;
+    white-space: nowrap;
+}
+
+.list-table > :is(thead, tbody) > tr > :is(th, td) {
+    padding: .35rem .6rem;
+    border-block-start: 0;
+    border-inline-end: 1px solid var(--card-border);
+    border-block-end: 1px solid var(--card-border);
+}
+.list-table > :is(thead, tbody) > tr > :last-child { border-inline-end: 0; }
+.list-table > tbody > tr > td[colspan] { padding-block: 1rem; }
+
+@media screen and (min-width: 761px) {
+    .list-table .list-pin, .list-table.list-pin-first > :is(thead, tbody) > tr > :first-child:not([colspan]) {
+        position: sticky;
+        left: var(--list-pin-offset, 0px);
+        z-index: 1;
+    }
+    .list-table > tbody > tr > .list-pin, .list-table.list-pin-first > tbody > tr > :first-child:not([colspan]) {
+        background: var(--bg-card);
+    }
+    .list-table.list-selection { --selection-width: 3rem; }
+    .list-table.list-selection > :is(thead, tbody) > tr > :first-child:not([colspan]) {
+        width: var(--selection-width);
+        min-width: var(--selection-width);
+        max-width: var(--selection-width);
+    }
+    .list-table.list-selection .list-pin { --list-pin-offset: var(--selection-width); }
+}
+.list-table > tbody > tr:hover > td { background: color-mix(in srgb, var(--accent-color) 5%, var(--bg-card)); }
+
+@media print {
+    .list-scroll { max-height: none; overflow: visible; }
+    .list-table > thead { position: static; }
+}
+
 .form-panel-muted,
 .selected-card {
     background: color-mix(in srgb, var(--accent-color) 8%, var(--bg-card));

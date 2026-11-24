@@ -455,8 +455,8 @@ loadCurrentResponsible().finally(() => {
         <section v-if="items.length > 0" class="form-section !pb-0">
             <h4 class="form-section-title">3 · Agregados</h4>
 
-            <div class="flat-table">
-                <table class="min-w-full divide-y divide-[var(--card-border)]">
+            <div class="flat-table list-scroll" tabindex="0" role="region" aria-label="Bienes agregados">
+                <table class="list-table list-pin-first">
                     <thead class="bg-[var(--surface-muted)]">
                         <tr>
                             <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">

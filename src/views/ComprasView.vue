@@ -539,8 +539,8 @@ onBeforeUnmount(clearBoletaPreview);
                     </button>
                 </div>
 
-                <div v-if="detalles.length > 0" class="flat-table">
-                    <table class="min-w-full divide-y divide-[var(--card-border)]">
+                <div v-if="detalles.length > 0" class="flat-table list-scroll" tabindex="0" role="region" aria-label="Ítems de compra">
+                    <table class="list-table list-pin-first">
                         <thead>
                             <tr>
                                 <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Ítem</th>

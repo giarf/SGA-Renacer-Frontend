@@ -386,8 +386,8 @@ onBeforeUnmount(() => {
                     <div class="flex gap-3 flex-wrap items-center"><label class="search-field"><Search :size="16" /><input v-model="tableFilter" aria-label="Filtrar asistentes" placeholder="Buscar en esta lista…" /></label><button class="btn-secondary" :disabled="working" @click="openColumn"><Columns3 :size="17" /> Agregar columna</button></div>
                 </div>
                 <div v-if="detalle.columnas.length" class="column-totals" aria-label="Totales del evento"><div v-for="column in detalle.columnas" :key="column.id"><span>{{ column.nombre }}</span><strong>{{ summary(column) }}</strong></div></div>
-                <div class="table-scroll">
-                    <table>
+                <div class="list-scroll" tabindex="0" aria-label="Listado de asistentes" role="region">
+                    <table class="list-table list-pin-first">
                         <thead><tr><th class="person-column">Persona</th><th>RUT</th><th>Llegada</th><th v-for="column in detalle.columnas" :key="column.id"><div class="column-heading"><span>{{ column.nombre }}<small>{{ column.tipo === 'boolean' ? 'Sí / No' : column.tipo === 'number' ? 'Número' : 'Texto' }}</small></span><button class="btn-ghost !p-2" :aria-label="`Eliminar columna ${column.nombre}`" :disabled="working" @click="confirmDelete('column', column.id, column.nombre)"><Trash2 :size="14" /></button></div></th><th><span class="sr-only">Acciones</span></th></tr></thead>
                         <tbody>
                             <tr v-for="person in asistentes" :key="person.id"><td class="person-column"><span class="person-name">{{ person.nombreCompleto }}</span></td><td class="rut-cell">{{ person.rut || 'Sin RUT' }}</td><td class="muted tabular-nums">{{ hora(person.llegada) }}</td><td v-for="column in detalle.columnas" :key="column.id"><AsistenciaCelda :persona-nombre="person.nombreCompleto" :columna="column" :dato="person.valores[String(column.id)]" :save-value="dato => saveCell(person.id, column.id, dato)" /></td><td><button class="btn-ghost !p-2" :aria-label="`Quitar asistencia de ${person.nombreCompleto}`" :disabled="working" @click="confirmDelete('person', person.id, person.nombreCompleto)"><Trash2 :size="16" /></button></td></tr>
@@ -485,13 +485,7 @@ h2, h3 { font-weight: 700; }
 .column-totals { display: flex; flex-wrap: wrap; gap: .5rem; padding: 0 1.5rem 1.2rem; }
 .column-totals > div { display: flex; gap: .65rem; font-size: .75rem; align-items: center; padding: .5rem .75rem; background: var(--surface-muted); border-radius: .5rem; overflow-wrap: anywhere; }
 .column-totals span { color: var(--text-muted); }
-.table-scroll { position: relative; overflow-x: auto; }
-table { width: 100%; border-collapse: collapse; text-align: left; font-size: .85rem; }
-th { background: var(--surface-muted); color: var(--text-muted); font-size: .75rem; font-weight: 600; }
-th, td { padding: .85rem 1rem; border-bottom: 1px solid var(--card-border); vertical-align: middle; }
-td { background: var(--bg-card); }
-tr:hover td { background: var(--input-bg); }
-.person-column { min-width: 220px; position: sticky; left: 0; z-index: 1; }
+.person-column { min-width: 200px; }
 .person-name { font-weight: 650; }
 .rut-cell { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .column-heading { display: flex; align-items: center; justify-content: space-between; gap: .7rem; min-width: 155px; max-width: 290px; overflow-wrap: anywhere; }
