@@ -760,12 +760,12 @@ onBeforeUnmount(() => {
                                             {{ (persona.nombreCompleto || '?').slice(0, 1).toUpperCase() }}
                                         </div>
                                         <div>
-                                            <p class="whitespace-nowrap font-semibold text-gray-900 dark:text-gray-100">{{ persona.nombreCompleto || 'Sin nombre' }}</p>
+                                            <p class="whitespace-nowrap font-semibold text-[var(--text-primary)]">{{ persona.nombreCompleto || 'Sin nombre' }}</p>
                                             <p class="text-xs text-gray-500">{{ formatRutForDisplay(persona.identificador || '') }}</p>
                                         </div>
                                     </div>
                                 </td>
-                                <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
+                                <td class="px-6 py-4 text-sm text-[var(--text-muted)]">
                                     <p>{{ persona.correo || 'Sin correo' }}</p>
                                     <a
                                         v-if="whatsappUrl(persona.telefono)"
@@ -778,7 +778,7 @@ onBeforeUnmount(() => {
                                     </a>
                                     <p v-else class="text-xs text-gray-500">{{ persona.telefono || 'Sin teléfono' }}</p>
                                 </td>
-                                <td class="w-44 max-w-44 px-4 py-4 text-sm text-gray-600 dark:text-gray-300">
+                                <td class="w-44 max-w-44 px-4 py-4 text-sm text-[var(--text-muted)]">
                                     <p>{{ persona.comuna || 'Sin comuna' }}</p>
                                     <p class="truncate text-xs text-gray-500" :title="persona.direccion || 'Sin dirección registrada'">{{ persona.direccion || 'Sin dirección registrada' }}</p>
                                 </td>
@@ -892,15 +892,15 @@ onBeforeUnmount(() => {
                                 class="hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
                             >
                                 <td class="px-6 py-4 text-sm">
-                                    <p class="font-semibold text-gray-900 dark:text-gray-100">{{ inst.nombreCompleto }}</p>
+                                    <p class="font-semibold text-[var(--text-primary)]">{{ inst.nombreCompleto }}</p>
                                     <p class="text-xs text-gray-500">{{ formatRutForDisplay(inst.identificador || '') }}</p>
                                 </td>
-                                <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
+                                <td class="px-6 py-4 text-sm text-[var(--text-muted)]">
                                     <p>{{ inst.correo || 'Sin correo' }}</p>
                                     <a v-if="whatsappUrl(inst.telefono)" :href="whatsappUrl(inst.telefono)" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-xs text-[var(--accent-color)] underline" :aria-label="`WhatsApp: ${inst.telefono}`"><MessageCircle :size="12" /> {{ inst.telefono }}</a>
                                     <p v-else class="text-xs text-gray-500">{{ inst.telefono || 'Sin teléfono' }}</p>
                                 </td>
-                                <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
+                                <td class="px-6 py-4 text-sm text-[var(--text-muted)]">
                                     <p>{{ inst.comuna || 'Sin comuna' }}</p>
                                     <p class="text-xs text-gray-500 truncate">{{ inst.direccion || 'Sin dirección registrada' }}</p>
                                 </td>
