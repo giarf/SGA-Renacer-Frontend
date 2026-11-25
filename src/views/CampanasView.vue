@@ -246,6 +246,7 @@ async function moverColumna(index: number, delta: -1 | 1) {
     await mutate(async () => { await apiService.ordenarColumnasCampana(campaignId, orden); });
 }
 function pedirQuitarColumna(c: ColumnaCampana) {
+    menuColumna.value = null;
     columnaAQuitar.value = c; modalError.value = ''; modal.value = 'quitarColumna';
 }
 async function quitarColumna() {
@@ -253,6 +254,7 @@ async function quitarColumna() {
     await mutate(async () => { await apiService.eliminarColumnaCampana(campaignId, c.id); modal.value = null; filtros.value = filtros.value.filter(f => f.tipo === 'padrino' || f.columnaId !== c.id); notice.value = `Columna "${c.nombre}" eliminada.`; });
 }
 function editarMensaje(c: ColumnaCampana) {
+    menuColumna.value = null;
     mensajeColumna.value = { ...c }; mensajeForm.value = c.mensaje; modalError.value = ''; modal.value = 'mensaje';
 }
 async function configurarMensaje(c: ColumnaCampana, mensaje: string, destinatario = c.destinatario) {
@@ -421,14 +423,14 @@ async function saveCell(rowId: number, columnId: number, value: GuardarValorCamp
                 <div class="column-menu" role="menu" :style="{ top: `${menuPos.y}px`, left: `${menuPos.x}px` }">
                     <button v-if="menuColumnaActual.columna.tipo === 'select'" type="button" role="menuitem" :disabled="cerrada || working || loading" @click="editarOpciones(menuColumnaActual.columna)"><Pencil :size="14" /> Editar opciones</button>
                     <template v-if="menuColumnaActual.columna.tipo === 'whatsapp'">
-                        <button type="button" role="menuitem" :disabled="cerrada || working || loading" @click="menuColumna = null; editarMensaje(menuColumnaActual.columna)"><Pencil :size="14" /> Editar mensaje</button>
+                        <button type="button" role="menuitem" :disabled="cerrada || working || loading" @click="editarMensaje(menuColumnaActual.columna)"><Pencil :size="14" /> Editar mensaje</button>
                         <label class="menu-field">Enviar a<select :value="menuColumnaActual.columna.destinatario" :disabled="cerrada || working || loading" @change="configurarMensaje(menuColumnaActual.columna, menuColumnaActual.columna.mensaje, ($event.target as HTMLSelectElement).value as 'beneficiario' | 'colaborador')"><option value="beneficiario">Beneficiario</option><option value="colaborador">Colaborador</option></select></label>
                         <hr />
                     </template>
                     <button type="button" role="menuitem" :disabled="cerrada || working || loading || menuColumnaActual.index === 0" @click="moverColumna(menuColumnaActual.index, -1); menuColumna = null"><ChevronLeft :size="14" /> Mover a la izquierda</button>
                     <button type="button" role="menuitem" :disabled="cerrada || working || loading || menuColumnaActual.index === detalle.columnas.length - 1" @click="moverColumna(menuColumnaActual.index, 1); menuColumna = null"><ChevronRight :size="14" /> Mover a la derecha</button>
                     <hr />
-                    <button type="button" role="menuitem" class="danger" :disabled="cerrada || working || loading" @click="menuColumna = null; pedirQuitarColumna(menuColumnaActual.columna)"><Trash2 :size="14" /> Eliminar columna</button>
+                    <button type="button" role="menuitem" class="danger" :disabled="cerrada || working || loading" @click="pedirQuitarColumna(menuColumnaActual.columna)"><Trash2 :size="14" /> Eliminar columna</button>
                 </div>
             </template>
         </template>
