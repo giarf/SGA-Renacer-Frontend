@@ -64,8 +64,16 @@ export type FiltroCampana =
 const SIN_DATO = '';
 /** Opciones de un filtro de lista: los valores que de verdad aparecen en la campaña, más "sin dato" si falta en alguno. */
 export function opcionesLista(participantes: ParticipanteCampana[], columna: ColumnaCampana): string[] {
+    if (columna.tipo === 'select') return [...(columna.opciones ?? []).map(o => o.id), SIN_DATO];
+    if (columna.tipo === 'rating') return ['0', '1', '2', '3', '4', '5', SIN_DATO];
     const valores = new Set(participantes.map(p => textoFicha(p, columna).trim()));
     return [...valores].sort((a, b) => a === SIN_DATO ? 1 : b === SIN_DATO ? -1 : a.localeCompare(b, 'es'));
+}
+
+export function etiquetaOpcionFiltro(columna: ColumnaCampana | undefined, valor: string): string {
+    if (columna?.tipo === 'select') return valor ? columna.opciones?.find(o => o.id === valor)?.nombre ?? 'Opción eliminada' : 'Sin opción';
+    if (columna?.tipo === 'rating') return valor === '' ? 'Sin calificar' : `${valor} ${valor === '1' ? 'estrella' : 'estrellas'}`;
+    return valor || 'Sin dato';
 }
 
 export function cumpleFiltro(p: ParticipanteCampana, f: FiltroCampana, columnas: ColumnaCampana[]): boolean {
@@ -74,7 +82,12 @@ export function cumpleFiltro(p: ParticipanteCampana, f: FiltroCampana, columnas:
     // Si la columna se eliminó, su filtro ya no restringe nada.
     if (!columna) return true;
     if (f.tipo === 'casilla') return (p.valores[String(columna.id)]?.valor === true) === f.marcada;
-    if (f.tipo === 'lista') return textoFicha(p, columna).trim() === f.valor;
+    if (f.tipo === 'lista') {
+        if (columna.tipo === 'select' || columna.tipo === 'rating') {
+            return String(p.valores[String(columna.id)]?.valor ?? SIN_DATO) === f.valor;
+        }
+        return textoFicha(p, columna).trim() === f.valor;
+    }
     if (f.tipo === 'texto') return !f.texto.trim() || normalizeSearch(textoFicha(p, columna)).includes(normalizeSearch(f.texto));
     const n = Number(datoFicha(p, columna));
     if (datoFicha(p, columna) == null || Number.isNaN(n)) return f.desde == null && f.hasta == null;
@@ -85,9 +98,10 @@ export const cumpleFiltros = (p: ParticipanteCampana, filtros: FiltroCampana[], 
 
 export function describirFiltro(f: FiltroCampana, columnas: ColumnaCampana[]): string {
     if (f.tipo === 'padrino') return f.con ? 'Con padrino' : 'Sin padrino';
-    const nombre = columnas.find(c => c.id === f.columnaId)?.nombre ?? 'Columna eliminada';
+    const columna = columnas.find(c => c.id === f.columnaId);
+    const nombre = columna?.nombre ?? 'Columna eliminada';
     if (f.tipo === 'casilla') return `${nombre}: ${f.marcada ? 'marcado' : 'no marcado'}`;
-    if (f.tipo === 'lista') return `${nombre}: ${f.valor || 'sin dato'}`;
+    if (f.tipo === 'lista') return `${nombre}: ${etiquetaOpcionFiltro(columna, f.valor)}`;
     if (f.tipo === 'texto') return `${nombre} contiene "${f.texto}"`;
     if (f.desde != null && f.hasta != null) return `${nombre}: ${f.desde} a ${f.hasta}`;
     return f.desde != null ? `${nombre}: desde ${f.desde}` : `${nombre}: hasta ${f.hasta}`;

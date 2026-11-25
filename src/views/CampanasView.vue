@@ -14,7 +14,7 @@ import { List, Star } from 'lucide-vue-next';
 import type { ColumnaCampana, OpcionCampana } from '../types';
 import { matchesSearch } from '../utils/search';
 import { whatsappUrl } from '../utils/whatsapp';
-import { CAMPOS_FICHA, campoDe, cumpleFiltros, datoFicha, describirFiltro, modoDe, opcionesLista, telefonoGestor, textoFicha, type FiltroCampana, type PersonaFicha } from '../utils/campanaFiltros';
+import { CAMPOS_FICHA, campoDe, cumpleFiltros, datoFicha, describirFiltro, etiquetaOpcionFiltro, modoDe, opcionesLista, telefonoGestor, textoFicha, type FiltroCampana, type PersonaFicha } from '../utils/campanaFiltros';
 import type { Campana, CampoFicha, CrearCampana, DetalleCampana, EntidadResumen, EstadoCampana, ParticipanteCampana, TipoColumnaCampana, GuardarValorCampana, ValorAsistencia, ValorCampana } from '../types';
 
 const route = useRoute();
@@ -67,12 +67,14 @@ const rows = computed(() => (detalle.value?.participantes ?? []).filter(p =>
         ...columnasFicha.value.map(c => textoFicha(p, c))) &&
     cumpleFiltros(p, filtros.value, detalle.value?.columnas ?? [])));
 const checkpoints = computed(() => detalle.value?.columnas.filter(c => c.tipo === 'boolean') ?? []);
+const columnasOpciones = computed(() => detalle.value?.columnas.filter(c => c.tipo === 'select' || c.tipo === 'rating') ?? []);
 const columnaObjetivo = computed(() => detalle.value?.columnas.find(c => String(c.id) === nuevoFiltro.value.objetivo) ?? null);
 const modoObjetivo = computed(() => {
     const c = columnaObjetivo.value;
     if (nuevoFiltro.value.objetivo === 'padrino') return 'padrino';
     if (!c) return null;
     if (c.tipo === 'boolean') return 'casilla';
+    if (c.tipo === 'select' || c.tipo === 'rating') return 'lista';
     const ref = campoDe(c);
     return ref ? modoDe(ref.campo) : null;
 });
@@ -348,11 +350,11 @@ async function saveCell(rowId: number, columnId: number, value: GuardarValorCamp
                                     </ul>
                                     <form class="filter-builder" @submit.prevent="agregarFiltro">
                                         <span class="filter-join">{{ filtros.length ? 'y' : 'Donde' }}</span>
-                                        <select v-model="nuevoFiltro.objetivo" aria-label="Filtrar por"><option value="" disabled>Campo…</option><option value="padrino">Padrino / madrina</option><optgroup v-if="checkpoints.length" label="Casillas"><option v-for="c in checkpoints" :key="c.id" :value="String(c.id)">{{ c.nombre }}</option></optgroup><optgroup v-if="columnasFicha.length" label="Datos de la ficha"><option v-for="c in columnasFicha" :key="c.id" :value="String(c.id)">{{ c.nombre }}</option></optgroup></select>
+                                        <select v-model="nuevoFiltro.objetivo" aria-label="Filtrar por"><option value="" disabled>Campo…</option><option value="padrino">Padrino / madrina</option><optgroup v-if="checkpoints.length" label="Casillas"><option v-for="c in checkpoints" :key="c.id" :value="String(c.id)">{{ c.nombre }}</option></optgroup><optgroup v-if="columnasOpciones.length" label="Selección y calificación"><option v-for="c in columnasOpciones" :key="c.id" :value="String(c.id)">{{ c.nombre }}</option></optgroup><optgroup v-if="columnasFicha.length" label="Datos de la ficha"><option v-for="c in columnasFicha" :key="c.id" :value="String(c.id)">{{ c.nombre }}</option></optgroup></select>
                                         <select v-if="modoObjetivo === 'padrino'" v-model="nuevoFiltro.marcada" aria-label="Condición"><option value="si">está asignado</option><option value="no">no está asignado</option></select>
                                         <select v-else-if="modoObjetivo === 'casilla'" v-model="nuevoFiltro.marcada" aria-label="Condición"><option value="si">está marcado</option><option value="no">no está marcado</option></select>
                                         <template v-else-if="modoObjetivo === 'rango'"><input v-model="nuevoFiltro.desde" type="number" placeholder="Desde" aria-label="Desde" class="range-input" /><input v-model="nuevoFiltro.hasta" type="number" placeholder="Hasta" aria-label="Hasta" class="range-input" /></template>
-                                        <select v-else-if="modoObjetivo === 'lista'" v-model="nuevoFiltro.valor" aria-label="Valor"><option v-for="o in opcionesObjetivo" :key="o" :value="o">{{ o || 'Sin dato' }}</option></select>
+                                        <select v-else-if="modoObjetivo === 'lista'" v-model="nuevoFiltro.valor" aria-label="Valor"><option v-for="o in opcionesObjetivo" :key="o" :value="o">{{ etiquetaOpcionFiltro(columnaObjetivo ?? undefined, o) }}</option></select>
                                         <input v-else-if="modoObjetivo === 'texto'" v-model="nuevoFiltro.texto" placeholder="contiene…" aria-label="Texto a buscar" />
                                         <button class="tool add" :disabled="!filtroValido"><Plus :size="13" /> Agregar</button>
                                     </form>
