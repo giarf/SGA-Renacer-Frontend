@@ -6,6 +6,7 @@ import type { AjusteIngresoPayload,
     EstadoCampana,
     ValorCampana,
     TipoColumnaCampana,
+    OpcionCampana,
     GuardarValorCampana,
     VinculoApoderado,
     HuellaRegistrada,
@@ -377,8 +378,11 @@ export const apiService = {
     quitarParticipanteCampana(id: number, participanteId: number): Promise<void> {
         return requestJson(`${API_BASE_URL}/campanas/${id}/participantes/${participanteId}`, { method: 'DELETE' });
     },
-    crearColumnaCampana(id: number, datos: { nombre: string; tipo: TipoColumnaCampana; campo?: string }): Promise<{ id: number }> {
+    crearColumnaCampana(id: number, datos: { nombre: string; tipo: TipoColumnaCampana; campo?: string; opciones?: OpcionCampana[] }): Promise<{ id: number }> {
         return requestJson(`${API_BASE_URL}/campanas/${id}/columnas`, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(datos) });
+    },
+    configurarOpcionesCampana(id: number, columnaId: number, opciones: OpcionCampana[], version: number): Promise<void> {
+        return requestJson(`${API_BASE_URL}/campanas/${id}/columnas/${columnaId}/opciones`, { method: 'PUT', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ opciones, version }) });
     },
     ordenarColumnasCampana(id: number, columnas: number[]): Promise<void> {
         return requestJson(`${API_BASE_URL}/campanas/${id}/orden-columnas`, { method: 'PUT', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ columnas }) });

@@ -25,9 +25,10 @@ export interface FichaCampana {
 }
 export type CampoFicha = keyof FichaCampana;
 export interface ContactoCampana { id: number; nombreCompleto: string; telefono?: string | null; gestor?: string | null; ficha?: FichaCampana | null }
-export type TipoColumnaCampana = TipoColumnaAsistencia | 'whatsapp' | 'ficha';
+export type TipoColumnaCampana = TipoColumnaAsistencia | 'whatsapp' | 'ficha' | 'select' | 'rating';
+export interface OpcionCampana { id: string; nombre: string }
 export interface MensajeCampana { texto: string; enviado: boolean }
-export interface ColumnaCampana { id: number; nombre: string; tipo: TipoColumnaCampana; clave?: string | null; mensaje: string; destinatario: 'beneficiario' | 'colaborador'; version: number }
+export interface ColumnaCampana { id: number; nombre: string; tipo: TipoColumnaCampana; clave?: string | null; mensaje: string; destinatario: 'beneficiario' | 'colaborador'; version: number; opciones?: OpcionCampana[] }
 export interface GuardarValorCampana { valor: DatoAsistencia | MensajeCampana; version: number; columnaVersion?: number }
 export interface ValorCampana extends GuardarValorCampana { actualizadoEn: string }
 export interface ParticipanteCampana {

@@ -9,7 +9,9 @@ import ModalCrearPersona from '../components/ModalCrearPersona.vue';
 import { buscarCoherente } from '../components/EntidadSelector.vue';
 import AsistenciaCelda from '../components/AsistenciaCelda.vue';
 import CampanaMensajeCelda from '../components/CampanaMensajeCelda.vue';
-import type { ColumnaCampana } from '../types';
+import CampanaOpcionCelda from '../components/CampanaOpcionCelda.vue';
+import { List, Star } from 'lucide-vue-next';
+import type { ColumnaCampana, OpcionCampana } from '../types';
 import { matchesSearch } from '../utils/search';
 import { whatsappUrl } from '../utils/whatsapp';
 import { CAMPOS_FICHA, campoDe, cumpleFiltros, datoFicha, describirFiltro, modoDe, opcionesLista, telefonoGestor, textoFicha, type FiltroCampana, type PersonaFicha } from '../utils/campanaFiltros';
@@ -33,6 +35,16 @@ const nuevoFiltro = ref({ objetivo: '', marcada: 'si', desde: '', hasta: '', val
 const modal = ref<'campana' | 'persona' | 'padrino' | 'columna' | 'mensaje' | 'quitar' | 'quitarColumna' | null>(null);
 const mensajeColumna = ref<ColumnaCampana | null>(null);
 const columnaAQuitar = ref<ColumnaCampana | null>(null);
+const columnaOpciones = ref<ColumnaCampana | null>(null);
+const opciones = ref<OpcionCampana[]>([]);
+const nuevaOpcion = (nombre = ''): OpcionCampana => ({ id: crypto.randomUUID(), nombre });
+const opcionesValidas = computed(() => opciones.value.length > 0 && opciones.value.every(o => o.nombre.trim()) && new Set(opciones.value.map(o => o.nombre.trim().toLowerCase())).size === opciones.value.length);
+function editarOpciones(c: ColumnaCampana) {
+    open('columna');
+    columnaOpciones.value = c;
+    opciones.value = (c.opciones ?? []).map(o => ({ ...o }));
+    menuColumna.value = null;
+}
 const mensajeForm = ref('');
 const modalError = ref('');
 const selected = ref<ParticipanteCampana | null>(null);
@@ -108,7 +120,7 @@ function abrirMenuColumna(columnaId: number, event: MouseEvent) {
     menuPos.value = { x: Math.max(8, Math.min(r.right - 220, window.innerWidth - 228)), y: r.bottom + 4 };
     menuColumna.value = columnaId;
 }
-const ICONOS_COLUMNA = { boolean: SquareCheck, text: Type, number: Hash, whatsapp: MessageCircle, ficha: IdCard } as const;
+const ICONOS_COLUMNA = { boolean: SquareCheck, text: Type, number: Hash, whatsapp: MessageCircle, ficha: IdCard, select: List, rating: Star } as const;
 const iconoColumna = (tipo: TipoColumnaCampana) => ICONOS_COLUMNA[tipo as keyof typeof ICONOS_COLUMNA] ?? Type;
 const delivered = computed(() => detalle.value?.participantes.filter(p => valor(p, 'entregado') === true).length ?? 0);
 const thanks = computed(() => detalle.value?.participantes.filter(p => valor(p, 'agradecimiento') === true).length ?? 0);
@@ -176,7 +188,11 @@ function open(kind: NonNullable<typeof modal.value>, row: ParticipanteCampana | 
         const today = new Date();
         form.value = { nombre: '', fecha: `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`, descripcion: '', plantilla: 'apadrinamiento' };
     }
-    if (kind === 'columna') columna.value = { nombre: '', tipo: 'boolean', persona: 'beneficiario', campo: 'edad' };
+    if (kind === 'columna') {
+        columna.value = { nombre: '', tipo: 'boolean', persona: 'beneficiario', campo: 'edad' };
+        columnaOpciones.value = null;
+        opciones.value = [nuevaOpcion()];
+    }
 }
 async function mutate(action: () => Promise<void>) {
     if (working.value || loading.value) return;
@@ -208,10 +224,17 @@ async function choose(personaId: number | null) {
 }
 async function addColumn() {
     const campaignId = id.value; if (!campaignId) return;
+    const editar = columnaOpciones.value;
+    if (editar) {
+        if (!opcionesValidas.value) return;
+        await mutate(async () => { await apiService.configurarOpcionesCampana(campaignId, editar.id, opciones.value, editar.version); modal.value = null; });
+        return;
+    }
     const { nombre, tipo, persona, campo } = columna.value;
+    if (tipo === 'select' && !opcionesValidas.value) return;
     const datos = tipo === 'ficha'
         ? { nombre: nombre.trim() || nombreSugerido.value, tipo, campo: `${persona}.${campo}` }
-        : { nombre, tipo };
+        : { nombre, tipo, opciones: tipo === 'select' ? opciones.value : undefined };
     await mutate(async () => { await apiService.crearColumnaCampana(campaignId, datos); modal.value = null; });
 }
 async function moverColumna(index: number, delta: -1 | 1) {
@@ -382,6 +405,7 @@ async function saveCell(rowId: number, columnId: number, value: GuardarValorCamp
                                     <span v-else class="muted-sm">—</span>
                                 </template>
                                 <CampanaMensajeCelda v-else-if="c.tipo === 'whatsapp'" :mensaje="c.mensaje" :columna-version="c.version" :dato="p.valores[String(c.id)]" :label="`${c.nombre} · ${p.beneficiario.nombreCompleto}`" :telefono="c.destinatario === 'beneficiario' ? p.beneficiario.telefono : p.padrino?.telefono" :readonly="cerrada || busy || loading" :variables="{ nombre: (c.destinatario === 'beneficiario' ? p.beneficiario.nombreCompleto : p.padrino?.nombreCompleto) ?? '', beneficiario: p.beneficiario.nombreCompleto, campana: detalle.campana.nombre, gustos: String(valor(p, 'gustos') ?? '') }" :save-value="v => saveCell(p.id, c.id, v)" />
+                                <CampanaOpcionCelda v-else-if="c.tipo === 'select' || c.tipo === 'rating'" :columna="c" :dato="p.valores[String(c.id)]" :label="`${c.nombre} · ${p.beneficiario.nombreCompleto}`" :readonly="cerrada || busy || loading" :save-value="v => saveCell(p.id, c.id, v)" />
                                 <template v-else-if="cerrada"><span>{{ p.valores[String(c.id)]?.valor === true ? 'Sí' : p.valores[String(c.id)]?.valor === false ? 'No' : p.valores[String(c.id)]?.valor ?? '—' }}</span></template>
                                 <AsistenciaCelda v-else :persona-nombre="p.beneficiario.nombreCompleto" :columna="{ ...c, tipo: c.tipo }" :dato="p.valores[String(c.id)] as ValorAsistencia | undefined" :save-value="async v => await saveCell(p.id, c.id, v) as ValorAsistencia" :title="p.valores[String(c.id)] ? `Última actualización: ${actualizado(p.valores[String(c.id)])}` : undefined" />
                             </td>
@@ -395,6 +419,7 @@ async function saveCell(rowId: number, columnId: number, value: GuardarValorCamp
             <template v-if="menuColumnaActual">
                 <div class="popover-backdrop" @click="menuColumna = null" />
                 <div class="column-menu" role="menu" :style="{ top: `${menuPos.y}px`, left: `${menuPos.x}px` }">
+                    <button v-if="menuColumnaActual.columna.tipo === 'select'" type="button" role="menuitem" :disabled="cerrada || working || loading" @click="editarOpciones(menuColumnaActual.columna)"><Pencil :size="14" /> Editar opciones</button>
                     <template v-if="menuColumnaActual.columna.tipo === 'whatsapp'">
                         <button type="button" role="menuitem" :disabled="cerrada || working || loading" @click="menuColumna = null; editarMensaje(menuColumnaActual.columna)"><Pencil :size="14" /> Editar mensaje</button>
                         <label class="menu-field">Enviar a<select :value="menuColumnaActual.columna.destinatario" :disabled="cerrada || working || loading" @change="configurarMensaje(menuColumnaActual.columna, menuColumnaActual.columna.mensaje, ($event.target as HTMLSelectElement).value as 'beneficiario' | 'colaborador')"><option value="beneficiario">Beneficiario</option><option value="colaborador">Colaborador</option></select></label>
@@ -408,12 +433,32 @@ async function saveCell(rowId: number, columnId: number, value: GuardarValorCamp
             </template>
         </template>
 
-        <AsistenciaDialog :open="modal !== null" :title="title" :busy="working || loading" @close="modal = null">
+        <AsistenciaDialog :open="modal !== null" :title="modal === 'columna' && columnaOpciones ? 'Editar opciones' : title" :busy="working || loading" @close="modal = null">
             <p v-if="modalError" role="alert" class="feedback error">{{ modalError }}</p>
             <form v-if="modal === 'mensaje' && mensajeColumna" class="dialog-form" @submit.prevent="configurarMensaje(mensajeColumna, mensajeForm)"><label>Mensaje<textarea v-model="mensajeForm" maxlength="2000" rows="8" /></label><p class="muted">{nombre}: primer nombre del destinatario · {beneficiario} · {campana} · {gustos}</p><button class="btn btn-primary" :disabled="working || loading">Guardar para todos</button></form>
             <form v-if="modal === 'campana'" class="dialog-form" @submit.prevent="create"><label>Nombre<input v-model="form.nombre" required maxlength="120" placeholder="Apadrinamiento Navidad 2026" /></label><label>Fecha de referencia<input v-model="form.fecha" type="date" required /></label><label>Descripción<textarea v-model="form.descripcion" maxlength="2000" rows="3" /></label><label>Plantilla<select v-model="form.plantilla"><option value="apadrinamiento">Apadrinamiento · regalos y agradecimientos</option><option value="personalizada">Personalizada · agregar mis columnas</option></select></label><button class="btn btn-primary" :disabled="working || loading || !form.nombre.trim()">Crear campaña</button></form>
             <div v-else-if="modal === 'persona' || modal === 'padrino'" class="dialog-form"><p v-if="selected">Beneficiario: <strong>{{ selected.beneficiario.nombreCompleto }}</strong></p><p v-if="modal === 'padrino' && selected?.padrino" class="muted">Al cambiar de padrino, la ficha y el agradecimiento quedan pendientes de enviar al nuevo contacto.</p><label>Buscar persona<input v-model="search" placeholder="Nombre o RUT (mínimo 2 caracteres)" :disabled="working" /></label><p v-if="searching" role="status">Buscando…</p><div v-else class="person-results"><button v-for="p in results" :key="p.id" :disabled="working || loading" @click="choose(p.id)"><strong>{{ p.nombreCompleto }}</strong><span>{{ p.identificador || 'Sin RUT' }}<template v-if="modal === 'padrino'"> · {{ padrinoCount(p.id) }} beneficiario(s)</template></span><Plus :size="16" /></button><AgregarPersonaRapida v-if="search.trim().length >= 2 && !results.length" :query="search" @agregar="crearPersonaAbierto = true" /></div><button v-if="modal === 'padrino' && selected?.padrino" class="btn btn-outline" :disabled="working || loading" @click="choose(null)">Quitar padrino y dejar pendiente</button></div>
-            <form v-else-if="modal === 'columna'" class="dialog-form" @submit.prevent="addColumn"><label>Nombre<input v-model="columna.nombre" :required="columna.tipo !== 'ficha'" maxlength="120" :placeholder="columna.tipo === 'ficha' ? nombreSugerido : ''" /></label><label>Tipo<select v-model="columna.tipo"><option value="boolean">Casilla · Sí / No</option><option value="text">Texto</option><option value="number">Número</option><option value="whatsapp">Mensaje de WhatsApp</option><option value="ficha">Dato de la ficha · solo lectura</option></select></label><template v-if="columna.tipo === 'ficha'"><label>De quién<select v-model="columna.persona"><option value="beneficiario">Beneficiario</option><option value="padrino">Padrino / madrina</option></select></label><label>Dato<select v-model="columna.campo"><option v-for="c in CAMPOS_FICHA" :key="c.campo" :value="c.campo" :disabled="camposUsados.has(`${columna.persona}.${c.campo}`)">{{ c.etiqueta }}{{ camposUsados.has(`${columna.persona}.${c.campo}`) ? ' (ya agregado)' : '' }}</option></select></label><p class="muted">Se muestra lo que dice la ficha de cada persona y se actualiza solo. Para cambiar un dato, edita la ficha.</p></template><button class="btn btn-primary" :disabled="working || loading || (columna.tipo === 'ficha' ? camposUsados.has(`${columna.persona}.${columna.campo}`) : !columna.nombre.trim())">Agregar columna</button></form>
+            <form v-else-if="modal === 'columna'" class="dialog-form" @submit.prevent="addColumn">
+                <template v-if="!columnaOpciones">
+                    <label>Nombre<input v-model="columna.nombre" :required="columna.tipo !== 'ficha'" maxlength="120" :placeholder="columna.tipo === 'ficha' ? nombreSugerido : ''" /></label>
+                    <label>Tipo<select v-model="columna.tipo"><option value="boolean">Casilla · Sí / No</option><option value="text">Texto</option><option value="number">Número</option><option value="select">Selección única · opciones de texto</option><option value="rating">Calificación · 0 a 5 estrellas</option><option value="whatsapp">Mensaje de WhatsApp</option><option value="ficha">Dato de la ficha · solo lectura</option></select></label>
+                    <template v-if="columna.tipo === 'ficha'">
+                        <label>De quién<select v-model="columna.persona"><option value="beneficiario">Beneficiario</option><option value="padrino">Padrino / madrina</option></select></label>
+                        <label>Dato<select v-model="columna.campo"><option v-for="c in CAMPOS_FICHA" :key="c.campo" :value="c.campo" :disabled="camposUsados.has(`${columna.persona}.${c.campo}`)">{{ c.etiqueta }}{{ camposUsados.has(`${columna.persona}.${c.campo}`) ? ' (ya agregado)' : '' }}</option></select></label>
+                        <p class="muted">Para cambiar un dato, edita la ficha de la persona.</p>
+                    </template>
+                </template>
+                <template v-if="columnaOpciones || columna.tipo === 'select'">
+                    <p class="muted">Cada fila puede tener una opción o quedar vacía. Puedes renombrar opciones sin perder las asignaciones.</p>
+                    <button v-if="!columnaOpciones && opciones.every(o => !o.nombre.trim())" type="button" class="btn btn-outline" @click="opciones = ['Recibido', 'Revisado', 'Entregado'].map(nuevaOpcion); columna.nombre ||= 'Estado del regalo'">Usar estados del regalo</button>
+                    <div v-for="(o, i) in opciones" :key="o.id" class="option-row">
+                        <input v-model="o.nombre" required maxlength="80" :aria-label="`Opción ${i + 1}`" :placeholder="`Opción ${i + 1}`" />
+                        <button type="button" class="icon-btn" :disabled="opciones.length <= 1" :aria-label="`Quitar opción ${i + 1}`" @click="opciones.splice(i, 1)"><X :size="14" /></button>
+                    </div>
+                    <button type="button" class="btn btn-outline" :disabled="opciones.length >= 50" @click="opciones.push(nuevaOpcion())"><Plus :size="14" /> Agregar opción</button>
+                </template>
+                <button class="btn btn-primary" :disabled="working || loading || ((columnaOpciones || columna.tipo === 'select') && !opcionesValidas) || (!columnaOpciones && (columna.tipo === 'ficha' ? camposUsados.has(`${columna.persona}.${columna.campo}`) : !columna.nombre.trim()))">{{ columnaOpciones ? 'Guardar opciones' : 'Agregar columna' }}</button>
+            </form>
             <div v-else-if="modal === 'quitar'" class="dialog-form"><p>¿Retirar a <strong>{{ selected?.beneficiario.nombreCompleto }}</strong> de esta campaña? Se eliminará su seguimiento en esta campaña. La persona seguirá registrada en el sistema.</p><button class="btn btn-primary" :disabled="working || loading" @click="remove">Retirar participante</button></div>
             <div v-else-if="modal === 'quitarColumna'" class="dialog-form"><p>¿Eliminar la columna <strong>{{ columnaAQuitar?.nombre }}</strong>? Se borrarán los datos de esta columna para todos los participantes y no se pueden recuperar.</p><button class="btn btn-primary" :disabled="working || loading" @click="quitarColumna">Eliminar columna</button></div>
         </AsistenciaDialog>
@@ -525,6 +570,7 @@ th.beneficiary { z-index: 3; }
 .feedback { padding: .5rem .75rem; margin-bottom: .6rem; font-size: .8rem; border: 1px solid var(--accent-color); border-radius: .5rem; background: var(--accent-color-muted); } .feedback.error { border-color: var(--text-muted); background: var(--bg-card); }
 .empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: .8rem; padding: 3rem 1rem; color: var(--text-muted); } .empty h2 { color: var(--text-primary); }
 .dialog-form { display: grid; gap: 1rem; } .dialog-form label { display: grid; gap: .4rem; font-size: .85rem; font-weight: 650; } .dialog-form textarea { resize: vertical; }
+.option-row { display: flex; align-items: center; gap: .5rem; }
 .person-results { display: grid; gap: .5rem; max-height: 320px; overflow-y: auto; } .person-results button { position: relative; padding: .85rem 2rem .85rem .85rem; border: 1px solid var(--card-border); border-radius: .65rem; text-align: left; } .person-results button:hover { border-color: var(--accent-color); } .person-results strong, .person-results span { display: block; } .person-results span { color: var(--text-muted); font-size: .75rem; margin-top: .25rem; } .person-results svg { position: absolute; right: .75rem; top: 1rem; }
 button:disabled { opacity: .5; cursor: not-allowed; }
 @media (hover: none) { .head-menu-btn, .row-edit, .row-delete { opacity: 1; } }
