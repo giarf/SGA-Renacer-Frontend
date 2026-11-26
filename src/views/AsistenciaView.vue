@@ -491,8 +491,6 @@ h2, h3 { font-weight: 700; }
 .column-heading { display: flex; align-items: center; justify-content: space-between; gap: .7rem; min-width: 155px; max-width: 290px; overflow-wrap: anywhere; }
 .column-heading small { display: block; opacity: .75; font-size: .65rem; margin-top: .2rem; }
 .sheet-footer { display: flex; justify-content: space-between; gap: 1rem; padding: 1rem 1.5rem; color: var(--text-muted); font-size: .7rem; }
-.dialog-form { display: flex; flex-direction: column; gap: 1rem; }
-.dialog-form label input, .dialog-form label select, .dialog-form label textarea { display: block; margin-top: .5rem; }
 .dialog-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: .75rem; margin-top: .5rem; }
 button:disabled { opacity: .5; cursor: not-allowed; }
 @media (max-width: 1000px) { .event-header { flex-wrap: wrap; gap: .5rem .75rem; } .event-title { flex-basis: calc(100% - 3rem); } .attendance-count { border-left: 0; padding-left: 0; } .sync-status { margin-right: auto; } }

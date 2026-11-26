@@ -12,6 +12,7 @@
     --input-bg: #fbfaf7;
     --input-border: #c9ced9;
     --input-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+    --input-error: #b42318;
     --accent-color: #006d8f;
     --accent-color-hover: #005675;
     --accent-color-muted: color-mix(in srgb, var(--accent-color) 12%, transparent);
@@ -30,6 +31,7 @@
     --input-bg: #1f2026;
     --input-border: #343742;
     --input-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+    --input-error: #fda29b;
     --accent-color: #0c8bb1;
     --accent-color-hover: #0b7998;
     --accent-color-muted: color-mix(in srgb, var(--accent-color) 25%, transparent);
@@ -54,13 +56,13 @@ a {
 }
 
 label {
-    color: var(--text-muted);
+    color: var(--text-primary);
     font-size: 0.85rem;
     font-weight: 600;
     letter-spacing: 0.01em;
 }
 
-input,
+input:where(:not([type="checkbox"], [type="radio"], [type="range"], [type="color"])),
 select,
 textarea {
     background-color: var(--input-bg);
@@ -70,14 +72,17 @@ textarea {
     border-width: 1px;
     padding: 0.65rem 0.85rem;
     width: 100%;
+    min-width: 0;
     box-shadow: var(--input-shadow);
     transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
 }
 
-input[type="checkbox"] {
-    width: auto;
-    padding: 0;
-    box-shadow: none;
+input:where([type="checkbox"], [type="radio"], [type="range"]) {
+    accent-color: var(--accent-color);
+}
+
+textarea {
+    resize: vertical;
 }
 
 input::placeholder,
@@ -85,12 +90,36 @@ textarea::placeholder {
     color: color-mix(in srgb, var(--text-primary) 50%, transparent);
 }
 
-input:focus,
-select:focus,
-textarea:focus {
-    outline: none;
-    border-color: var(--accent-color);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-color) 15%, transparent);
+:where(input, select, textarea):where(:enabled):hover {
+    border-color: color-mix(in srgb, var(--text-muted) 55%, var(--input-border));
+}
+
+:where(input, select, textarea):focus-visible {
+    --field-ring: var(--accent-color);
+    border-color: var(--field-ring);
+    outline: 2px solid var(--field-ring);
+    outline-offset: 2px;
+}
+
+:where(input, select, textarea):is(:user-invalid, [aria-invalid="true"]) {
+    --field-ring: var(--input-error);
+    border-color: var(--input-error);
+}
+
+:where(input, select, textarea):disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+
+.dialog-form {
+    display: grid;
+    gap: 1rem;
+}
+
+.dialog-form :where(label:has(input, select, textarea)) {
+    display: grid;
+    gap: 0.4rem;
+    min-width: 0;
 }
 
 button {

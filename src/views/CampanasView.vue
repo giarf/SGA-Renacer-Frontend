@@ -573,7 +573,6 @@ th.beneficiary { z-index: 3; }
 
 .feedback { padding: .5rem .75rem; margin-bottom: .6rem; font-size: .8rem; border: 1px solid var(--accent-color); border-radius: .5rem; background: var(--accent-color-muted); } .feedback.error { border-color: var(--text-muted); background: var(--bg-card); }
 .empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: .8rem; padding: 3rem 1rem; color: var(--text-muted); } .empty h2 { color: var(--text-primary); }
-.dialog-form { display: grid; gap: 1rem; } .dialog-form label { display: grid; gap: .4rem; font-size: .85rem; font-weight: 650; } .dialog-form textarea { resize: vertical; }
 .option-row { display: flex; align-items: center; gap: .5rem; }
 .person-results { display: grid; gap: .5rem; max-height: 320px; overflow-y: auto; } .person-results button { position: relative; padding: .85rem 2rem .85rem .85rem; border: 1px solid var(--card-border); border-radius: .65rem; text-align: left; } .person-results button:hover { border-color: var(--accent-color); } .person-results strong, .person-results span { display: block; } .person-results span { color: var(--text-muted); font-size: .75rem; margin-top: .25rem; } .person-results svg { position: absolute; right: .75rem; top: 1rem; }
 button:disabled { opacity: .5; cursor: not-allowed; }
