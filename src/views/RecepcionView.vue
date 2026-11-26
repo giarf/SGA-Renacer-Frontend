@@ -171,7 +171,7 @@ onMounted(async () => {
                 <InlineDateControl v-model="donationForm.fecha" />
             </div>
 
-            <form @submit.prevent="submitDonacion" class="grid grid-cols-1 gap-4 p-5 md:grid-cols-2">
+            <form @submit.prevent="submitDonacion" :aria-busy="submitting" class="grid grid-cols-1 gap-4 p-5 md:grid-cols-2">
                 <EntidadSelector
                     v-model="selectedEntidad"
                     class="md:col-span-2"
@@ -202,41 +202,45 @@ onMounted(async () => {
                     placeholder="Buscar gestor por nombre o RUT..."
                 />
 
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">
-                        Monto <span class="text-red-500">*</span>
+                <div class="form-field">
+                    <label for="donacion-monto">
+                        Monto <span class="form-required" aria-hidden="true">*</span>
                     </label>
                     <input
+                        id="donacion-monto"
                         :value="donationForm.monto"
                         type="text"
                         inputmode="numeric"
                         pattern="[0-9]*"
                         required
-                        class="mt-1 compact-control"
+                        class="compact-control"
                         @input="donationForm.monto = integerFromInput($event)"
                     >
                 </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Propósito específico</label>
+                <div class="form-field">
+                    <label for="donacion-proposito">Propósito específico</label>
                     <input
+                        id="donacion-proposito"
                         v-model="donationForm.proposito"
                         type="text"
                         placeholder="Ej: Programa Invierno"
-                        class="mt-1 compact-control"
+                        class="compact-control"
                     >
                 </div>
 
-                <div class="md:col-span-2 space-y-2">
-                    <label class="block text-sm font-medium text-gray-700">
-                        Fondo destino <span class="text-red-500">*</span>
+                <div class="form-field md:col-span-2">
+                    <label v-if="!fondosLoading && fondos.length" for="donacion-fondo">
+                        Fondo destino <span class="form-required" aria-hidden="true">*</span>
                     </label>
+                    <span v-else class="text-sm font-semibold">Fondo destino</span>
                     <div v-if="fondosLoading" class="text-sm text-[var(--text-muted)]">Cargando fondos disponibles...</div>
                     <template v-else>
                         <select
                             v-if="fondos.length > 0"
+                            id="donacion-fondo"
                             v-model="selectedFondoId"
                             required
-                            class="mt-1 compact-control"
+                            class="compact-control"
                         >
                             <option v-for="fondo in fondos" :key="fondo.id" :value="fondo.id">
                                 {{ fondo.nombre }} — Saldo: {{ currencyFormatter.format(fondo.saldoActual ?? 0) }}
@@ -248,13 +252,14 @@ onMounted(async () => {
                     </template>
                 </div>
 
-                <div class="md:col-span-2">
-                    <label class="block text-sm font-medium text-gray-700">Anotaciones (opcional)</label>
+                <div class="form-field md:col-span-2">
+                    <label for="donacion-anotaciones">Anotaciones (opcional)</label>
                     <textarea
+                        id="donacion-anotaciones"
                         v-model="donationForm.anotaciones"
                         rows="2"
                         placeholder="Notas adicionales o contexto"
-                        class="mt-1 compact-control"
+                        class="compact-control"
                     ></textarea>
                 </div>
 

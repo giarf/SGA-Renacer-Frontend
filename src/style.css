@@ -62,6 +62,23 @@ label {
     letter-spacing: 0.01em;
 }
 
+/* Shared by full-page and modal forms, including legacy Tailwind labels. */
+form :where(label) {
+    color: var(--text-primary);
+}
+
+.form-field,
+.dialog-form :where(label:has(input, select, textarea)) {
+    display: grid;
+    align-content: start;
+    gap: 0.4rem;
+    min-width: 0;
+}
+
+.form-required {
+    color: var(--input-error);
+}
+
 input:where(:not([type="checkbox"], [type="radio"], [type="range"], [type="color"])),
 select,
 textarea {
@@ -114,12 +131,6 @@ textarea::placeholder {
 .dialog-form {
     display: grid;
     gap: 1rem;
-}
-
-.dialog-form :where(label:has(input, select, textarea)) {
-    display: grid;
-    gap: 0.4rem;
-    min-width: 0;
 }
 
 button {
